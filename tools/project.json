@@ -1,0 +1,22 @@
+{
+  "name": "quality",
+  "implicitDependencies": ["web", "domain"],
+  "namedInputs": {
+    "default": [
+      "{workspaceRoot}/tests/**/*",
+      "{workspaceRoot}/*.ts",
+      "{workspaceRoot}/tsconfig.tools.json",
+      "{workspaceRoot}/libs/domain/**/*",
+      "{workspaceRoot}/apps/web/src/lib/**/*",
+      "sharedGlobals"
+    ]
+  },
+  "targets": {
+    "test": { "command": "vitest run", "outputs": [] },
+    "lint": {
+      "command": "eslint tests vitest.config.ts playwright.config.ts --max-warnings=0"
+    },
+    "typecheck": { "command": "tsc -p tsconfig.tools.json --noEmit" },
+    "e2e": { "command": "playwright test", "cache": false }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "fats",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.27.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11 <12"
+  },
+  "scripts": {
+    "dev": "nx run web:dev --output-style=stream",
+    "build": "nx run web:build --output-style=static",
+    "start": "nx run web:start --output-style=stream",
+    "lint": "nx run-many -t lint --output-style=static",
+    "typecheck": "nx run-many -t typecheck --output-style=static",
+    "test": "nx run quality:test --output-style=stream",
+    "test:e2e": "nx run quality:e2e --output-style=stream",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@fats/domain": "workspace:*",
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.0",
+    "nx": "23.3.0",
+    "postcss": "8.5.30",
+    "prettier": "3.9.10",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "5.0.4"
+  }
+}

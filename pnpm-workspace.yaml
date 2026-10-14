@@ -1,0 +1,17 @@
+packages:
+  - apps/*
+  - libs/*
+allowBuilds:
+  nx: true
+  unrs-resolver: true
+  esbuild: true
+  sharp: true
+  '@tailwindcss/oxide': true
+saveExact: true
+minimumReleaseAgeExclude:
+  - '@playwright/test@1.64.1'
+  - lucide-react@1.57.0
+  - playwright-core@1.64.1
+  - playwright@1.64.1
+  - react-dom@19.3.1
+  - react@19.3.1

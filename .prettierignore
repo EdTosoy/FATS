@@ -1,0 +1,9 @@
+node_modules
+.pnpm-store
+.nx
+.next
+pnpm-lock.yaml
+test-results
+playwright-report
+uiux
+**/next-env.d.ts
