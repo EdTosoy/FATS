@@ -11,7 +11,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open <http://localhost:3000>. The demo profile is Maria Santos; the application list starts empty. Use **Save a job**, open its detail page, and update its status. Reload to confirm persistence. Use the same hostname and port each time: `localhost` and `127.0.0.1` have separate browser storage.
+Open <http://localhost:3000>. The demo profile is Maria Santos; the application list starts empty. Use **Save a job**, open its detail page, and update its status. Use **Schedule interview** to link a conversation, select its date/time and timezone, then prepare and reflect in its detail page. Interviews and the dashboard show the same upcoming records. Reload to confirm persistence. Use the same hostname and port each time: `localhost` and `127.0.0.1` have separate browser storage.
 
 ```sh
 pnpm typecheck
@@ -36,7 +36,10 @@ In a restricted agent environment, Nx checks can use `NX_DAEMON=false NX_ISOLATE
 - [Scope and next steps](docs/ROADMAP.md)
 - [Design system](docs/DESIGN_SYSTEM.md)
 - [Verification evidence](docs/VERIFICATION.md)
+- [Phase 2 verification](docs/PHASE_2_VERIFICATION.md)
+- [Local backups and recovery](docs/BACKUPS.md)
+- [Phase 2.1 verification](docs/PHASE_2_1_VERIFICATION.md)
 
 The three original moodboards are preserved in `uiux/`. Source lives in `apps/web/` and `libs/domain/`; tests live in `tests/`.
 
-This version stores applications only in this browser. There is no authentication, device sync, resume upload, interview scheduling, or automatic capture. Clearing site data removes saved jobs. Do not use this local development slice as a durable backup of your search.
+This version stores applications, manual interviews, and plain-text notes only in this browser. There is no authentication, encryption, device sync, resume upload, calendar sync, reminders, or automatic capture. Clearing site data removes all saved records. Use Settings → Data management to download a private, unencrypted JSON backup and preview/confirm a full restore. Backups include applications and interviews, not resume files. Keep the downloaded file safely; browser storage is not a durable backup.

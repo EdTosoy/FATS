@@ -278,7 +278,7 @@ test('failed browser writes keep the draft and previous application intact', asy
   await expect(page.locator('.detail-company .status')).toHaveText('Saved');
 });
 
-test('navigation and planned page shells are honest on desktop and mobile', async ({
+test('navigation and page boundaries are honest on desktop and mobile', async ({
   page,
 }, testInfo) => {
   if (testInfo.project.name === 'mobile') {
@@ -305,8 +305,8 @@ test('navigation and planned page shells are honest on desktop and mobile', asyn
     page.getByRole('heading', { name: 'No scheduled interviews.' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: /Schedule/ }),
-  ).not.toBeVisible();
+    page.getByRole('link', { name: 'Save an application first' }),
+  ).toBeVisible();
   await page.goto('/settings');
   await expect(
     page.getByRole('heading', { name: 'Saved in this browser' }),

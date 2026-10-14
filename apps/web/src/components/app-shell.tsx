@@ -100,11 +100,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <strong>
               {pathname.startsWith('/applications')
                 ? 'Applications'
-                : pathname === '/'
-                  ? 'Dashboard'
-                  : pathname
-                      .slice(1)
-                      .replace(/^./, (char) => char.toUpperCase())}
+                : pathname.startsWith('/interviews')
+                  ? 'Interviews'
+                  : pathname === '/'
+                    ? 'Dashboard'
+                    : pathname
+                        .slice(1)
+                        .replace(/^./, (char) => char.toUpperCase())}
             </strong>
           </div>
           <Link href="/" className="mobile-brand" aria-label="FATS dashboard">

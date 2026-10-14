@@ -56,8 +56,8 @@ export default function HelpPage() {
           </span>
           <h2>Taking care of your saved data</h2>
           <p>
-            Your applications are saved only in this browser. Use the same
-            browser and site address to find them again.
+            Your applications, interviews, and notes are saved only in this
+            browser. Use the same browser and site address to find them again.
           </p>
           <h3>If saving doesn’t work</h3>
           <p>
@@ -68,15 +68,54 @@ export default function HelpPage() {
           <h3>If your saved data can’t be read</h3>
           <p>
             FATS leaves it untouched. Don’t clear site data to fix the error;
-            that deletes your applications. Ask the person maintaining your
-            local FATS setup to back up and inspect the data before making
-            changes.
+            that deletes your applications, interviews, and notes. Ask the
+            person maintaining your local FATS setup to back up and inspect the
+            data before making changes.
           </p>
+          <h3>Keep a backup and recover it</h3>
+          <p>
+            Open Settings → Data management to export your applications,
+            interviews, and notes as JSON. The file is private and unencrypted;
+            keep it somewhere safe. To recover it, choose the file, review the
+            counts, and explicitly confirm replacement. A full restore replaces
+            current records; it does not merge them. Cancel leaves your data
+            unchanged. Resume documents are not included.
+          </p>
+          <p>
+            A valid backup can also replace unreadable saved data after your
+            confirmation. First keep a private copy of the original FATS storage
+            value through browser developer tools. If you do not have a valid
+            backup, ask the maintainer for recovery help before changing
+            storage.
+          </p>
+          <ActionLink href="/settings" variant="secondary">
+            Open data management
+          </ActionLink>
         </Card>
       </div>
+      <Card className="content-card guidance-card">
+        <div>
+          <h2>Keep your interviews together</h2>
+          <p>
+            After receiving an invitation, open Interviews or schedule from an
+            application. Enter the date and time in the organizer’s IANA
+            timezone (for example, Asia/Manila). FATS shows that timezone
+            everywhere and asks you to choose an occurrence if clocks move back.
+          </p>
+          <p>
+            Save preparation notes before the conversation and reflections
+            afterwards. Mark it completed or cancelled yourself; application
+            statuses stay independent. This is a personal record: no
+            invitations, calendar sync, or reminders are sent.
+          </p>
+          <ActionLink href="/interviews" variant="secondary">
+            Open interviews
+          </ActionLink>
+        </div>
+      </Card>
       <p className="page-footnote">
-        Resume uploads, interview scheduling, accounts, and device sync are
-        planned. They aren’t available in this version.
+        Resume uploads, accounts, and device sync are planned. They aren’t
+        available in this version.
       </p>
     </>
   );
