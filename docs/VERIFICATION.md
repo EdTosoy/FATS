@@ -1,5 +1,7 @@
 # Phase 0 / Phase 1 verification
 
+This is the historical Phase 0/1 report. Current data safety evidence is in [Phase 2.1 verification](PHASE_2_1_VERIFICATION.md). See [Phase 2 verification](PHASE_2_VERIFICATION.md) for the current manual interview slice, executed checks, and limitations.
+
 Verified locally on 2026-10-15 with Node 24.21.0, pnpm 11.27.0, and system Chromium. The existing branch is `master`; the repository initially had no tracked files. All implementation files remain uncommitted. No publishing, deployment, or production changes were performed.
 
 ## Executed results

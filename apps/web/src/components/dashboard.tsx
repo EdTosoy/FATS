@@ -12,7 +12,8 @@ import {
   Sparkles,
   Sprout,
 } from 'lucide-react';
-import { applicationStatistics } from '@fats/domain';
+import { InterviewDate, ScheduleInterviewButton } from './interview-list';
+import { applicationStatistics, upcomingInterviews } from '@fats/domain';
 import { useApplications } from './application-provider';
 import { ApplicationTable } from './application-table';
 import {
@@ -25,10 +26,16 @@ import {
 } from './ui';
 
 export function Dashboard() {
-  const { applications, loading, error, openForm } = useApplications();
+  const { applications, interviews, now, loading, error, openForm } =
+    useApplications();
   const stats = applicationStatistics(applications);
   const saved = applications.find(
     (application) => application.status === 'Saved',
+  );
+  const upcoming = upcomingInterviews(interviews, now);
+  const nearest = upcoming[0];
+  const nearestApplication = applications.find(
+    (app) => app.id === nearest?.applicationId,
   );
   const inInterview = applications.some(
     (application) => application.status === 'Interview',
@@ -175,24 +182,32 @@ export function Dashboard() {
             </span>
             <div>
               <h3>
-                {saved
-                  ? `Take another look at ${saved.company}.`
-                  : applications.length === 0
-                    ? 'Find a role that feels like you.'
-                    : inInterview
-                      ? 'Make a little room to prepare.'
-                      : 'Keep your progress up to date.'}
+                {nearest
+                  ? `Prepare for your conversation at ${nearestApplication?.company}.`
+                  : saved
+                    ? `Take another look at ${saved.company}.`
+                    : applications.length === 0
+                      ? 'Find a role that feels like you.'
+                      : inInterview
+                        ? 'Make a little room to prepare.'
+                        : 'Keep your progress up to date.'}
               </h3>
               <p>
-                {saved
-                  ? 'Review the requirements, tailor your resume, and apply on the original website when you’re ready.'
-                  : applications.length === 0
-                    ? 'Look on a job website or company careers page. Save the link here so you can come back to it.'
-                    : inInterview
-                      ? 'Review the job description and practice introducing yourself. Scheduling and preparation tools are coming later.'
-                      : 'Applied on the company’s website? Update your status here so your workspace stays in sync.'}
+                {nearest
+                  ? 'Review your preparation notes, practice your introduction, and write down a few questions to ask.'
+                  : saved
+                    ? 'Review the requirements, tailor your resume, and apply on the original website when you’re ready.'
+                    : applications.length === 0
+                      ? 'Look on a job website or company careers page. Save the link here so you can come back to it.'
+                      : inInterview
+                        ? 'Review the job description and practice introducing yourself. Add the interview time and your preparation notes when you receive an invitation.'
+                        : 'Applied on the company’s website? Update your status here so your workspace stays in sync.'}
               </p>
-              {saved ? (
+              {nearest ? (
+                <TextLink href={`/interviews/${nearest.id}`}>
+                  Open interview preparation
+                </TextLink>
+              ) : saved ? (
                 <TextLink href={`/applications/${saved.id}`}>
                   Review saved job
                 </TextLink>
@@ -216,15 +231,33 @@ export function Dashboard() {
             <TextLink href="/interviews">View</TextLink>
           </div>
           <div className="compact-empty">
-            <span className="icon-tile neutral">
-              <CalendarDays size={23} aria-hidden="true" />
+            <span className="count-pill" aria-label="Upcoming interview count">
+              {upcoming.length} upcoming
             </span>
-            <h3>No scheduled interviews</h3>
-            <p>
-              {inInterview
-                ? 'You have an application in Interview. A status alone doesn’t add a date; scheduling will arrive in a later phase.'
-                : 'A little breathing room. Interview scheduling will arrive in a later phase.'}
-            </p>
+            {nearest ? (
+              <>
+                <h3>
+                  {nearestApplication?.company} · {nearestApplication?.title}
+                </h3>
+                <p>{nearest.title}</p>
+                <p>
+                  <InterviewDate interview={nearest} />
+                </p>
+                <TextLink href={`/interviews/${nearest.id}`}>
+                  View interview details
+                </TextLink>
+              </>
+            ) : (
+              <>
+                <h3>No scheduled interviews</h3>
+                <p>
+                  {inInterview
+                    ? 'An Interview application status does not add a date. Save the details from your invitation here.'
+                    : 'A little breathing room. Add an interview when your next invitation arrives.'}
+                </p>
+                {applications.length > 0 && <ScheduleInterviewButton />}
+              </>
+            )}
           </div>
         </Card>
       </div>

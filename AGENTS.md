@@ -5,7 +5,7 @@ Use the global working agreements. This file adds repository-specific context; i
 ## Scope and product invariants
 
 - FATS is a personal job-search companion, primarily for fresh graduates in the Philippines. Employers do not post jobs here. Saving a job does not apply for it.
-- Phase 0 and the narrow Phase 1 slice are implemented here. Resume uploads, scheduling, accounts, backend, AI, crawling, extensions, native apps, and payments remain outside this slice.
+- Phase 0, Phase 1 application tracking, Phase 2 manual interview management, and Phase 2.1 local backup/recovery are implemented here. Resume uploads, calendar integrations, notifications, accounts, backend, AI, crawling, extensions, native apps, and payments remain outside this slice.
 - The default application state is empty. Maria Santos is an explicitly labeled sample profile, not an authenticated user. Never invent default jobs, statistics, interview dates, or working placeholder actions.
 - Preserve all three original `uiux/*.png` moodboards. The Job Tracker reference is primary.
 
@@ -18,6 +18,8 @@ Use the global working agreements. This file adds repository-specific context; i
 - `apps/web/src/lib/local-application-repository.ts`: versioned local-storage adapter. Keep browser storage details out of UI components. Replace/inject the repository when introducing a backend.
 - Update state only after persistence succeeds. Never erase unreadable storage automatically. Surface actionable read/write errors and preserve form inputs when saving fails.
 - All seven statuses are valid manual choices. An Interview status does not imply a scheduled interview.
+- Interviews link to existing applications; scheduling never changes application status. Store the UTC instant and explicit IANA timezone together; reject skipped local times and require a choice for repeated times. Application deletion is restricted while any interviews reference it, including completed/cancelled records.
+- Backups use an independent versioned format and shared domain validation. Restore requires preview and explicit replacement confirmation; write both collections atomically with one storage operation, preserve saved data on failure, and never include unrelated browser storage.
 - Native inputs/selects and explicit labels are preferred. Radix handles modal semantics/focus. Keep links for navigation, buttons for actions, visible focus indicators, and truthful loading/error/empty states.
 - No remote fonts, analytics, credentials, or network calls are needed at runtime. User source links open only on explicit clicks.
 - Use pnpm 11 configuration in `pnpm-workspace.yaml`; `.npmrc` is for registry/auth settings only. Keep dependencies pinned and review the lockfile. Keep native build-script approvals explicit.

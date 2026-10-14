@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { LockKeyhole, UserRound } from 'lucide-react';
 import { Card, PageHeading, TextLink } from '@/components/ui';
+import { DataManagement } from '@/components/data-management';
 
 export const metadata: Metadata = { title: 'Settings' };
 export default function SettingsPage() {
@@ -31,16 +32,18 @@ export default function SettingsPage() {
           </span>
           <h2>Saved in this browser</h2>
           <p>
-            Your jobs stay on this device, in this browser, for this site
-            address. They aren’t synced to an account or another device.
+            Your jobs, interviews, and notes stay on this device, in this
+            browser, for this site address. They aren’t synced to an account or
+            another device.
           </p>
           <p className="muted">
-            Clearing site data will remove your applications. Private browsing
-            may clear them when you close the window.
+            Clearing site data will remove your applications, interviews, and
+            notes. Private browsing may clear them when you close the window.
           </p>
           <TextLink href="/help">Read about your local workspace</TextLink>
         </Card>
       </div>
+      <DataManagement />
     </>
   );
 }

@@ -8,7 +8,7 @@ The repository is a pnpm 11 workspace with Nx 23 task orchestration and local ca
 apps/web/src/app          Routes, layout, global tokens/styles
 apps/web/src/components   Shell, views, provider, reusable UI, job form
 apps/web/src/lib          Local persistence adapter
-libs/domain/src          UI-independent application model and rules
+libs/domain/src          UI-independent application/interview models and rules
 tests/unit               Domain and persistence contract/failure tests
 tests/e2e                Real browser journeys on desktop/mobile
 tools/project.json       Nx quality targets
@@ -18,8 +18,8 @@ The `@fats/domain` workspace package exports TypeScript source; Next transpiles 
 
 ```mermaid
 flowchart LR
-  View[Dashboard / list / detail / form] --> Provider[ApplicationProvider]
-  Provider --> Contract[ApplicationRepository interface]
+  View[Dashboard / application and interview views] --> Provider[ApplicationProvider]
+  Provider --> Contract[WorkspaceRepository interfaces]
   Contract --> Local[LocalApplicationRepository]
   Local --> Rules[Domain validation and creation/update rules]
   Local --> Storage[Browser localStorage: version 1]
@@ -27,7 +27,7 @@ flowchart LR
 
 Routes render inside one application provider. The provider loads after client hydration, reports loading/errors explicitly, and refreshes from the repository after successful writes. All views derive from that collection. A `storage` event refreshes other tabs; the adapter reads the current collection before each write.
 
-`ApplicationRepository` exposes asynchronous `list`, `create`, and `update` methods. The adapter can later become an HTTP implementation without changing the model or view behavior. The provider accepts an injected repository. A future backend will still need authentication, authorization, migrations, conflict policy, and durable error semantics; this interface is not a claim that backend work is already done.
+`WorkspaceRepository` combines `ApplicationRepository` (`list`, `create`, `update`, `deleteApplication`), `InterviewRepository` (`listInterviews`, `upcomingInterviews`, `createInterview`, `updateInterview`), and `BackupRepository` (`exportBackup`, `previewRestore`, `restoreBackup`, `cancelRestore`). Listing can be scoped by application. The update contract supports detail edits, rescheduling, notes, completion, and cancellation. The adapter can later become an HTTP implementation without changing the model or view behavior. The provider accepts an injected workspace repository. A future backend will still need authentication, authorization, migrations, conflict policy, and durable error semantics; this interface is not a claim that backend work is already done.
 
 ## Model and persistence
 
@@ -36,12 +36,32 @@ An application has a UUID, title, company, source URL, location, description, st
 Storage key: `fats.applications.v1`. Shape:
 
 ```json
-{ "version": 1, "applications": [] }
+{ "version": 1, "applications": [], "interviews": [] }
 ```
 
-Stored records are validated before use, including IDs, dates, statuses, required details, and safe URLs. Unknown versions, malformed records, or duplicate IDs cause a visible read error. Nothing is automatically cleared or overwritten. Failed writes reject; the previous persisted state and current form remain available. There is no silent in-memory fallback that pretends a write survived a reload.
+Phase 2 adds an optional `interviews` collection to the existing version 1 envelope. Phase 1 records without it load as zero interviews without modifying storage; the next successful write includes both collections. Keeping them in one `setItem` avoids partial updates across separate storage keys. Phase 1 application fields and IDs are preserved. This is backward read compatibility, not a downgrade guarantee: an older application build does not know to preserve interviews.
+
+An interview stores its ID, application ID, title, stage, UTC `scheduledAt`, IANA `timeZone`, meeting URL/location, status, preparation notes, reflections, and creation/update instants. Company and job details are resolved through the parent. The domain module has no UI or storage imports. URLs allow HTTP(S) without credentials; notes render as plain text.
+
+`resolveInterviewTime` converts date/time in the selected timezone using `Intl.DateTimeFormat` parts and candidate offsets around the appointment. It roundtrips candidates to the requested wall time, rejecting invalid calendar dates and skipped times and requiring earlier/later selection for repeated times. It preserves second-based historical offsets and handles half/quarter-hour zones and date-line skips. No host timezone conversion is used. An unchanged edit preserves the original instant, including a repeated-time occurrence. Changing the date/time/timezone clears any previous disambiguation choice. Timezone rules come from the runtime's ICU/IANA data; future rule changes may alter displayed wall time for an existing fixed instant.
+
+Domain selectors group and sort interviews and derive upcoming records using an explicit `now`. Completed/cancelled interviews are excluded regardless of date; a past scheduled record stays scheduled. The provider updates its clock every 30 seconds and refreshes both collections after successful writes and cross-tab storage events. Dashboard counts and guidance use that same interview collection.
+
+Stored records are validated before use, including IDs, dates, statuses, required details, safe URLs, and parent references. Unknown versions, malformed records, duplicate IDs, or missing parents cause a visible read error. Nothing is automatically cleared or overwritten. Failed writes reject; the previous persisted state and current form remain available. There is no silent in-memory fallback that pretends a write survived a reload.
+
+Deletion policy is **restrict**: `deleteApplication` rejects while any interview references that application, including completed/cancelled history. No deletion UI is added. If external storage editing leaves an orphan, recovery requires privately backing up and repairing the envelope; records are never silently removed. Interview creation and reassociation validate the parent before writing. Scheduling never updates the application's recruitment status.
 
 For developer-assisted recovery, first back up the raw site storage value privately using browser developer tools. Inspect the version and record schema against the adapter, and repair a copy before replacing data with the user's authorization. Never paste real job notes into shared logs or delete the original as a diagnostic step.
+
+## Local data safety (Phase 2.1)
+
+Settings provides client-side JSON export and previewed full-backup restore. The domain's `backup.ts` validates and projects the documented record fields for both storage reads and backups. Existing application rules moved unchanged to `application.ts` so shared validation can import them without a circular barrel dependency; `index.ts` preserves public exports.
+
+Export uses one read of the FATS key for a consistent application/interview snapshot. Restore privately stages validated data and its original raw storage value; UI receives a token and counts. It rejects changes since preview, then replaces both collections through one `setItem`, without first clearing anything. Failed validation/reads/writes leave previous data intact. Successful restore updates the provider only after persistence succeeds. Corrupt current storage can be replaced only after a valid preview and explicit user confirmation.
+
+The export has its own `fats-backup` format and version 1, independently of storage version 1. Unsupported versions are rejected at a future migration boundary; no migration is guessed. Generated Phase 1/2 data stays compatible. Application timestamps now use the same canonical ISO validation as interview timestamps, rejecting malformed manually edited dates. Backups are unencrypted, use only known FATS fields, and have a 10 MiB UTF-8 limit. Single-key atomicity does not provide cross-tab locking or crash durability.
+
+See [BACKUPS.md](BACKUPS.md) for the complete format, validation, recovery flow, compatibility, and remaining limits.
 
 ## Tooling decisions
 
@@ -55,7 +75,7 @@ For developer-assisted recovery, first back up the raw site storage value privat
 
 ## Assumptions and limits
 
-Browser storage is acceptable for a development vertical slice, not a hosted production system. It is synchronous internally, origin-scoped, bounded by the browser, and vulnerable to site-data deletion. Read-before-write reduces stale sequential updates but does not make simultaneous cross-tab writes transactional; the last write can win. Offline capture, conflict resolution, migrations between schema versions, exports, and account security remain future work.
+Browser storage is acceptable for a development vertical slice, not a hosted production system. It is synchronous internally, origin-scoped, bounded by the browser, and vulnerable to site-data deletion. Notes are not encrypted and are accessible to the same browser profile; no notes are sent to a server. Read-before-write reduces stale sequential updates but does not make simultaneous cross-tab writes transactional; the last write can win. Offline capture, conflict resolution, migrations between schema versions, and account security remain future work.
 
 No bundled remote font is needed: the typography stack falls back to locally available Segoe UI/Arial. No CI service, cloud cache, container, database, secret, or deployment is added.
 

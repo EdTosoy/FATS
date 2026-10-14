@@ -11,9 +11,13 @@ import {
 } from 'react';
 import type {
   ApplicationInput,
-  ApplicationRepository,
+  WorkspaceRepository,
+  Interview,
+  InterviewInput,
+  InterviewStatus,
   ApplicationStatus,
   JobApplication,
+  RestorePreview,
 } from '@fats/domain';
 import {
   APPLICATION_STORAGE_KEY,
@@ -22,7 +26,18 @@ import {
 import { JobFormDialog } from './job-form-dialog';
 
 interface ApplicationContextValue {
+  exportBackup: () => Promise<string>;
+  previewRestore: (text: string) => Promise<RestorePreview>;
+  restoreBackup: (token: string) => Promise<void>;
+  cancelRestore: (token: string) => void;
   applications: JobApplication[];
+  interviews: Interview[];
+  now: string;
+  createInterview: (input: InterviewInput) => Promise<Interview>;
+  updateInterview: (
+    id: string,
+    input: InterviewInput & { status: InterviewStatus },
+  ) => Promise<Interview>;
   loading: boolean;
   error: string | null;
   openForm: (application?: JobApplication) => void;
@@ -40,7 +55,7 @@ export function ApplicationProvider({
   repository: providedRepository,
 }: {
   children: ReactNode;
-  repository?: ApplicationRepository;
+  repository?: WorkspaceRepository;
 }) {
   const repository = useMemo(
     () =>
@@ -52,6 +67,8 @@ export function ApplicationProvider({
     [providedRepository],
   );
   const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [now, setNow] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<{
@@ -60,8 +77,10 @@ export function ApplicationProvider({
   } | null>(null);
 
   const refresh = useCallback(() => {
-    return repository.list().then(
-      (applications) => {
+    return Promise.all([repository.list(), repository.listInterviews()]).then(
+      ([applications, interviews]) => {
+        setInterviews(interviews);
+        setNow(new Date().toISOString());
         setApplications(applications);
         setError(null);
         setLoading(false);
@@ -79,12 +98,19 @@ export function ApplicationProvider({
 
   useEffect(() => {
     void refresh();
+    const timer = window.setInterval(
+      () => setNow(new Date().toISOString()),
+      30000,
+    );
     function synchronize(event: StorageEvent) {
       if (event.key === APPLICATION_STORAGE_KEY || event.key === null)
         void refresh();
     }
     window.addEventListener('storage', synchronize);
-    return () => window.removeEventListener('storage', synchronize);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('storage', synchronize);
+    };
   }, [refresh]);
 
   async function create(input: ApplicationInput) {
@@ -102,6 +128,20 @@ export function ApplicationProvider({
     return application;
   }
 
+  async function createInterview(input: InterviewInput) {
+    const interview = await repository.createInterview(input);
+    await refresh();
+    return interview;
+  }
+  async function updateInterview(
+    id: string,
+    input: InterviewInput & { status: InterviewStatus },
+  ) {
+    const interview = await repository.updateInterview(id, input);
+    await refresh();
+    return interview;
+  }
+
   function openForm(application?: JobApplication) {
     setForm({
       application,
@@ -112,9 +152,42 @@ export function ApplicationProvider({
     });
   }
 
+  async function restoreBackup(token: string) {
+    const data = await repository.restoreBackup(token);
+    setApplications(
+      [...data.applications].sort((a, b) =>
+        b.updatedAt.localeCompare(a.updatedAt),
+      ),
+    );
+    setInterviews(
+      [...data.interviews].sort((a, b) =>
+        a.scheduledAt.localeCompare(b.scheduledAt),
+      ),
+    );
+    setNow(new Date().toISOString());
+    setError(null);
+    setLoading(false);
+    setForm(null);
+  }
+
   return (
     <ApplicationContext.Provider
-      value={{ applications, loading, error, create, update, openForm }}
+      value={{
+        applications,
+        interviews,
+        now,
+        loading,
+        error,
+        create,
+        update,
+        openForm,
+        createInterview,
+        updateInterview,
+        exportBackup: () => repository.exportBackup(),
+        previewRestore: (text) => repository.previewRestore(text),
+        restoreBackup,
+        cancelRestore: (token) => repository.cancelRestore(token),
+      }}
     >
       {children}
       {form && (
