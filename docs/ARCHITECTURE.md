@@ -2,15 +2,52 @@
 
 ## Confirmed decisions
 
-The repository is a pnpm 11 workspace with Nx 23 task orchestration and local caching. The Next.js 16 App Router app uses React 19, strict TypeScript, Tailwind CSS 4, and small reusable native components. A Radix dialog provides accessible focus management and modal semantics; Lucide provides consistent icons. No backend or external service is created.
+The repository is a pnpm 11 workspace with Nx 23 task orchestration and local caching. The Next.js 16 App Router app uses React 19, strict TypeScript, Tailwind CSS 4, and small reusable native components. A Radix dialog provides accessible focus management and modal semantics; Lucide provides consistent icons. Phase 4 adds an optional same-origin Node API and local PostgreSQL; it provisions no cloud service.
+
+## Account persistence (Phase 4)
+
+[ADR 0001](decisions/0001-authentication-and-persistence.md) compares Next Route Handlers with NestJS and records the choice of Next, Better Auth 1.7.8, PostgreSQL 17, and parameterized SQL via `pg`. Kysely is a direct dependency because Better Auth's PostgreSQL dialect requires it; application persistence uses no ORM.
+
+```mermaid
+flowchart LR
+  Account[AccountProvider] --> Choice[WorkspaceRoot]
+  Choice --> Local[LocalApplicationRepository]
+  Choice --> HTTP[HttpWorkspaceRepository]
+  Local --> Browser[Existing localStorage v1]
+  HTTP --> API[Same-origin Route Handlers]
+  API --> Auth[Better Auth live session]
+  API --> DB[Owner-scoped PostgreSQL repository]
+  DB --> Rules[Shared domain validation]
+  DB --> PG[(Local PostgreSQL)]
+```
+
+`apps/web/src/server` owns auth configuration, database services, HTTP boundary checks, transactions, and migrations. API routes are Node-only and never cache private responses. Account records are never cached in localStorage. Logout or a changed account remounts the workspace provider. An expired session blocks account writes and retains mounted form inputs for reauthentication; it never redirects those writes into the local workspace. A client account header detects stale tabs but does not authorize ownership.
+
+Applications/interviews use `(user_id, id)` primary keys. The matching composite foreign key restricts parent deletion and forbids cross-account parents. UTC timestamps use `timestamptz`; explicit IANA timezone text remains beside the scheduled instant. Workspace row locks serialize writes; consistent snapshot reads prevent partially observed collections. Ordinary edits use last successful write; there is no per-record optimistic conflict UI. Replacement/migration previews use a base revision, owner-bound token, and 15-minute expiration. Confirm writes all records transactionally. A durable snapshot fingerprint prevents repeated local transfers, including a lost commit response.
+
+SQL migrations have a checksum ledger, advisory lock, and transaction. Apply them explicitly before starting auth, whose installed version checks the schema during initialization. Development storage uses a named Docker volume; tests use a separate disposable database and loopback port. See [README setup](../README.md#accounts-and-local-postgresql--phase-41) and [Phase 4 verification](PHASE_4_VERIFICATION.md).
+
+## Account safety and recovery (Phase 4.1)
+
+[ADR 0002](decisions/0002-account-safety-and-recovery.md) records supported Better Auth verification/reset mechanisms and local recovery constraints. Email verification is required before login or workspace API access. The existing `emailVerified` flag and verification/rate-limit tables support this without a new migration. Existing accounts retain their records and must verify; their old sessions see a verification gate. Public sign-in/recovery routes render outside the workspace provider so a blocked or expired session cannot prevent recovery.
+
+The email OTP plugin stores hashed eight-digit codes with 10-minute expiry, atomic consumption, five attempts, and resend rotation. Password reset uses 30-minute tokens and transactional token consumption, password change, and revocation of all sessions for that account. Reset links carry the token in a fragment, removed from browser history and submitted only in a JSON POST. No library token callback GET or alternate OTP login endpoint is exposed. Generic public feedback, shared database rate limits, bounded payloads, origin checks, and private responses apply at the server boundary. Session expiration remains seven days with daily refresh and no cookie-cached authorization.
+
+Nodemailer delivers only to loopback Mailpit (no relay, remote credentials, or protocol/content logging). Token persistence is awaited; only SMTP delivery runs asynchronously, with a fixed safe failure log and user resend path. Local mail is not a durable queue. Runtime configuration refuses hosted account origins until a separately reviewed hosted delivery configuration exists. Test Mailpit is separate from the development inbox.
+
+Operational backups use PostgreSQL 17 custom archives, an exported consistent snapshot, and a private checksum/migration/count manifest. Restore requires an independently configured target, explicit confirmation, compatibility and identity checks, and an idle destination. Schema/data restoration, count/ledger checks, and session/recovery/staging revocation commit in one transaction. JSON workspace backup compatibility is unchanged. See the [runbook](DATABASE_RECOVERY.md) and [executed Phase 4.1 evidence](PHASE_4_1_VERIFICATION.md).
+
+The following sections describe the retained domain, guest adapter, and Phase 0–3 decisions. Account mode replaces the local persistence path as described above.
 
 ```text
 apps/web/src/app          Routes, layout, global tokens/styles
 apps/web/src/components   Shell, views, provider, reusable UI, job form
 apps/web/src/lib          Local persistence adapter
+apps/extension           MV3 service worker, bridge, React side panel, esbuild
 libs/domain/src          UI-independent application/interview models and rules
 tests/unit               Domain and persistence contract/failure tests
 tests/e2e                Real browser journeys on desktop/mobile
+tests/extension          Isolated Chromium capture/handoff journeys
 tools/project.json       Nx quality targets
 ```
 
@@ -27,7 +64,7 @@ flowchart LR
 
 Routes render inside one application provider. The provider loads after client hydration, reports loading/errors explicitly, and refreshes from the repository after successful writes. All views derive from that collection. A `storage` event refreshes other tabs; the adapter reads the current collection before each write.
 
-`WorkspaceRepository` combines `ApplicationRepository` (`list`, `create`, `update`, `deleteApplication`), `InterviewRepository` (`listInterviews`, `upcomingInterviews`, `createInterview`, `updateInterview`), and `BackupRepository` (`exportBackup`, `previewRestore`, `restoreBackup`, `cancelRestore`). Listing can be scoped by application. The update contract supports detail edits, rescheduling, notes, completion, and cancellation. The adapter can later become an HTTP implementation without changing the model or view behavior. The provider accepts an injected workspace repository. A future backend will still need authentication, authorization, migrations, conflict policy, and durable error semantics; this interface is not a claim that backend work is already done.
+`WorkspaceRepository` combines `ApplicationRepository` (`list`, `create`, `createCapturedApplication`, `update`, `deleteApplication`), `InterviewRepository` (`listInterviews`, `upcomingInterviews`, `createInterview`, `updateInterview`), and `BackupRepository` (`exportBackup`, `previewRestore`, `restoreBackup`, `cancelRestore`). Listing can be scoped by application. The update contract supports detail edits, rescheduling, notes, completion, and cancellation. The provider accepts an injected workspace repository. Phase 4 supplies the HTTP/server adapters, authentication, ownership checks, migrations, transactional writes, and safe retry behavior through this boundary.
 
 ## Model and persistence
 
@@ -62,6 +99,20 @@ Export uses one read of the FATS key for a consistent application/interview snap
 The export has its own `fats-backup` format and version 1, independently of storage version 1. Unsupported versions are rejected at a future migration boundary; no migration is guessed. Generated Phase 1/2 data stays compatible. Application timestamps now use the same canonical ISO validation as interview timestamps, rejecting malformed manually edited dates. Backups are unencrypted, use only known FATS fields, and have a 10 MiB UTF-8 limit. Single-key atomicity does not provide cross-tab locking or crash durability.
 
 See [BACKUPS.md](BACKUPS.md) for the complete format, validation, recovery flow, compatibility, and remaining limits.
+
+## User-confirmed capture (Phase 3)
+
+`apps/extension` is an independently built Chrome Manifest V3 application, with a React side panel, service worker, and narrowly scoped isolated-world content bridge. Esbuild bundles local assets without a Next runtime. The shared domain exports the versioned `fats-sidekick` draft contract, text/application validation, permitted FATS origins, expiry rules, and URL comparison. Storage and backup schemas remain unchanged.
+
+The toolbar action opens the panel and grants temporary `activeTab` access. Capture Job injects a bounded extraction function only into the current top frame. It inspects JobPosting JSON-LD first, then basic metadata/semantic HTML; missing/ambiguous details require user edits. HTML descriptions are converted to inert plain text. It never fetches pages, traverses links, or runs site-supplied code.
+
+Review → Open FATS stages one draft in extension `storage.session` and opens `/sidekick#<UUID>` on the chosen exact local origin. The URL contains no job fields. The packaged content bridge forwards same-window/origin correlated requests; the worker checks extension identity, sender URL/origin/top frame, destination binding, draft ID, and 15-minute validity. There is no external messaging endpoint. Chrome match patterns cannot restrict ports, so runtime checks enforce port 3000 and the exact `/sidekick` path. Neither extension code nor page messages can manage application records.
+
+The website validates the draft again and presents editable fields. Only explicit confirmation calls the existing provider/repository. `createCapturedApplication` reads the current workspace, validates the capture and edited input, and either returns an existing ID/posting URL or writes one new Saved record. A synchronous UI submission guard and repository identity check prevent repeated sequential submissions. Canonical URL comparison removes only fragments; query parameters remain significant. Existing records are never overwritten. Concurrent writers still have the documented local-storage race, including simultaneous confirmations from multiple tabs.
+
+Work arrangement is combined with location on creation; the existing model, interviews, timestamps, and backup contracts stay compatible. Session drafts are not backups. Extension reload/restart clears them; a new handoff replaces the prior one. Expired drafts are rejected and removed on retrieval, rather than by a guaranteed timer. Saved data remains in the website's origin-specific local repository.
+
+See [SIDEKICK.md](SIDEKICK.md) for the pre-implementation decision, exact permissions, developer workflow, and browser-test limits.
 
 ## Tooling decisions
 

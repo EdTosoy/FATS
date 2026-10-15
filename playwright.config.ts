@@ -37,7 +37,9 @@ export default defineConfig({
   webServer: {
     command: 'pnpm --filter @fats/web dev --hostname 127.0.0.1 --port 3000',
     url: 'http://127.0.0.1:3000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
+    // Guest regressions must never inherit a developer's database/origin.
+    env: { DATABASE_URL: '', BETTER_AUTH_URL: '', BETTER_AUTH_SECRET: '' },
     timeout: 120000,
   },
 });

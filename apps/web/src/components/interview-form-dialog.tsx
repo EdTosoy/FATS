@@ -1,5 +1,7 @@
 'use client';
 
+import { SessionNotice } from './session-notice';
+import { useAccount } from './account-provider';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,6 +30,7 @@ export function InterviewFormDialog({
   onSaved?: () => void;
 }) {
   const { applications, createInterview, updateInterview } = useApplications();
+  const account = useAccount();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -289,9 +292,13 @@ export function InterviewFormDialog({
                 {error}
               </p>
             )}
+            <SessionNotice />
             <div className="form-footer">
               <span className="field-hint">
-                Private to this browser. No reminders are sent.
+                {account.user
+                  ? 'Saved to your account.'
+                  : 'Private to this browser.'}{' '}
+                No reminders are sent.
               </span>
               <div>
                 <Button

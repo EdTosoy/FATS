@@ -16,6 +16,7 @@ import {
   LockKeyhole,
   ArrowUpRight,
 } from 'lucide-react';
+import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { Brand } from './brand';
 import { Button } from './ui';
@@ -33,6 +34,7 @@ const secondaryNavigation = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const account = useAccount();
   const [menuOpen, setMenuOpen] = useState(false);
   const { loading, error, openForm } = useApplications();
 
@@ -84,11 +86,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="profile">
             <span className="avatar" aria-hidden="true">
-              M
+              {account.user?.name.slice(0, 1).toUpperCase() || 'M'}
             </span>
             <div>
-              <strong>Maria Santos</strong>
-              <span>Demo profile · local workspace</span>
+              <strong>{account.user?.name || 'Maria Santos'}</strong>
+              <span>
+                {account.user
+                  ? 'Account workspace'
+                  : 'Demo profile · local workspace'}
+              </span>
             </div>
           </div>
         </div>
@@ -115,9 +121,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="topbar-actions">
             <span className="local-label">
               <LockKeyhole size={13} aria-hidden="true" />
-              Local workspace
+              {account.user ? 'Account workspace' : 'Local workspace'}
             </span>
-            <Button onClick={() => openForm()} disabled={loading || !!error}>
+            <Button
+              onClick={() => openForm()}
+              disabled={
+                loading || !!error || account.expired || pathname === '/sign-in'
+              }
+            >
               <BookmarkPlus size={17} aria-hidden="true" />
               <span>Save a job</span>
             </Button>
@@ -155,7 +166,37 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             </div>
           )}
-          {children}
+          {account.error && (
+            <p className="storage-error" role="alert">
+              {account.error}
+            </p>
+          )}
+          {account.expired && pathname !== '/sign-in' && (
+            <div className="storage-error" role="alert">
+              <h2>Your session ended.</h2>
+              <p>
+                Keep unsaved forms open. Account writes are blocked until you
+                sign in.
+              </p>
+              <a
+                className="text-link"
+                href="/sign-in"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Sign in again in a new tab
+              </a>
+              <Button
+                variant="secondary"
+                onClick={() => void account.refreshSession()}
+              >
+                Retry session
+              </Button>
+            </div>
+          )}
+          <div hidden={account.expired && pathname !== '/sign-in'}>
+            {children}
+          </div>
         </main>
         <footer className="workspace-footer">
           <span>Friendly by default. Powerful when needed.</span>

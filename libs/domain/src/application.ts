@@ -26,6 +26,10 @@ export interface JobApplication extends ApplicationInput {
 }
 
 export interface ApplicationRepository {
+  createCapturedApplication(
+    capture: import('./capture').JobCapture,
+    input: ApplicationInput,
+  ): Promise<JobApplication>;
   deleteApplication(id: string): Promise<void>;
   list(): Promise<JobApplication[]>;
   create(input: ApplicationInput): Promise<JobApplication>;

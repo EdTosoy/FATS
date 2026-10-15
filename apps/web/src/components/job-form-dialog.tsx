@@ -1,5 +1,7 @@
 'use client';
 
+import { SessionNotice } from './session-notice';
+import { useAccount } from './account-provider';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -18,6 +20,7 @@ export function JobFormDialog({
   onClose: () => void;
 }) {
   const { create, update } = useApplications();
+  const account = useAccount();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,8 +177,13 @@ export function JobFormDialog({
                 {error}
               </p>
             )}
+            <SessionNotice />
             <div className="form-footer">
-              <span className="field-hint">Stored in this browser only.</span>
+              <span className="field-hint">
+                {account.user
+                  ? 'Saved to your FATS account.'
+                  : 'Stored in this browser only.'}
+              </span>
               <div>
                 <Button
                   type="button"

@@ -1,6 +1,6 @@
 {
   "name": "quality",
-  "implicitDependencies": ["web", "domain"],
+  "implicitDependencies": ["web", "domain", "extension"],
   "namedInputs": {
     "default": [
       "{workspaceRoot}/tests/**/*",
@@ -8,15 +8,31 @@
       "{workspaceRoot}/tsconfig.tools.json",
       "{workspaceRoot}/libs/domain/**/*",
       "{workspaceRoot}/apps/web/src/lib/**/*",
-      "sharedGlobals"
+      "sharedGlobals",
+      "{workspaceRoot}/apps/extension/src/**/*",
+      "{workspaceRoot}/apps/web/src/server/**/*",
+      "{workspaceRoot}/apps/web/migrations/**/*",
+      "{workspaceRoot}/apps/web/scripts/**/*"
     ]
   },
   "targets": {
-    "test": { "command": "vitest run", "outputs": [] },
-    "lint": {
-      "command": "eslint tests vitest.config.ts playwright.config.ts --max-warnings=0"
+    "test": {
+      "command": "vitest run",
+      "outputs": []
     },
-    "typecheck": { "command": "tsc -p tsconfig.tools.json --noEmit" },
-    "e2e": { "command": "playwright test", "cache": false }
+    "lint": {
+      "command": "eslint tests vitest*.config.ts playwright*.config.ts --max-warnings=0"
+    },
+    "typecheck": {
+      "command": "tsc -p tsconfig.tools.json --noEmit"
+    },
+    "e2e": {
+      "command": "playwright test",
+      "cache": false
+    },
+    "integration": {
+      "command": "vitest run --config vitest.integration.config.ts",
+      "cache": false
+    }
   }
 }

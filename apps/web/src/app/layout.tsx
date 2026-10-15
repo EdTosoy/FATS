@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { ApplicationProvider } from '@/components/application-provider';
-import { AppShell } from '@/components/app-shell';
+import { AccountProvider } from '@/components/account-provider';
+import { WorkspaceRoot } from '@/components/workspace-root';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,9 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ApplicationProvider>
-          <AppShell>{children}</AppShell>
-        </ApplicationProvider>
+        <AccountProvider>
+          <WorkspaceRoot>{children}</WorkspaceRoot>
+        </AccountProvider>
       </body>
     </html>
   );

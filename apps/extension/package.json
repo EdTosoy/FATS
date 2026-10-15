@@ -1,0 +1,34 @@
+{
+  "name": "@fats/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src build.mjs verify-package.mjs --max-warnings=0",
+    "verify": "node verify-package.mjs"
+  },
+  "dependencies": {
+    "@fats/domain": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.5",
+    "esbuild": "0.28.2"
+  },
+  "nx": {
+    "name": "extension",
+    "tags": [
+      "type:app"
+    ],
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      }
+    }
+  }
+}

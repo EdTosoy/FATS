@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Controlled structured posting</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "JobPosting",
+            "title": "Graduate Engineer",
+            "hiringOrganization": { "name": "Example Philippines" },
+            "jobLocation": {
+              "@type": "Place",
+              "address": { "addressLocality": "Makati", "addressCountry": "PH" }
+            },
+            "description": "<p>Build useful software.</p><p>Practice teamwork.</p>",
+            "jobLocationType": "TELECOMMUTE"
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Graduate Engineer</h1>
+      <p>Local controlled fixture. No third-party platform is contacted.</p>
+    </main>
+  </body>
+</html>

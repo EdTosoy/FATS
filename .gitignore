@@ -10,3 +10,7 @@ playwright-report/
 .env*
 !.env.example
 .DS_Store
+backups/
+*.dump
+*.dump.manifest.json
+*.dump.*.partial

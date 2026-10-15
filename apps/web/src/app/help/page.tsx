@@ -56,14 +56,17 @@ export default function HelpPage() {
           </span>
           <h2>Taking care of your saved data</h2>
           <p>
-            Your applications, interviews, and notes are saved only in this
-            browser. Use the same browser and site address to find them again.
+            Signed-in records belong to your account and are saved on your FATS
+            server. When signed out, records stay in this browser at this site
+            address. These are separate workspaces. Signing in never uploads
+            browser records automatically.
           </p>
           <h3>If saving doesn’t work</h3>
           <p>
-            Keep the form open, allow storage for this site in your browser
-            settings, and try again. Your previous saved data is kept if a
-            change can’t be written.
+            Keep the form open and retry. For account records, check that your
+            local FATS server and database are running. If your session ended,
+            sign in in a new tab, then return to your form. For browser records,
+            allow storage for this site. Failed writes keep the previous data.
           </p>
           <h3>If your saved data can’t be read</h3>
           <p>
@@ -82,11 +85,19 @@ export default function HelpPage() {
             unchanged. Resume documents are not included.
           </p>
           <p>
-            A valid backup can also replace unreadable saved data after your
-            confirmation. First keep a private copy of the original FATS storage
-            value through browser developer tools. If you do not have a valid
-            backup, ask the maintainer for recovery help before changing
-            storage.
+            For unreadable browser data, sign out to open local recovery. A
+            valid backup can replace it after confirmation. First keep a private
+            copy of the original FATS storage value through browser developer
+            tools. Without a valid backup, ask the maintainer for recovery help.
+          </p>
+          <h3>Copy existing browser records to an account</h3>
+          <p>
+            Sign in, open Settings, and preview the browser transfer. Review
+            counts and confirm copying. Existing account records and original
+            local records are kept. Identical records are skipped; conflicting
+            IDs stop the transfer. Keep a local JSON backup before resolving a
+            conflict. If the connection is interrupted, retry the confirmation
+            or preview again; completed transfers do not add duplicates.
           </p>
           <ActionLink href="/settings" variant="secondary">
             Open data management
@@ -114,8 +125,8 @@ export default function HelpPage() {
         </div>
       </Card>
       <p className="page-footnote">
-        Resume uploads, accounts, and device sync are planned. They aren’t
-        available in this version.
+        Verify your email or recover your password from the sign-in screen.
+        Resume uploads and integrations remain planned.
       </p>
     </>
   );

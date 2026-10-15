@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { ArrowLeft, CalendarDays, Pencil } from 'lucide-react';
 import type { InterviewStatus } from '@fats/domain';
 import { useApplications } from './application-provider';
+import { useAccount } from './account-provider';
 import { InterviewFormDialog } from './interview-form-dialog';
 import { InterviewDate, InterviewStatusBadge } from './interview-list';
 import { ActionLink, Button, Card, PageHeading } from './ui';
 
 export function InterviewDetail({ id }: { id: string }) {
+  const account = useAccount();
   const {
     interviews,
     applications,
@@ -147,7 +149,9 @@ export function InterviewDetail({ id }: { id: string }) {
             <h2>A little preparation. A little reflection.</h2>
             <p>
               Keep what helps you feel ready, then capture what you learned.
-              Your notes stay in this browser.
+              {account.user
+                ? 'Your notes are saved to your account.'
+                : 'Your notes stay in this browser.'}
             </p>
             <form
               key={JSON.stringify([
@@ -193,7 +197,9 @@ export function InterviewDetail({ id }: { id: string }) {
               </fieldset>
               <div className="form-footer">
                 <span className="field-hint">
-                  Plain text · private to this browser
+                  {account.user
+                    ? 'Plain text · saved to your account'
+                    : 'Plain text · private to this browser'}
                 </span>
                 <Button type="submit" disabled={saving}>
                   {saving ? 'Saving…' : 'Save notes'}

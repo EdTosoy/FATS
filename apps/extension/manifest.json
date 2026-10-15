@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "FATS Sidekick",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "description": "Capture a job when you ask, review it, and confirm saving in your local FATS workspace.",
+  "permissions": ["activeTab", "scripting", "sidePanel", "storage"],
+  "action": {
+    "default_title": "Open FATS Sidekick",
+    "default_icon": {
+      "32": "icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost/sidekick*", "http://127.0.0.1/sidekick*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; base-uri 'none'"
+  },
+  "icons": {
+    "32": "icon-32.png",
+    "128": "icon-128.png"
+  }
+}
