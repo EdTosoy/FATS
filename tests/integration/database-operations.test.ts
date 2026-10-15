@@ -1,0 +1,332 @@
+import { beforeAll, afterAll, it, expect } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import {
+  mkdtemp,
+  readFile,
+  writeFile,
+  copyFile,
+  rm,
+  stat,
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import {
+  createDatabasePool,
+  createServices,
+} from '../../apps/web/src/server/services';
+import { runMigrations } from '../../apps/web/src/server/migrations';
+import {
+  handleAuth,
+  handleWorkspace,
+} from '../../apps/web/src/server/handlers';
+import {
+  createDatabaseBackup,
+  restoreDatabaseBackup,
+  type DatabaseTarget,
+} from '../../apps/web/src/server/database-operations';
+import { PostgresWorkspaceRepository } from '../../apps/web/src/server/workspace-repository';
+
+const base = process.env.FATS_TEST_DATABASE_URL;
+if (
+  !base ||
+  new URL(base).hostname !== '127.0.0.1' ||
+  new URL(base).port !== '16432' ||
+  new URL(base).pathname !== '/fats_phase4_test'
+)
+  throw new Error(
+    'Backup integration tests require the labelled disposable FATS database helper.',
+  );
+const suffix = randomUUID().replaceAll('-', '');
+const sourceName = 'fats_backup_' + suffix + '_test',
+  restoreName = 'fats_restore_' + suffix + '_test';
+function target(database: string): DatabaseTarget {
+  const url = new URL(base!);
+  url.pathname = '/' + database;
+  return {
+    connectionString: url.href,
+    container: 'fats-phase4-tests',
+    database,
+  };
+}
+const source = target(sourceName),
+  destination = target(restoreName);
+const admin = createDatabasePool(base);
+const sourcePool = createDatabasePool(source.connectionString),
+  restoredPool = createDatabasePool(destination.connectionString);
+let directory: string,
+  archive: string,
+  services: ReturnType<typeof createServices>;
+const origin = 'http://127.0.0.1:3000',
+  secret = randomUUID() + randomUUID(),
+  password = 'Synthetic-backup-passphrase-42!';
+let ownerId: string, sessionCookie: string;
+const messages: { text: string }[] = [];
+async function auth(path: string, body: unknown, instance = services) {
+  return handleAuth(
+    new Request(origin + '/api/auth/' + path, {
+      method: 'POST',
+      headers: { origin, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+    instance,
+  );
+}
+beforeAll(async () => {
+  await admin.query(`CREATE DATABASE ${sourceName}`);
+  await admin.query(`CREATE DATABASE ${restoreName}`);
+  await runMigrations(sourcePool);
+  await runMigrations(restoredPool);
+  // Close all operational pools before the restore checks active connections.
+  await restoredPool.end();
+  services = createServices(
+    source.connectionString,
+    origin,
+    secret,
+    async (message) => {
+      messages.push(message);
+    },
+  );
+  const email = `backup-${suffix}@example.test`;
+  expect(
+    (await auth('sign-up/email', { name: 'Backup test', email, password }))
+      .status,
+  ).toBe(200);
+  const code = messages[0].text.match(/code is (\d{8})/)![1];
+  expect((await auth('verify-email', { email, code })).status).toBe(200);
+  const login = await auth('sign-in/email', { email, password });
+  const result = await login.json();
+  ownerId = result.user.id;
+  sessionCookie = login.headers
+    .getSetCookie()
+    .map((line) => line.split(';')[0])
+    .join('; ');
+  const repository = new PostgresWorkspaceRepository(services.pool, ownerId);
+  const app = await repository.create({
+    title: 'Recovered opportunity',
+    company: 'Example',
+    sourceUrl: 'https://example.test/recovered',
+    location: 'Makati',
+    description: 'Keep every field.',
+  });
+  await repository.createInterview({
+    applicationId: app.id,
+    title: 'Recovered interview',
+    stage: 'Technical',
+    scheduledAt: '2030-10-16T02:00:00.000Z',
+    timeZone: 'Asia/Manila',
+    meetingUrl: 'https://example.test/meeting',
+    location: '',
+    preparationNotes: 'Original preparation.',
+    reflections: '',
+  });
+  await auth('request-password-reset', { email });
+  const backup = await repository.exportBackup();
+  await repository.previewRestore(backup);
+  directory = await mkdtemp(tmpdir() + '/fats-backup-test-');
+  archive = directory + '/workspace.dump';
+});
+afterAll(async () => {
+  await services?.pool.end();
+  await sourcePool.end();
+  for (const name of [sourceName, restoreName])
+    await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+  await admin.end();
+  if (directory) await rm(directory, { recursive: true, force: true });
+});
+it('backs up a consistent PostgreSQL archive and refuses overwriting files', async () => {
+  const manifest = await createDatabaseBackup(source, archive);
+  expect(manifest.counts).toEqual({
+    users: 1,
+    accounts: 1,
+    applications: 1,
+    interviews: 1,
+  });
+  expect((await stat(archive)).mode & 0o077).toBe(0);
+  expect((await stat(archive + '.manifest.json')).mode & 0o077).toBe(0);
+  await expect(createDatabaseBackup(source, archive)).rejects.toThrow(
+    'already exists',
+  );
+  const metadata = await readFile(archive + '.manifest.json', 'utf8');
+  expect(metadata.includes(password)).toBe(false);
+  expect(metadata.includes(new URL(source.connectionString).password)).toBe(
+    false,
+  );
+});
+it('previews without writes, requires the exact target confirmation, and rejects wrong targets and incompatible/incomplete archives', async () => {
+  expect(
+    (await restoreDatabaseBackup(destination, archive, undefined, true)).counts
+      .interviews,
+  ).toBe(1);
+  await expect(restoreDatabaseBackup(destination, archive)).rejects.toThrow(
+    'explicitly confirm',
+  );
+  await expect(
+    restoreDatabaseBackup(destination, archive, 'RESTORE ' + sourceName),
+  ).rejects.toThrow('explicitly confirm');
+  await expect(
+    restoreDatabaseBackup(
+      { ...destination, database: sourceName },
+      archive,
+      'RESTORE ' + sourceName,
+    ),
+  ).rejects.toThrow('matching database');
+  await expect(
+    restoreDatabaseBackup(
+      { ...destination, container: 'other-unowned-container' },
+      archive,
+      'RESTORE ' + restoreName,
+    ),
+  ).rejects.toThrow();
+  const bad = directory + '/invalid.dump';
+  await writeFile(bad, 'not an archive', { mode: 0o600 });
+  await expect(
+    restoreDatabaseBackup(destination, bad, 'RESTORE ' + restoreName),
+  ).rejects.toThrow('invalid');
+  await copyFile(archive + '.manifest.json', bad + '.manifest.json');
+  await expect(
+    restoreDatabaseBackup(destination, bad, 'RESTORE ' + restoreName),
+  ).rejects.toThrow('invalid');
+  const manifest = JSON.parse(
+    await readFile(archive + '.manifest.json', 'utf8'),
+  );
+  manifest.postgresMajor = 18;
+  await writeFile(bad + '.manifest.json', JSON.stringify(manifest));
+  await expect(
+    restoreDatabaseBackup(destination, bad, 'RESTORE ' + restoreName),
+  ).rejects.toThrow('incompatible');
+  const pool = createDatabasePool(destination.connectionString);
+  try {
+    expect(
+      (await pool.query('SELECT count(*)::int AS count FROM "user"')).rows[0]
+        .count,
+    ).toBe(0);
+  } finally {
+    await pool.end();
+  }
+});
+it('performs a real confirmed restore and verifies records, relationships, credentials, schema and revoked recovery/session state', async () => {
+  const before = await new PostgresWorkspaceRepository(
+    services.pool,
+    ownerId,
+  ).getWorkspace();
+  await restoreDatabaseBackup(destination, archive, 'RESTORE ' + restoreName);
+  const recovered = createServices(
+    destination.connectionString,
+    origin,
+    secret,
+    async () => {},
+  );
+  try {
+    expect(
+      await new PostgresWorkspaceRepository(
+        recovered.pool,
+        ownerId,
+      ).getWorkspace(),
+    ).toEqual(before);
+    for (const table of ['session', 'verification', 'workspace_stages'])
+      expect(
+        (
+          await recovered.pool.query(
+            `SELECT count(*)::int AS count FROM ${table}`,
+          )
+        ).rows[0].count,
+      ).toBe(0);
+    const oldSession = await handleWorkspace(
+      new Request(origin + '/api/workspace', {
+        headers: { origin, cookie: sessionCookie },
+      }),
+      recovered,
+    );
+    expect(oldSession.status).toBe(401);
+    const email = `backup-${suffix}@example.test`;
+    expect(
+      (await auth('sign-in/email', { email, password }, recovered)).status,
+    ).toBe(200);
+    expect(
+      (
+        await recovered.pool.query(
+          'SELECT count(*)::int AS count FROM fats_schema_migrations',
+        )
+      ).rows[0].count,
+    ).toBe(3);
+    await expect(
+      recovered.pool.query('DELETE FROM applications WHERE user_id=$1', [
+        ownerId,
+      ]),
+    ).rejects.toMatchObject({ code: '23503' });
+  } finally {
+    await recovered.pool.end();
+  }
+  expect(
+    await new PostgresWorkspaceRepository(
+      services.pool,
+      ownerId,
+    ).getWorkspace(),
+  ).toEqual(before);
+});
+it('refuses an in-use target and keeps an existing restored workspace intact when another archive is invalid', async () => {
+  const pool = createDatabasePool(destination.connectionString);
+  try {
+    const before = await new PostgresWorkspaceRepository(
+      pool,
+      ownerId,
+    ).getWorkspace();
+    await expect(
+      restoreDatabaseBackup(destination, archive, 'RESTORE ' + restoreName),
+    ).rejects.toThrow('Other connections');
+    const broken = directory + '/broken.dump';
+    await writeFile(broken, (await readFile(archive)).subarray(0, 100), {
+      mode: 0o600,
+    });
+    await copyFile(archive + '.manifest.json', broken + '.manifest.json');
+    await expect(
+      restoreDatabaseBackup(destination, broken, 'RESTORE ' + restoreName),
+    ).rejects.toThrow('invalid');
+    expect(
+      await new PostgresWorkspaceRepository(pool, ownerId).getWorkspace(),
+    ).toEqual(before);
+  } finally {
+    await pool.end();
+  }
+});
+it('rolls back schema replacement and token revocation when post-restore verification fails', async () => {
+  const pool = createDatabasePool(destination.connectionString);
+  let before;
+  let sessions;
+  try {
+    await pool.query(
+      'UPDATE applications SET description=$2 WHERE user_id=$1',
+      [ownerId, 'A destination edit made after the archive.'],
+    );
+    before = await new PostgresWorkspaceRepository(
+      pool,
+      ownerId,
+    ).getWorkspace();
+    sessions = (await pool.query('SELECT id FROM session ORDER BY id')).rows;
+    expect(sessions.length).toBeGreaterThan(0);
+  } finally {
+    await pool.end();
+  }
+  const mismatch = directory + '/mismatched-counts.dump';
+  await copyFile(archive, mismatch);
+  const manifest = JSON.parse(
+    await readFile(archive + '.manifest.json', 'utf8'),
+  );
+  manifest.counts.applications += 1;
+  await writeFile(mismatch + '.manifest.json', JSON.stringify(manifest), {
+    mode: 0o600,
+  });
+  await expect(
+    restoreDatabaseBackup(destination, mismatch, 'RESTORE ' + restoreName),
+  ).rejects.toThrow('Database utility failed');
+  const after = createDatabasePool(destination.connectionString);
+  try {
+    expect(
+      await new PostgresWorkspaceRepository(after, ownerId).getWorkspace(),
+    ).toEqual(before);
+    expect(
+      (await after.query('SELECT id FROM session ORDER BY id')).rows,
+    ).toEqual(sessions);
+  } finally {
+    await after.end();
+  }
+});

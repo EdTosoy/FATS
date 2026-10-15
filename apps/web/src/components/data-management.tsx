@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Download, Upload, ShieldCheck } from 'lucide-react';
 import { MAX_BACKUP_BYTES, type RestorePreview } from '@fats/domain';
+import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { Button, Card } from './ui';
 
@@ -14,6 +15,7 @@ function errorMessage(error: unknown) {
 }
 
 export function DataManagement() {
+  const account = useAccount();
   const {
     exportBackup,
     previewRestore,
@@ -98,7 +100,7 @@ export function DataManagement() {
     try {
       await restoreBackup(preview.token);
       setMessage(
-        `Restore completed. ${preview.incoming.applications} ${preview.incoming.applications === 1 ? 'application' : 'applications'} and ${preview.incoming.interviews} ${preview.incoming.interviews === 1 ? 'interview' : 'interviews'} are saved in this browser.`,
+        `Restore completed. ${preview.incoming.applications} ${preview.incoming.applications === 1 ? 'application' : 'applications'} and ${preview.incoming.interviews} ${preview.incoming.interviews === 1 ? 'interview' : 'interviews'} are saved ${account.user ? 'in your account' : 'in this browser'}.`,
       );
       setPreview(null);
       setConfirmed(false);
@@ -122,14 +124,18 @@ export function DataManagement() {
         <h2 id="data-management-title">Data management</h2>
         <p>
           Keep a backup of your applications, interviews, preparation notes, and
-          reflections. Clearing browser data or losing this device can remove
-          your workspace. Backups do not include resume documents or other
-          files.
+          reflections.{' '}
+          {account.user
+            ? 'These tools export and replace your account records; local browser records stay separate.'
+            : 'Clearing browser data or losing this device can remove your workspace.'}{' '}
+          Backups do not include resume documents or other files.
         </p>
         <p className="backup-warning">
           Backups contain private, unencrypted information. Anyone with the file
-          can read it. Store and share it carefully. Export and import happen
-          entirely on this device.
+          can read it. Store and share it carefully.{' '}
+          {account.user
+            ? 'Account export and restore transfer records between this browser and your FATS server. Downloads remain unencrypted.'
+            : 'Export and import happen entirely on this device.'}
         </p>
         <div className="backup-tools">
           <section aria-labelledby="export-title">

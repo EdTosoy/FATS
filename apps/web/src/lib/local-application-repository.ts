@@ -18,6 +18,10 @@ import {
   type WorkspaceRepository,
   type ApplicationStatus,
   type JobApplication,
+  validateJobCapture,
+  normalizeApplicationInput,
+  canonicalPostingUrl,
+  type JobCapture,
 } from '@fats/domain';
 
 export const APPLICATION_STORAGE_KEY = 'fats.applications.v1';
@@ -47,6 +51,18 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     private readonly now: () => string = () => new Date().toISOString(),
   ) {}
 
+  async getWorkspace(): Promise<WorkspaceData> {
+    const data = this.read();
+    return {
+      applications: data.applications.sort((a, b) =>
+        b.updatedAt.localeCompare(a.updatedAt),
+      ),
+      interviews: data.interviews.sort((a, b) =>
+        a.scheduledAt.localeCompare(b.scheduledAt),
+      ),
+    };
+  }
+
   async list(): Promise<JobApplication[]> {
     return this.read().applications.sort((a, b) =>
       b.updatedAt.localeCompare(a.updatedAt),
@@ -58,6 +74,26 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     const rows = data.applications;
     const application = createApplication(input, this.id(), this.now());
     this.write({ ...data, applications: [...rows, application] });
+    return application;
+  }
+
+  async createCapturedApplication(
+    capture: JobCapture,
+    input: ApplicationInput,
+  ): Promise<JobApplication> {
+    const now = this.now();
+    const valid = validateJobCapture(capture, now);
+    const normalized = normalizeApplicationInput(input);
+    const data = this.read();
+    const existing = data.applications.find(
+      (row) =>
+        row.id === valid.id ||
+        canonicalPostingUrl(row.sourceUrl) ===
+          canonicalPostingUrl(normalized.sourceUrl),
+    );
+    if (existing) return existing; // Retry or already-saved posting; never overwrite it.
+    const application = createApplication(normalized, valid.id, now);
+    this.write({ ...data, applications: [...data.applications, application] });
     return application;
   }
 

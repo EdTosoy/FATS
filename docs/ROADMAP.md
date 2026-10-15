@@ -40,12 +40,42 @@ Executed evidence and any verification gaps are recorded in [VERIFICATION.md](VE
 
 Executed results are recorded in [PHASE_2_1_VERIFICATION.md](PHASE_2_1_VERIFICATION.md).
 
+## Phase 3 — FATS Sidekick
+
+- Independently buildable Chrome MV3 extension with a compact React side panel.
+- Explicit temporary page capture: JobPosting JSON-LD, basic semantic HTML/metadata, and manual paste/edit fallback.
+- Reviewed, short-lived local message handoff to the exact permitted FATS origin; no captured fields in URLs.
+- Editable web confirmation using existing creation rules and repository, with duplicate submission/posting protection.
+- Minimal permissions, sender/origin/path checks, plain-text rendering, safe stale/reload/failure states.
+- Controlled-fixture extraction, actual Chromium extension integration, and Phase 1/2/2.1 desktop/mobile regression coverage.
+
+See [SIDEKICK.md](SIDEKICK.md) for commands and [PHASE_3_VERIFICATION.md](PHASE_3_VERIFICATION.md) for actual evidence and limits. This is an unpacked local development build, not a published Chrome Web Store release.
+
 ## Recommended next implementation step
 
-Consider a narrowly scoped unsaved-draft warning for application/interview forms and notes. Confirm the behavior and browser navigation trade-offs before implementing it. It would protect work that has not yet reached storage and therefore is not included in backups. No next slice is started here.
+Phase 4.1 is the stopping point for this task. Before inviting external users, separately scope hosted email delivery, deployment-specific proxy/rate-limit policy, and hosted recovery drills. Resume uploads require a separate design and authorization after that foundation is ready. Unsaved-draft warnings and a manual Chrome native-dock usability check remain useful follow-ups.
+
+## Phase 4 — authentication and durable persistence
+
+- Same-origin Next.js Node API with Better Auth email/password authentication and database sessions; no separate NestJS runtime.
+- Local PostgreSQL 17, versioned transactional/checksummed migrations, and dedicated disposable integration databases.
+- Server-derived ownership, composite application/interview foreign keys, and transactional related writes.
+- Explicit additive browser-data transfer, preview/confirmation, conflict checks, durable retry protection, and retained originals.
+- Account backup export/confirmed replacement with the existing version 1 JSON format; guest recovery stays available.
+- Authentication/loading/expiry/recovery states and Sidekick login return without extension credential access.
+- PostgreSQL, desktop/mobile account journeys, guest regressions, and actual extension verification; see [Phase 4 results](PHASE_4_VERIFICATION.md).
+
+## Phase 4.1 — account safety and recovery
+
+- Required, expiring, single-use email verification through Better Auth's OTP plugin; resend rotation, attempt limits, and existing-account verification gates.
+- Password recovery with single-use tokens, generic feedback, and transactional session invalidation.
+- Local Mailpit inboxes for development and isolated browser tests; no paid provider or hosted configuration.
+- Private PostgreSQL archives with checksum/schema validation, explicit target/confirmation, and an actual disposable restore drill.
+- Accessible recovery screens, account security review, actual PostgreSQL/mail/browser tests, and existing workspace/Sidekick regressions.
+- See [Phase 4.1 results](PHASE_4_1_VERIFICATION.md), [ADR 0002](decisions/0002-account-safety-and-recovery.md), and the [database recovery runbook](DATABASE_RECOVERY.md).
 
 ## Later work — requires a separate scope
 
-Potential directions: resume/document library; application notes/history; identity and durable NestJS/PostgreSQL storage; device sync; opt-in browser capture extension; useful reminders; user-controlled AI assistance. Prioritize with users before building these.
+Potential directions: resume/document library; application notes/history; useful reminders; user-controlled AI assistance. Prioritize with users before building these.
 
-No backend, AI provider, crawler, extension, native app, subscription system, or deployment is part of Phase 2. The order and requirements of later work are assumptions to validate, not approved implementation commitments. Stop after Phase 2; no Phase 3 work is authorized.
+No AI provider, crawler, native app, subscription system, resume upload, or deployment is part of Phase 4.1. Hosted origins and extension-store publication require separate authorization. Stop after Phase 4.1.

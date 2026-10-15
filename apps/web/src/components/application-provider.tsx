@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ReactNode,
 } from 'react';
 import type {
@@ -18,6 +19,7 @@ import type {
   ApplicationStatus,
   JobApplication,
   RestorePreview,
+  JobCapture,
 } from '@fats/domain';
 import {
   APPLICATION_STORAGE_KEY,
@@ -26,6 +28,11 @@ import {
 import { JobFormDialog } from './job-form-dialog';
 
 interface ApplicationContextValue {
+  refreshWorkspace: () => Promise<void>;
+  createCapturedApplication: (
+    capture: JobCapture,
+    input: ApplicationInput,
+  ) => Promise<JobApplication>;
   exportBackup: () => Promise<string>;
   previewRestore: (text: string) => Promise<RestorePreview>;
   restoreBackup: (token: string) => Promise<void>;
@@ -66,6 +73,7 @@ export function ApplicationProvider({
       }),
     [providedRepository],
   );
+  const channel = useRef<BroadcastChannel | null>(null);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [now, setNow] = useState('');
@@ -77,8 +85,13 @@ export function ApplicationProvider({
   } | null>(null);
 
   const refresh = useCallback(() => {
-    return Promise.all([repository.list(), repository.listInterviews()]).then(
-      ([applications, interviews]) => {
+    const snapshot = repository.getWorkspace
+      ? repository.getWorkspace()
+      : Promise.all([repository.list(), repository.listInterviews()]).then(
+          ([applications, interviews]) => ({ applications, interviews }),
+        );
+    return snapshot.then(
+      ({ applications, interviews }) => {
         setInterviews(interviews);
         setNow(new Date().toISOString());
         setApplications(applications);
@@ -98,6 +111,10 @@ export function ApplicationProvider({
 
   useEffect(() => {
     void refresh();
+    channel.current = new BroadcastChannel('fats-workspace');
+    channel.current.onmessage = () => {
+      void refresh();
+    };
     const timer = window.setInterval(
       () => setNow(new Date().toISOString()),
       30000,
@@ -107,15 +124,22 @@ export function ApplicationProvider({
         void refresh();
     }
     window.addEventListener('storage', synchronize);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('fats:workspace-updated', refresh);
     return () => {
+      channel.current?.close();
+      channel.current = null;
       window.clearInterval(timer);
       window.removeEventListener('storage', synchronize);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('fats:workspace-updated', refresh);
     };
   }, [refresh]);
 
   async function create(input: ApplicationInput) {
     const application = await repository.create(input);
     await refresh();
+    channel.current?.postMessage('refresh');
     return application;
   }
 
@@ -125,12 +149,14 @@ export function ApplicationProvider({
   ) {
     const application = await repository.update(id, input);
     await refresh();
+    channel.current?.postMessage('refresh');
     return application;
   }
 
   async function createInterview(input: InterviewInput) {
     const interview = await repository.createInterview(input);
     await refresh();
+    channel.current?.postMessage('refresh');
     return interview;
   }
   async function updateInterview(
@@ -139,6 +165,7 @@ export function ApplicationProvider({
   ) {
     const interview = await repository.updateInterview(id, input);
     await refresh();
+    channel.current?.postMessage('refresh');
     return interview;
   }
 
@@ -168,11 +195,16 @@ export function ApplicationProvider({
     setError(null);
     setLoading(false);
     setForm(null);
+    channel.current?.postMessage('refresh');
   }
 
   return (
     <ApplicationContext.Provider
       value={{
+        refreshWorkspace: async () => {
+          await refresh();
+          channel.current?.postMessage('refresh');
+        },
         applications,
         interviews,
         now,
@@ -183,6 +215,15 @@ export function ApplicationProvider({
         openForm,
         createInterview,
         updateInterview,
+        createCapturedApplication: async (capture, input) => {
+          const application = await repository.createCapturedApplication(
+            capture,
+            input,
+          );
+          await refresh();
+          channel.current?.postMessage('refresh');
+          return application;
+        },
         exportBackup: () => repository.exportBackup(),
         previewRestore: (text) => repository.previewRestore(text),
         restoreBackup,

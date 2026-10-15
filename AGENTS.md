@@ -5,9 +5,9 @@ Use the global working agreements. This file adds repository-specific context; i
 ## Scope and product invariants
 
 - FATS is a personal job-search companion, primarily for fresh graduates in the Philippines. Employers do not post jobs here. Saving a job does not apply for it.
-- Phase 0, Phase 1 application tracking, Phase 2 manual interview management, and Phase 2.1 local backup/recovery are implemented here. Resume uploads, calendar integrations, notifications, accounts, backend, AI, crawling, extensions, native apps, and payments remain outside this slice.
+- Phases 0–4.1 cover tracking, interviews, JSON backups, Sidekick, local PostgreSQL accounts, email verification/password recovery, and local database restore tooling. Stop after Phase 4.1. Resume uploads, calendar integrations, notifications, AI, crawling, native apps, payments, and cloud deployment require separate authorization.
 - The default application state is empty. Maria Santos is an explicitly labeled sample profile, not an authenticated user. Never invent default jobs, statistics, interview dates, or working placeholder actions.
-- Preserve all three original `uiux/*.png` moodboards. The Job Tracker reference is primary.
+- Preserve all three original `uiux/*.png` moodboards. Follow the FATS 3.0 reference for Sidekick and reuse the established web design tokens.
 
 ## Architecture and conventions
 
@@ -16,12 +16,15 @@ Use the global working agreements. This file adds repository-specific context; i
 - `apps/web/src/components`: client views, application provider, reusable native components, Radix-backed form dialog.
 - `libs/domain/src`: model, validation, creation/update rules, filtering, derived statistics, repository interface. No React, Next.js, or UI imports; ESLint enforces the main boundary.
 - `apps/web/src/lib/local-application-repository.ts`: versioned local-storage adapter. Keep browser storage details out of UI components. Replace/inject the repository when introducing a backend.
+- `apps/extension`: independently built MV3 React side panel. Capture only on explicit request with temporary `activeTab` access. Keep bridge origins/path and service-worker sender checks narrow; never put captured fields in URLs or let the extension manage the web repository. See `docs/SIDEKICK.md`.
 - Update state only after persistence succeeds. Never erase unreadable storage automatically. Surface actionable read/write errors and preserve form inputs when saving fails.
 - All seven statuses are valid manual choices. An Interview status does not imply a scheduled interview.
 - Interviews link to existing applications; scheduling never changes application status. Store the UTC instant and explicit IANA timezone together; reject skipped local times and require a choice for repeated times. Application deletion is restricted while any interviews reference it, including completed/cancelled records.
 - Backups use an independent versioned format and shared domain validation. Restore requires preview and explicit replacement confirmation; write both collections atomically with one storage operation, preserve saved data on failure, and never include unrelated browser storage.
 - Native inputs/selects and explicit labels are preferred. Radix handles modal semantics/focus. Keep links for navigation, buttons for actions, visible focus indicators, and truthful loading/error/empty states.
-- No remote fonts, analytics, credentials, or network calls are needed at runtime. User source links open only on explicit clicks.
+- No remote fonts or analytics. Account mode uses same-origin APIs and server-only PostgreSQL credentials; guest mode remains local. User source links open only on explicit clicks. Derive record ownership from a live server session, and scope every database operation to that owner.
+- Account email goes only to loopback Mailpit; never log tokens, codes, reset links, credentials, or raw SMTP/database errors. Require verified email for account access. Preserve the narrow auth endpoint allowlist and the library's transactional token/session behavior. See `docs/decisions/0002-account-safety-and-recovery.md`.
+- PostgreSQL archives contain private authentication data. Follow `docs/DATABASE_RECOVERY.md`: independent explicit restore target, compatibility preview, exact destructive confirmation, stopped application, and disposable restore tests. Never commit dumps/manifest pairs or use user databases as test targets.
 - Use pnpm 11 configuration in `pnpm-workspace.yaml`; `.npmrc` is for registry/auth settings only. Keep dependencies pinned and review the lockfile. Keep native build-script approvals explicit.
 - Nx `quality` inputs must cover test/config files and the domain/storage sources being tested; do not cache tests without their source dependencies.
 
@@ -39,6 +42,9 @@ pnpm format:check
 pnpm build
 pnpm start
 pnpm test:e2e
+pnpm build:extension
+pnpm verify:extension
+pnpm test:extension
 ```
 
 `pnpm format` writes formatting. `pnpm dev` runs port 3000; `pnpm start` needs a successful build. See `docs/VERIFICATION.md` for executed results and environment notes. Use `--output-style=static` for Nx logs when needed.

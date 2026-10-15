@@ -1,0 +1,165 @@
+:root {
+  --primary: #427dab;
+  --action: #356b96;
+  --mint: #42ad93;
+  --ink: #202c3b;
+  --canvas: #f7f9fc;
+  --surface: #fff;
+  --border: #e5eaf0;
+  --muted: #617084;
+  font:
+    14px/1.55 'Segoe UI',
+    Arial,
+    sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 600px;
+  margin: auto;
+  padding: 18px;
+}
+header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0 20px;
+}
+header strong {
+  font-size: 23px;
+}
+header strong span {
+  font-size: 15px;
+  color: var(--muted);
+}
+header p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+h1 {
+  font-size: 21px;
+  margin: 0 0 16px;
+}
+h2 {
+  font-size: 18px;
+  margin: 0 0 10px;
+}
+h3 {
+  font-size: 17px;
+}
+p {
+  margin: 10px 0;
+}
+.page-context,
+form,
+.review {
+  background: var(--surface);
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.url {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.muted {
+  color: var(--muted);
+}
+.hint,
+footer {
+  color: var(--muted);
+  font-size: 12px;
+}
+footer {
+  margin: 22px 0;
+}
+.feedback {
+  background: #eaf6f2;
+  color: #246954;
+  padding: 13px;
+  border-radius: 8px;
+}
+.error {
+  color: #a03b3b;
+  background: #fff0f0;
+  border: 1px solid #efcaca;
+  padding: 13px;
+  border-radius: 8px;
+}
+fieldset {
+  margin: 18px 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+label {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  margin: 14px 0;
+}
+input,
+textarea,
+select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-top: 6px;
+  padding: 11px;
+  border: 1px solid #9cabbc;
+  border-radius: 7px;
+  background: #fbfcfe;
+  color: var(--ink);
+  font: inherit;
+}
+textarea {
+  resize: vertical;
+}
+button {
+  cursor: pointer;
+  background: var(--action);
+  color: white;
+  font:
+    600 13px/1.4 'Segoe UI',
+    Arial,
+    sans-serif;
+  border: 1px solid var(--action);
+  border-radius: 8px;
+  min-height: 42px;
+  padding: 10px 14px;
+}
+button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.secondary {
+  color: var(--action);
+  background: white;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow: auto;
+}
+:focus-visible {
+  outline: 3px solid var(--action);
+  outline-offset: 3px;
+}
+.review h3,
+.review p {
+  overflow-wrap: anywhere;
+}

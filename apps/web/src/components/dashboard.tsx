@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { InterviewDate, ScheduleInterviewButton } from './interview-list';
 import { applicationStatistics, upcomingInterviews } from '@fats/domain';
+import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { ApplicationTable } from './application-table';
 import {
@@ -26,6 +27,8 @@ import {
 } from './ui';
 
 export function Dashboard() {
+  const account = useAccount();
+  const name = account.user?.name.split(' ')[0] || 'Maria';
   const { applications, interviews, now, loading, error, openForm } =
     useApplications();
   const stats = applicationStatistics(applications);
@@ -50,7 +53,7 @@ export function Dashboard() {
     return (
       <PageHeading
         eyebrow="Your workspace"
-        title="Welcome back, Maria."
+        title={`Welcome back, ${name}.`}
         description="Restore access to your saved data to see your dashboard."
       />
     );
@@ -59,11 +62,11 @@ export function Dashboard() {
     <>
       <PageHeading
         eyebrow="A little progress, every day"
-        title="Hello, Maria."
+        title={`Hello, ${name}.`}
         description="Your job search, a little more organized. You’ve got this."
         action={
           <span className="greeting-note">
-            <span className="avatar">M</span>
+            <span className="avatar">{name.slice(0, 1).toUpperCase()}</span>
             <span>
               Your next chapter
               <br />

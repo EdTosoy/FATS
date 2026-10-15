@@ -7,3 +7,5 @@ test-results
 playwright-report
 uiux
 **/next-env.d.ts
+apps/extension/dist
+backups
