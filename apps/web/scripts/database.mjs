@@ -3,6 +3,7 @@ import {
   restoreDatabaseBackup,
   DatabaseOperationError,
 } from '../src/server/database-operations.ts';
+import { FilesystemDocumentStorage } from '../src/server/document-storage.ts';
 const [action, ...args] = process.argv.slice(2);
 function option(name) {
   const index = args.indexOf('--' + name);
@@ -29,15 +30,22 @@ try {
   const target = { container, database, connectionString };
   const manifest =
     action === 'backup'
-      ? await createDatabaseBackup(target, file)
+      ? await createDatabaseBackup(
+          target,
+          file,
+          process.env.FATS_DOCUMENTS_DIR
+            ? new FilesystemDocumentStorage(process.env.FATS_DOCUMENTS_DIR)
+            : undefined,
+        )
       : await restoreDatabaseBackup(
           target,
           file,
           option('confirm'),
           args.includes('--check'),
+          process.env.FATS_RESTORE_DOCUMENTS_DIR,
         );
   console.log(
-    `PASS: ${action === 'backup' ? 'Private archive and manifest created' : args.includes('--check') ? 'Archive compatibility checked; no database changed' : 'Database restored transactionally; all sessions and pending tokens revoked'}. Target ${container}/${database}. ${manifest.counts.users} accounts, ${manifest.counts.applications} applications, ${manifest.counts.interviews} interviews.`,
+    `PASS: ${action === 'backup' ? 'Private archive and manifest created' : args.includes('--check') ? 'Archive compatibility checked; no database changed' : 'Database restored transactionally; all sessions and pending tokens revoked'}. Target ${container}/${database}. ${manifest.counts.users} accounts, ${manifest.counts.applications} applications, ${manifest.counts.interviews} interviews, ${manifest.documents.length} verified document files.`,
   );
 } catch (error) {
   console.error(

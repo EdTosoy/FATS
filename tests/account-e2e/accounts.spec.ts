@@ -155,7 +155,7 @@ test('registration, account CRUD, interview notes, session cookie, logout/login,
   await page
     .getByRole('combobox', { name: 'Application status', exact: true })
     .selectOption('Applied');
-  await expect(page.getByRole('status')).toHaveText(
+  await expect(page.locator('.progress-card').getByRole('status')).toHaveText(
     'Status updated to Applied.',
   );
   await page.getByRole('button', { name: 'Edit details', exact: true }).click();

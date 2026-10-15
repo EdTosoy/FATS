@@ -1,5 +1,7 @@
 # Phase 0 / Phase 1 verification
 
+Current document/recovery evidence: [Phase 5 verification](PHASE_5_VERIFICATION.md). The reports below are historical.
+
 Current account safety/database recovery evidence: [Phase 4.1 verification](PHASE_4_1_VERIFICATION.md). [Phase 4 verification](PHASE_4_VERIFICATION.md) records the original account/database baseline. The results below are historical.
 
 This is the historical Phase 0/1 report. Current Sidekick evidence is in [Phase 3 verification](PHASE_3_VERIFICATION.md). Data safety evidence is in [Phase 2.1 verification](PHASE_2_1_VERIFICATION.md). See [Phase 2 verification](PHASE_2_VERIFICATION.md) for the current manual interview slice, executed checks, and limitations.

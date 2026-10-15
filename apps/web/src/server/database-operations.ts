@@ -19,6 +19,12 @@ import { dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pipeline } from 'node:stream/promises';
 import { Pool, type PoolClient } from 'pg';
+import {
+  FilesystemDocumentStorage,
+  verifiedDocumentBytes,
+  isStorageKey,
+  type DocumentStorage,
+} from './document-storage.ts';
 
 const exec = promisify(execFile);
 const tables = [
@@ -33,6 +39,10 @@ const tables = [
   'workspace_stages',
   'local_migrations',
   'fats_schema_migrations',
+  'documents',
+  'document_versions',
+  'application_document_versions',
+  'document_garbage',
 ];
 export class DatabaseOperationError extends Error {}
 export interface DatabaseTarget {
@@ -42,7 +52,8 @@ export interface DatabaseTarget {
 }
 interface Manifest {
   format: 'fats-postgres-backup';
-  version: 1;
+  version: 2;
+  documents: { storage_key: string; byte_size: number; sha256: string }[];
   postgresMajor: 17;
   createdAt: string;
   sourceDatabase: string;
@@ -236,6 +247,7 @@ async function databaseProcess(
 export async function createDatabaseBackup(
   target: DatabaseTarget,
   file: string,
+  documentStorage?: DocumentStorage,
 ): Promise<Manifest> {
   const { user } = await checkedTarget(target);
   if (!file.endsWith('.dump'))
@@ -245,7 +257,8 @@ export async function createDatabaseBackup(
   const output = resolve(file);
   if (
     (await stat(output).catch(() => null)) ||
-    (await stat(output + '.manifest.json').catch(() => null))
+    (await stat(output + '.manifest.json').catch(() => null)) ||
+    (await stat(output + '.documents').catch(() => null))
   )
     throw new DatabaseOperationError(
       'Backup output already exists. Choose a new filename.',
@@ -258,6 +271,7 @@ export async function createDatabaseBackup(
   });
   const client = await pool.connect();
   try {
+    await client.query('SELECT pg_advisory_lock(16432,5)');
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     await databaseIdentity(client, target, user);
     const migrations = await expectedMigrations();
@@ -275,6 +289,31 @@ export async function createDatabaseBackup(
     const snapshot = (await client.query('SELECT pg_export_snapshot() AS id'))
       .rows[0].id;
     const counts = await recordCounts(client);
+    const documents = (
+      await client.query(
+        'SELECT storage_key,byte_size,sha256 FROM document_versions ORDER BY storage_key',
+      )
+    ).rows as Manifest['documents'];
+    if (documents.length && !documentStorage)
+      throw new DatabaseOperationError(
+        'This database contains private document files. Configure FATS_DOCUMENTS_DIR; a metadata-only archive is not a complete backup.',
+      );
+    if (documents.length) {
+      await mkdir(output + '.documents', { mode: 0o700 });
+      const bundle = new FilesystemDocumentStorage(output + '.documents');
+      for (const row of documents) {
+        try {
+          await bundle.put(
+            row.storage_key,
+            await verifiedDocumentBytes(documentStorage!, row),
+          );
+        } catch {
+          throw new DatabaseOperationError(
+            'Document content is missing, damaged, or unavailable. No complete backup was created. Recover the files before trying again.',
+          );
+        }
+      }
+    }
     await databaseProcess(
       target.container,
       [
@@ -293,7 +332,8 @@ export async function createDatabaseBackup(
     );
     const manifest: Manifest = {
       format: 'fats-postgres-backup',
-      version: 1,
+      version: 2,
+      documents,
       postgresMajor: 17,
       createdAt: new Date().toISOString(),
       sourceDatabase: target.database,
@@ -301,6 +341,13 @@ export async function createDatabaseBackup(
       migrations,
       counts,
     };
+    if (
+      Buffer.byteLength(JSON.stringify(manifest, null, 2) + '\n') >
+      16 * 1024 * 1024
+    )
+      throw new DatabaseOperationError(
+        'This document inventory exceeds the local archive manifest limit. No complete backup was created.',
+      );
     await client.query('COMMIT');
     // Manifest and archive are independent private files. A missing/mismatched
     // sidecar makes an interrupted backup unusable rather than restorable.
@@ -315,6 +362,7 @@ export async function createDatabaseBackup(
     await client.query('ROLLBACK');
     throw error;
   } finally {
+    await client.query('SELECT pg_advisory_unlock(16432,5)').catch(() => {});
     client.release();
     await pool.end();
     await rm(temporary, { force: true });
@@ -326,14 +374,29 @@ async function validateArchive(
   copy: string,
 ): Promise<Manifest> {
   try {
-    if ((await stat(file + '.manifest.json')).size > 65536) throw new Error();
+    if ((await stat(file + '.manifest.json')).size > 16 * 1024 * 1024)
+      throw new Error();
     const manifest = JSON.parse(
       await readFile(file + '.manifest.json', 'utf8'),
     ) as Manifest;
     const expected = await expectedMigrations();
     if (
       manifest.format !== 'fats-postgres-backup' ||
-      manifest.version !== 1 ||
+      manifest.version !== 2 ||
+      !Array.isArray(manifest.documents) ||
+      manifest.documents.some(
+        (row) =>
+          !row ||
+          Object.keys(row).sort().join(',') !==
+            'byte_size,sha256,storage_key' ||
+          !isStorageKey(row.storage_key) ||
+          !Number.isInteger(row.byte_size) ||
+          row.byte_size < 1 ||
+          row.byte_size > 10485760 ||
+          !/^[0-9a-f]{64}$/.test(row.sha256),
+      ) ||
+      new Set(manifest.documents.map((row) => row.storage_key)).size !==
+        manifest.documents.length ||
       manifest.postgresMajor !== 17 ||
       JSON.stringify(manifest.migrations) !== JSON.stringify(expected) ||
       !manifest.counts ||
@@ -344,6 +407,11 @@ async function validateArchive(
       )
     )
       throw new Error();
+    if (manifest.documents.length) {
+      const bundle = new FilesystemDocumentStorage(file + '.documents');
+      for (const row of manifest.documents)
+        await verifiedDocumentBytes(bundle, row);
+    }
     await copyFile(file, copy);
     if ((await digest(copy)) !== manifest.sha256) throw new Error();
     const handle = await open(copy, 'r');
@@ -373,13 +441,28 @@ export async function restoreDatabaseBackup(
   file: string,
   confirmation?: string,
   checkOnly = false,
+  restoreDocumentsDirectory?: string,
 ) {
   const { user } = await checkedTarget(target);
   const directory = await mkdtemp(tmpdir() + '/fats-restore-');
   const archive = directory + '/archive.dump',
     sql = directory + '/restore.sql';
+  let createdDocumentsDirectory: string | undefined;
+  let restored = false;
+  let restoreStarted = false;
   try {
     const manifest = await validateArchive(target, resolve(file), archive);
+    if (manifest.documents.length) {
+      if (!restoreDocumentsDirectory)
+        throw new DatabaseOperationError(
+          'This archive includes private files. Independently configure FATS_RESTORE_DOCUMENTS_DIR to a fresh private directory.',
+        );
+      const selected = new FilesystemDocumentStorage(restoreDocumentsDirectory);
+      if (await stat(selected.root).catch(() => null))
+        throw new DatabaseOperationError(
+          'Select a fresh, nonexistent restore document directory. Existing document directories are never replaced.',
+        );
+    }
     const pool = new Pool({
       connectionString: target.connectionString,
       connectionTimeoutMillis: 5000,
@@ -401,6 +484,23 @@ export async function restoreDatabaseBackup(
         throw new DatabaseOperationError(
           'Other connections are using this database. Stop the application and database tools before restoring.',
         );
+      if (manifest.documents.length) {
+        const destination = new FilesystemDocumentStorage(
+          restoreDocumentsDirectory!,
+        );
+        await mkdir(destination.root, { mode: 0o700 });
+        createdDocumentsDirectory = destination.root;
+        const source = new FilesystemDocumentStorage(
+          resolve(file) + '.documents',
+        );
+        for (const row of manifest.documents) {
+          await destination.put(
+            row.storage_key,
+            await verifiedDocumentBytes(source, row),
+          );
+          await verifiedDocumentBytes(destination, row);
+        }
+      }
       await databaseProcess(
         target.container,
         [
@@ -415,6 +515,7 @@ export async function restoreDatabaseBackup(
         archive,
       );
       const ledger = JSON.stringify(manifest.migrations);
+      const documentChecks = `IF (SELECT COALESCE(jsonb_agg(jsonb_build_object('storage_key',storage_key,'byte_size',byte_size,'sha256',sha256) ORDER BY storage_key),'[]'::jsonb) FROM public.document_versions) IS DISTINCT FROM '${JSON.stringify(manifest.documents)}'::jsonb THEN RAISE EXCEPTION 'Restored document inventory differs'; END IF;`;
       const checks = Object.entries(manifest.counts)
         .map(([key, count]) => {
           const table =
@@ -424,10 +525,11 @@ export async function restoreDatabaseBackup(
         .join('\n');
       await appendFile(
         sql,
-        `\nDELETE FROM public.session; DELETE FROM public.verification; DELETE FROM public.workspace_stages;\nDO $fats$ BEGIN IF (SELECT jsonb_object_agg(name,checksum) FROM public.fats_schema_migrations) IS DISTINCT FROM '${ledger}'::jsonb THEN RAISE EXCEPTION 'Restored schema differs'; END IF; ${checks} END; $fats$;\n`,
+        `\nDELETE FROM public.session; DELETE FROM public.verification; DELETE FROM public.workspace_stages;\nDO $fats$ BEGIN IF (SELECT jsonb_object_agg(name,checksum) FROM public.fats_schema_migrations) IS DISTINCT FROM '${ledger}'::jsonb THEN RAISE EXCEPTION 'Restored schema differs'; END IF; ${checks} ${documentChecks} END; $fats$;\n`,
       );
       // psql wraps schema/data, count/ledger checks, and token revocation in
       // one transaction. Any error leaves the previous target intact.
+      restoreStarted = true;
       await databaseProcess(
         target.container,
         [
@@ -446,12 +548,15 @@ export async function restoreDatabaseBackup(
         undefined,
         sql,
       );
+      restored = true;
       return manifest;
     } finally {
       client.release();
       await pool.end();
     }
   } finally {
+    if (createdDocumentsDirectory && !restored && !restoreStarted)
+      await rm(createdDocumentsDirectory, { recursive: true, force: true });
     await rm(directory, { recursive: true, force: true });
   }
 }

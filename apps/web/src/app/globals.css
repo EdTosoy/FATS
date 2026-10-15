@@ -2114,3 +2114,227 @@ hr {
 .local-migration {
   margin: 24px 0;
 }
+
+/* Private document library: established FATS surfaces and native controls. */
+.document-toolbar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.document-toolbar label,
+.document-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+.document-toolbar label {
+  flex: 1;
+}
+.document-search {
+  flex: 2 !important;
+}
+.document-search span {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.document-usage {
+  margin: 16px 0 20px;
+}
+.document-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.document-card {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.document-paper {
+  min-height: 146px;
+  margin: 16px 16px 0;
+  background: var(--canvas, #f7f9fc);
+  border: 1px solid var(--border, #e5eaf0);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--primary, #427dab);
+}
+.document-paper span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.document-card-copy {
+  padding: 20px;
+  display: flex;
+  align-items: start;
+  flex-direction: column;
+  gap: 10px;
+}
+.document-card h2 {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.document-card-copy p {
+  font-size: 12px;
+  margin: 0;
+}
+.document-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.document-form {
+  display: grid;
+  gap: 15px;
+  margin: 20px 0;
+}
+.document-form .button {
+  justify-self: start;
+}
+.document-form input[type='file'] {
+  width: 100%;
+  padding: 12px;
+  height: auto;
+  font-size: 13px;
+}
+.document-form input[type='file']::file-selector-button {
+  padding: 6px;
+  margin-right: 8px;
+}
+.document-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 12px 0;
+}
+.document-details {
+  max-width: 720px;
+}
+.document-details .section-heading {
+  margin-top: 26px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.document-upload-panel {
+  padding: 16px;
+  background: #f7f9fc;
+  border-radius: 10px;
+}
+.version-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.version-list li {
+  border-top: 1px solid #e5eaf0;
+  padding: 18px 0;
+}
+.version-list li p {
+  overflow-wrap: anywhere;
+  margin: 6px 0;
+}
+.document-delete {
+  border-top: 1px solid #e5eaf0;
+  padding-top: 16px;
+  margin-top: 16px;
+}
+.document-preview {
+  max-width: 950px;
+  width: calc(100vw - 32px);
+}
+
+.application-documents {
+  padding: 24px;
+  margin-top: 24px;
+}
+.application-documents h3 {
+  font-size: 16px;
+  margin: 18px 0 8px;
+  overflow-wrap: anywhere;
+}
+.application-documents > p {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.document-next-step {
+  border: 1px solid #d5e9e3;
+  background: #eff8f4;
+  padding: 20px 24px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.document-next-step > div {
+  flex: 1;
+}
+.document-next-step p {
+  font-size: 13px;
+  margin: 6px 0 0;
+  color: #617084;
+}
+@media (max-width: 1100px) {
+  .document-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .document-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .document-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .document-next-step {
+    align-items: start;
+    flex-wrap: wrap;
+  }
+  .document-next-step > div {
+    min-width: 200px;
+  }
+  .document-actions .button {
+    max-width: 100%;
+  }
+}
+.pdf-page {
+  background: #e5eaf0;
+  padding: 12px;
+  margin: 16px 0;
+  max-height: 60vh;
+  overflow: auto;
+  text-align: center;
+}
+.pdf-page canvas {
+  background: white;
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: auto;
+}
+.document-toolbar input,
+.document-toolbar select,
+.document-form input,
+.document-form select {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  min-width: 0;
+  border: 1px solid #9cabbc;
+  border-radius: 7px;
+  padding: 11px 12px;
+  background: #fbfcfe;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 400;
+}

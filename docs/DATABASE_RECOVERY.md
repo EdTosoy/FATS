@@ -1,13 +1,15 @@
 # Database backups and recovery
 
-Phase 4.1 provides a verified **local PostgreSQL 17** archive/restore workflow. It creates no cloud resources and does not automate a hosted disaster-recovery service. Stop the application before restoration. Keep an independent copy of the current database before replacing it, and prefer restoring into a fresh, dedicated database first.
+Phase 5 extends the verified **local PostgreSQL 17** archive/restore workflow. It creates no cloud resources and does not automate a hosted disaster-recovery service. Stop the application before restoration. Keep an independent copy of the current database before replacing it, and prefer restoring into a fresh, dedicated database first.
 
 ## JSON exports and operational archives
 
-| Tool                       | Contents                                                                                                  | Scope and recovery                                                                                                                                                                    |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Settings → Data management | One active workspace's applications/interviews/notes                                                      | Compatible version 1 JSON; preview and confirmed replacement; no passwords/sessions. Works for guest and account workspaces.                                                          |
-| `db:backup` / `db:restore` | Public-schema FATS database, accounts, password hashes, record ownership, relationships, migration ledger | Operator-only PostgreSQL archive plus manifest; explicit target and confirmation. Restore revokes all sessions, verification/reset tokens, and staged replacement/migration previews. |
+Phase 5 archives use manifest version 2. Complete document recovery requires the dump, manifest, and matching `.dump.documents/` directory. A dump alone contains document metadata but cannot recover file content. Version 1 operational archives remain revision-specific: recover them with the Phase 4.1 code, then test migration separately; do not edit manifests to bypass compatibility checks.
+
+| Tool                       | Contents                                                                                                  | Scope and recovery                                                                                                                                                                                                     |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Settings → Data management | One active workspace's applications/interviews/notes                                                      | Compatible version 1 JSON; no document metadata/files/submitted links, passwords, or sessions. Replacement is blocked while submitted links exist. Works for guest and account workspaces.                             |
+| `db:backup` / `db:restore` | Public-schema FATS database, accounts, password hashes, record ownership, relationships, migration ledger | Operator-only PostgreSQL archive, manifest, and matching private file directory; explicit target and confirmation. Restore revokes all sessions, verification/reset tokens, and staged replacement/migration previews. |
 
 Both formats contain private, unencrypted information. Database archives additionally contain authentication material. Keep them outside shared folders/source control, restrict access, and use an approved encrypted/off-device storage process for important backups. No such external storage is provisioned in this slice. Losing the database volume and its only local dump together is not recoverable.
 
@@ -21,12 +23,13 @@ pnpm db:migrate
 pnpm db:backup --container ats-postgres-1 --database fats --file backups/fats-2026-10-15.dump
 ```
 
-Choose a new filename for each backup. The tool uses the private `DATABASE_URL` from `apps/web/.env.local`, verifies the explicit database/container/loopback port, and refuses unrelated tables or missing/changed migrations. It takes a consistent snapshot while `pg_dump` runs. A successful result produces two files:
+Choose a new filename for each backup. The tool uses the private `DATABASE_URL` from `apps/web/.env.local`, verifies the explicit database/container/loopback port, and refuses unrelated tables or missing/changed migrations. If documents exist, `FATS_DOCUMENTS_DIR` must select their private byte store. It takes a consistent snapshot while `pg_dump` runs. A global advisory lock blocks document mutations until file copying finishes; unrelated application edits remain snapshot-consistent. Every referenced document file is copied and checked against its stored size/SHA-256. Missing/corrupt/unreadable bytes fail the operation. A successful result produces:
 
 - `fats-2026-10-15.dump`: PostgreSQL custom archive, mode 0600.
-- `fats-2026-10-15.dump.manifest.json`: format version, PostgreSQL major version, archive checksum, migration checksums, and counts, also mode 0600.
+- `fats-2026-10-15.dump.manifest.json`: format version 2, PostgreSQL major version, archive checksum, migration checksums, counts, and document key/size/hash inventory, also mode 0600.
+- `fats-2026-10-15.dump.documents/`: required when the inventory is nonempty; mode 0700, containing verified immutable files as mode 0600.
 
-Keep the pair together. Interrupted or failed operations do not claim a valid backup. An absent/mismatched sidecar fails validation; keep the original files for investigation and create a new backup under a new name. Existing outputs are never overwritten. Dumps, manifests, interrupted `.dump.*.partial` files, and `backups/` are ignored by Git. Environment files and database passwords are not included.
+Keep all parts together. Interrupted or failed operations do not claim a valid backup. Partial directories/files may remain privately for investigation and are never accepted without a complete valid archive and manifest. An absent/mismatched sidecar fails validation; keep the original files for investigation and create a new backup under a new name. Existing outputs are never overwritten. Dumps, manifests, paired document directories, interrupted `.dump.*.partial` files, and `backups/` are ignored by Git. Environment files and database passwords are not included.
 
 The wrapper uses the installed container's `pg_dump`/`pg_restore`/`psql`, so no host PostgreSQL tools are required. It supports only the `ats` Compose PostgreSQL service or the labelled FATS disposable test container. Remote targets and system databases are refused. The archive requires the same PostgreSQL major and exact FATS migration set/checksums; restore with the matching code revision before separately testing any upgrade.
 
@@ -42,9 +45,10 @@ Create a private, Git-ignored `.env.restore` file (mode 0600) containing **only 
 
 ```dotenv
 FATS_RESTORE_DATABASE_URL=postgresql://fats:EXAMPLE_PASSWORD@127.0.0.1:5433/fats_restore_test
+FATS_RESTORE_DOCUMENTS_DIR=/absolute/private/path/fats-recovery-2026-10-15
 ```
 
-The restore command never falls back to `DATABASE_URL`. Do not put passwords into command arguments, shell history, tickets, or shared logs. Preview the actual container/database and archive counts first:
+The restore command never falls back to `DATABASE_URL` or `FATS_DOCUMENTS_DIR`. For archives with documents, the independently selected document target must not exist yet; an existing directory is never replaced. The parent must already exist and be private/canonical. `--check` validates this selection and all source file content without creating the target. Do not put passwords into command arguments, shell history, tickets, or shared logs. Preview the actual container/database and archive counts first:
 
 ```sh
 node --env-file=.env.restore apps/web/scripts/database.mjs restore --container ats-postgres-1 --database fats_restore_test --file backups/fats-2026-10-15.dump --check
@@ -58,17 +62,17 @@ node --env-file=.env.restore apps/web/scripts/database.mjs restore --container a
 
 `pnpm db:restore` exposes the same wrapper when the explicit target variable is already loaded privately. A missing/mismatched confirmation does not change data. Never use a user's current workspace as a restore test. The tool checks target identity, PostgreSQL version, archive integrity/compatibility, unrelated tables, and other open connections. Checksums do not establish who created a dump: restore only trusted archives, since PostgreSQL restores executable SQL.
 
-Schema/data replacement, count/ledger verification, and token revocation commit together. Any SQL error rolls the transaction back, retaining the previous destination. Temporary SQL is private and removed after the operation. Logs suppress SQL/rows/credentials, retaining only a SQLSTATE when available. No success is printed unless the complete restore succeeds.
+File bytes are copied to the fresh private target and verified before schema/data replacement starts. Schema/data replacement, count/ledger/document-inventory verification, and token revocation commit together. Any SQL error rolls the transaction back, retaining the previous database destination. Copied bytes are retained after an attempted SQL restore, even if the result is an error: a lost commit response could be ambiguous. Keep the application stopped, inspect the destination, and select a fresh file target for a deliberate retry. Failed copying before any SQL restore can discard only the newly created partial target. Temporary SQL is private and removed after the operation. Logs suppress SQL/rows/credentials, retaining only a SQLSTATE when available. No success is printed unless the complete restore succeeds.
 
 ## Verify and recover
 
 1. Keep the application stopped after any failure. Retain the original archive/manifest and the original database. Read the safe error: wrong target/confirmation, damaged pair, incompatible revision, other connections, or database utility failure.
 2. For an invalid/incomplete pair, select another complete trusted pair. Do not edit checksums to make a damaged archive pass. A failed validation never starts replacement.
 3. For a version/checksum mismatch, use the source code/PostgreSQL version that created the archive, restore into a fresh database, and test upgrades separately.
-4. After a successful restore, point a private local application configuration at the recovered database. Keep the original database until you have signed in, checked applications/interviews/notes/relationships, and exported a user JSON backup. All previous sessions and recovery links are intentionally invalid; sign in again or request a new recovery message.
+4. After a successful restore, point a private local application configuration at both the recovered database and recovered document directory. Keep the original database until you have signed in, checked applications/interviews/notes/relationships, verified every document version and submitted link, run `pnpm documents:check`, and exported a user JSON backup (which excludes documents). All previous sessions and recovery links are intentionally invalid; sign in again or request a new recovery message.
 5. Start the local server only after verification. Resume normal backups under new filenames. Remove a disposable recovery database only after explicitly deciding its data is no longer needed.
 
-Live mutation during restoration is not supported. The tool checks open connections, but the operator must keep the application stopped throughout; this is not a deployment maintenance/connection-gating system. The archive does not include PostgreSQL roles/configuration, the Better Auth environment secret, browser-local records, unsaved drafts, or Mailpit messages. Password hashes remain valid; all session/recovery tokens are revoked during restore.
+Live mutation during restoration is not supported. The tool checks open connections, but the operator must keep the application stopped throughout; this is not a deployment maintenance/connection-gating system. Only matching manifest-listed document bytes are included; partials, unreferenced objects, and garbage-queue bytes are not needed to recover live documents. The archive does not include PostgreSQL roles/configuration, the Better Auth environment secret, browser-local records, unsaved drafts, or Mailpit messages. Password hashes remain valid; all session/recovery tokens are revoked during restore.
 
 ## Repeat the executed disposable drill
 
@@ -77,4 +81,4 @@ pnpm db:test:up
 pnpm test:integration tests/integration/database-operations.test.ts
 ```
 
-The test creates uniquely named source/destination databases inside the labelled disposable PostgreSQL container. It registers/verifies an account, saves an application/interview, creates sessions/recovery/staged state, makes an actual archive, tests invalid/missing/wrong-target confirmations, performs the real restore, and checks full record equality, login, foreign keys, schema checksums, and token/session revocation. It also checks refusal of in-use targets and preservation after invalid files. It removes only its own disposable databases. Exact results are in [Phase 4.1 verification](PHASE_4_1_VERIFICATION.md).
+The test creates uniquely named source/destination databases inside the labelled disposable PostgreSQL container. It registers/verifies an account, saves an application/interview, creates sessions/recovery/staged state, makes an actual archive, tests invalid/missing/wrong-target confirmations, performs the real restore, and checks full record equality, login, foreign keys, schema checksums, and token/session revocation. It also checks refusal of in-use targets and preservation after invalid files. It removes only its own disposable databases. The Phase 5 drill additionally saves multiple versions, links an older version, rejects damaged/missing content and metadata-only archives, tests fresh file targets and SQL rollback with retained private bytes, and restores exact metadata/bytes/links. Current results are in [Phase 5 verification](PHASE_5_VERIFICATION.md).

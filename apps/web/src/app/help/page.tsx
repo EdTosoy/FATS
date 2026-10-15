@@ -82,7 +82,9 @@ export default function HelpPage() {
             keep it somewhere safe. To recover it, choose the file, review the
             counts, and explicitly confirm replacement. A full restore replaces
             current records; it does not merge them. Cancel leaves your data
-            unchanged. Resume documents are not included.
+            unchanged. Document files and submitted resume links are excluded.
+            JSON replacement is blocked while submitted links exist; use a
+            complete operator archive to recover documents.
           </p>
           <p>
             For unreadable browser data, sign out to open local recovery. A
@@ -126,7 +128,8 @@ export default function HelpPage() {
       </Card>
       <p className="page-footnote">
         Verify your email or recover your password from the sign-in screen.
-        Resume uploads and integrations remain planned.
+        Verified accounts can manage private PDF/DOCX files in Resumes.
+        Uploading a new version keeps earlier submitted versions unchanged.
       </p>
     </>
   );

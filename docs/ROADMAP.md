@@ -53,7 +53,7 @@ See [SIDEKICK.md](SIDEKICK.md) for commands and [PHASE_3_VERIFICATION.md](PHASE_
 
 ## Recommended next implementation step
 
-Phase 4.1 is the stopping point for this task. Before inviting external users, separately scope hosted email delivery, deployment-specific proxy/rate-limit policy, and hosted recovery drills. Resume uploads require a separate design and authorization after that foundation is ready. Unsaved-draft warnings and a manual Chrome native-dock usability check remain useful follow-ups.
+Phase 5 is the stopping point. Before external hosting, separately scope private storage isolation/malware scanning, managed orphan cleanup, hosted account delivery/abuse controls, encrypted off-device archives, and deployment-specific recovery drills. No cloud service or deployment is authorized.
 
 ## Phase 4 — authentication and durable persistence
 
@@ -76,6 +76,15 @@ Phase 4.1 is the stopping point for this task. Before inviting external users, s
 
 ## Later work — requires a separate scope
 
-Potential directions: resume/document library; application notes/history; useful reminders; user-controlled AI assistance. Prioritize with users before building these.
+Potential directions: managed document cleanup and hosted readiness; application notes/history; useful reminders; user-controlled AI assistance. Prioritize with users before building these.
 
-No AI provider, crawler, native app, subscription system, resume upload, or deployment is part of Phase 4.1. Hosted origins and extension-store publication require separate authorization. Stop after Phase 4.1.
+No AI provider, crawler, native app, subscription system, or deployment is part of Phase 5. Hosted origins and extension-store publication require separate authorization. Stop after Phase 5.
+
+## Phase 5 — resume and document management
+
+- Private verified-account PDF/DOCX library backed by PostgreSQL metadata and a persistent filesystem storage interface, ready for a separately implemented S3-compatible adapter.
+- Owner-scoped access, format/size/quota checks, private downloads, isolated PDF preview, and corruption/missing-file guidance.
+- Immutable numbered versions, explicit default resume, rename/category/search/archive controls, and safely restricted deletion.
+- Explicit application-to-version association that never follows a new upload automatically, plus a small contextual dashboard step.
+- Consistent PostgreSQL/file archives and explicitly targeted recovery, JSON omission/replacement guards, and read-only integrity audit.
+- Actual filesystem, PostgreSQL, browser, extension, and production verification: [Phase 5 evidence](PHASE_5_VERIFICATION.md). Stop after Phase 5.

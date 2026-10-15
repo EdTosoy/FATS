@@ -14,6 +14,10 @@ BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
 # Mailpit only; loopback SMTP delivery. No paid email credentials.
 FATS_MAIL_PORT=1025
+# Phase 5: absolute, persistent, canonical private directory (0700).
+FATS_DOCUMENTS_DIR=/absolute/private/path/fats-documents
 ```
 
 `BETTER_AUTH_URL` must match the exact local hostname/port you open. Mail is delivered only to loopback Mailpit: SMTP 1025 and inbox <http://127.0.0.1:8025>. Test services use separate ports and synthetic accounts; see [setup](../README.md#accounts-and-local-postgresql--phase-41). Hosted email delivery is outside this local slice.
+
+Phase 5 files require persistent local storage separate from PostgreSQL. Existing configurations need this variable added manually and a server restart; `db:configure` never overwrites them. Keep bytes outside public/static hosting roots; see [document setup](DOCUMENTS.md). Restore uses an independently configured `FATS_RESTORE_DOCUMENTS_DIR` and never replaces an existing directory.

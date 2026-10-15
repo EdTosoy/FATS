@@ -33,7 +33,8 @@
     "mail:test:up": "node apps/web/scripts/mail-test.mjs up",
     "mail:test:stop": "node apps/web/scripts/mail-test.mjs stop",
     "db:backup": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/database.mjs backup",
-    "db:restore": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/database.mjs restore"
+    "db:restore": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/database.mjs restore",
+    "documents:check": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/check-documents.mjs"
   },
   "devDependencies": {
     "@fats/domain": "workspace:*",

@@ -9,3 +9,5 @@ uiux
 **/next-env.d.ts
 apps/extension/dist
 backups
+.fats-private/
+*.dump.documents/

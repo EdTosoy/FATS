@@ -247,7 +247,7 @@ it('performs a real confirmed restore and verifies records, relationships, crede
           'SELECT count(*)::int AS count FROM fats_schema_migrations',
         )
       ).rows[0].count,
-    ).toBe(3);
+    ).toBe(4);
     await expect(
       recovered.pool.query('DELETE FROM applications WHERE user_id=$1', [
         ownerId,
@@ -329,4 +329,121 @@ it('rolls back schema replacement and token revocation when post-restore verific
   } finally {
     await after.end();
   }
+});
+
+it('backs up and restores matching immutable document versions and application links with verified private file bytes', async () => {
+  const { FilesystemDocumentStorage } =
+    await import('../../apps/web/src/server/document-storage');
+  const { PostgresDocumentRepository } =
+    await import('../../apps/web/src/server/document-repository');
+  const { pdfFixture, docxFixture } =
+    await import('../helpers/document-fixtures');
+  const storage = new FilesystemDocumentStorage(directory + '/source-files');
+  const documents = new PostgresDocumentRepository(
+    services.pool,
+    ownerId,
+    storage,
+  );
+  const first = await documents.upload(await pdfFixture(), 'resume.pdf', {
+    requestId: randomUUID(),
+    name: 'Recovery resume',
+    category: 'Resumes',
+  });
+  await documents.upload(docxFixture(), 'resume-v2.docx', {
+    requestId: randomUUID(),
+    documentId: first.documentId,
+  });
+  const app = (
+    await new PostgresWorkspaceRepository(services.pool, ownerId).getWorkspace()
+  ).applications[0];
+  await documents.associate(app.id, first.versionId);
+  const file = directory + '/with-documents.dump',
+    recoveredRoot = directory + '/recovered-files';
+  await expect(createDatabaseBackup(source, file)).rejects.toThrow(
+    'metadata-only',
+  );
+  const manifest = await createDatabaseBackup(source, file, storage);
+  expect(manifest.documents).toHaveLength(2);
+  expect(manifest.version).toBe(2);
+  await expect(
+    restoreDatabaseBackup(destination, file, undefined, true),
+  ).rejects.toThrow('FATS_RESTORE_DOCUMENTS_DIR');
+  expect(
+    (
+      await restoreDatabaseBackup(
+        destination,
+        file,
+        undefined,
+        true,
+        recoveredRoot,
+      )
+    ).documents,
+  ).toHaveLength(2);
+  await expect(stat(recoveredRoot)).rejects.toMatchObject({ code: 'ENOENT' });
+  const entry = manifest.documents[0],
+    bundlePath = file + '.documents/' + entry.storage_key + '.blob';
+  const original = await readFile(bundlePath);
+  await writeFile(bundlePath, Buffer.alloc(entry.byte_size));
+  await expect(
+    restoreDatabaseBackup(
+      destination,
+      file,
+      'RESTORE ' + restoreName,
+      false,
+      recoveredRoot,
+    ),
+  ).rejects.toThrow('invalid');
+  await expect(stat(recoveredRoot)).rejects.toMatchObject({ code: 'ENOENT' });
+  await writeFile(bundlePath, original);
+  // Invalid post-restore checks roll back SQL; retain private bytes after a restore attempt in case the commit response is ambiguous.
+  const rollbackRoot = directory + '/failed-restore-files';
+  const metadata = JSON.parse(await readFile(file + '.manifest.json', 'utf8'));
+  metadata.counts.applications++;
+  await writeFile(file + '.manifest.json', JSON.stringify(metadata));
+  await expect(
+    restoreDatabaseBackup(
+      destination,
+      file,
+      'RESTORE ' + restoreName,
+      false,
+      rollbackRoot,
+    ),
+  ).rejects.toThrow('Database utility failed');
+  expect((await stat(rollbackRoot)).isDirectory()).toBe(true);
+  await writeFile(file + '.manifest.json', JSON.stringify(manifest));
+  await restoreDatabaseBackup(
+    destination,
+    file,
+    'RESTORE ' + restoreName,
+    false,
+    recoveredRoot,
+  );
+  const pool = createDatabasePool(destination.connectionString);
+  try {
+    const recovered = new PostgresDocumentRepository(
+      pool,
+      ownerId,
+      new FilesystemDocumentStorage(recoveredRoot),
+    );
+    expect(await recovered.library()).toEqual(await documents.library());
+    expect(
+      Buffer.from((await recovered.download(first.versionId)).bytes),
+    ).toEqual(Buffer.from((await documents.download(first.versionId)).bytes));
+    await expect(recovered.delete(first.documentId)).rejects.toThrow('linked');
+  } finally {
+    await pool.end();
+  }
+  await expect(
+    restoreDatabaseBackup(destination, file, undefined, true, recoveredRoot),
+  ).rejects.toThrow('fresh');
+  const sourceRow = (
+    await services.pool.query(
+      'SELECT storage_key FROM document_versions WHERE user_id=$1 AND id=$2',
+      [ownerId, first.versionId],
+    )
+  ).rows[0];
+  await rm(storage.root + '/' + sourceRow.storage_key + '.blob');
+  await expect(
+    createDatabaseBackup(source, directory + '/missing-content.dump', storage),
+  ).rejects.toThrow('missing');
 });

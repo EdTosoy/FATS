@@ -57,6 +57,8 @@ Capture supports JobPosting JSON-LD and basic metadata/semantic HTML, with manua
 - [Phase 3 verification](docs/PHASE_3_VERIFICATION.md)
 - [Phase 4 verification](docs/PHASE_4_VERIFICATION.md)
 - [Authentication and persistence decision](docs/decisions/0001-authentication-and-persistence.md)
+- [Phase 5 verification](docs/PHASE_5_VERIFICATION.md)
+- [Private documents and versions](docs/DOCUMENTS.md)
 - [Phase 4.1 verification](docs/PHASE_4_1_VERIFICATION.md)
 - [Account safety decision](docs/decisions/0002-account-safety-and-recovery.md)
 - [PostgreSQL backup and recovery](docs/DATABASE_RECOVERY.md)
@@ -100,4 +102,12 @@ The database helper generates ignored `.env.phase4-test`, uses loopback port 164
 
 Use the [database recovery runbook](docs/DATABASE_RECOVERY.md) for private PostgreSQL archives, compatibility checks, and explicitly confirmed restoration. JSON workspace exports remain available and exclude authentication data; database dumps contain password hashes and require operator care. A disposable real restore is covered by the integration suite.
 
-This remains a local foundation. Hosted email delivery, trusted-proxy and abuse policies, and deployment-specific recovery drills require separate work before inviting external users. Runtime account configuration refuses hosted origins while mail goes to a local inbox. Resume uploads, AI, payments, calendar sync, notifications, and crawling remain outside Phase 4.1. See [Phase 4.1 evidence and limitations](docs/PHASE_4_1_VERIFICATION.md).
+This remains a local foundation. Hosted email delivery, trusted-proxy and abuse policies, and deployment-specific recovery drills require separate work before inviting external users. Runtime account configuration refuses hosted origins while mail goes to a local inbox. AI, payments, calendar sync, notifications, crawling, and cloud deployment remain outside the authorized scope. Phase 5 adds local private document management below. See [Phase 4.1 evidence and limitations](docs/PHASE_4_1_VERIFICATION.md).
+
+## Private resumes and documents — Phase 5
+
+Run `pnpm db:migrate`, configure an absolute persistent private `FATS_DOCUMENTS_DIR` in `apps/web/.env.local`, and restart FATS. Newly generated configuration includes an ignored `apps/web/.fats-private/documents` path; existing configuration is never overwritten. Only verified accounts can upload PDF/DOCX files. Guest tracking and Sidekick remain available.
+
+Open **Resumes** to upload, search, categorize, rename, preview supported PDFs, download, add versions, set a default resume, and archive documents. Application details explicitly record an exact submitted resume version. Uploading a new version never changes that record. Linked documents cannot be deleted; unlinked deletion requires confirmation. Limits are 10 MiB/file, 100 MiB/account including earlier/archived versions, 50 documents, and 20 versions/document.
+
+Settings JSON exports exclude document metadata, files, and submitted links. A complete operator backup consists of the PostgreSQL dump, version 2 manifest, and matching `.dump.documents/` content. Restore requires a separately selected database and fresh private file directory. `pnpm documents:check` audits file integrity without removing anything. See [document architecture and limits](docs/DOCUMENTS.md), [recovery instructions](docs/DATABASE_RECOVERY.md), and [executed Phase 5 verification](docs/PHASE_5_VERIFICATION.md). Stop after Phase 5.

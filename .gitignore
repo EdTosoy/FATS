@@ -14,3 +14,5 @@ backups/
 *.dump
 *.dump.manifest.json
 *.dump.*.partial
+.fats-private/
+*.dump.documents/

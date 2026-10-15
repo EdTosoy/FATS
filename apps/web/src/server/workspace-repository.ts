@@ -260,6 +260,18 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
           'Keep this application while interviews are linked to it.',
           409,
         );
+      if (
+        (
+          await client.query(
+            'SELECT 1 FROM application_document_versions WHERE user_id=$1 AND application_id=$2',
+            [this.owner, id],
+          )
+        ).rowCount
+      )
+        throw new WorkspaceError(
+          'Keep this application while a submitted resume version is linked to it. Explicitly remove the link first.',
+          409,
+        );
       await client.query(
         'DELETE FROM applications WHERE user_id=$1 AND id=$2',
         [this.owner, id],
@@ -317,6 +329,7 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     const hash = fingerprint(data);
     return this.transaction(false, async (client, revision) => {
       const current = await this.read(client);
+      if (kind === 'restore') await this.requireNoDocumentLinks(client);
       const alreadyImported =
         kind === 'migration' &&
         !!(
@@ -361,6 +374,20 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       };
     });
   }
+  private async requireNoDocumentLinks(client: PoolClient) {
+    if (
+      (
+        await client.query(
+          'SELECT 1 FROM application_document_versions WHERE user_id=$1 LIMIT 1',
+          [this.owner],
+        )
+      ).rowCount
+    )
+      throw new WorkspaceError(
+        'JSON backups do not contain documents or submitted resume links. Export your records, then explicitly remove those links before replacing applications. Use a complete operator archive to recover documents and links.',
+        409,
+      );
+  }
   async previewRestore(text: string): Promise<RestorePreview> {
     return this.preview(text, 'restore');
   }
@@ -393,6 +420,7 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       const incoming = databaseData(validateWorkspaceData(stage.data));
       const current = await this.read(client);
       if (kind === 'restore') {
+        await this.requireNoDocumentLinks(client);
         await client.query('DELETE FROM interviews WHERE user_id=$1', [
           this.owner,
         ]);

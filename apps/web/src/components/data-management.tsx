@@ -128,7 +128,8 @@ export function DataManagement() {
           {account.user
             ? 'These tools export and replace your account records; local browser records stay separate.'
             : 'Clearing browser data or losing this device can remove your workspace.'}{' '}
-          Backups do not include resume documents or other files.
+          Backups exclude document files and submitted resume links. Use a
+          complete local operator archive to recover your document library.
         </p>
         <p className="backup-warning">
           Backups contain private, unencrypted information. Anyone with the file
@@ -141,8 +142,8 @@ export function DataManagement() {
           <section aria-labelledby="export-title">
             <h3 id="export-title">Export backup</h3>
             <p>
-              Download your complete saved workspace as JSON. Export before
-              replacing data you want to keep.
+              Download your saved applications and interviews as JSON. Export
+              before replacing data you want to keep.
             </p>
             <Button
               ref={exportButton}

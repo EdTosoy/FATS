@@ -12,6 +12,7 @@ import {
   Check,
 } from 'lucide-react';
 import Link from 'next/link';
+import { ApplicationDocuments } from './application-documents';
 import { ApplicationInterviews } from './interview-list';
 import { useApplications } from './application-provider';
 import { CompanyAvatar, formatDate } from './application-table';
@@ -123,6 +124,7 @@ export function ApplicationDetail({ id }: { id: string }) {
             </div>
             <p className="field-hint source-url">{application.sourceUrl}</p>
           </Card>
+          <ApplicationDocuments applicationId={application.id} />
           <ApplicationInterviews applicationId={application.id} />
           <Card className="description-card">
             <div className="section-heading">

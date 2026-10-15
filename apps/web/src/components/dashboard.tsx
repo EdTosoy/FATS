@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { InterviewDate, ScheduleInterviewButton } from './interview-list';
 import { applicationStatistics, upcomingInterviews } from '@fats/domain';
+import { DocumentNextStep } from './application-documents';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { ApplicationTable } from './application-table';
@@ -264,6 +265,7 @@ export function Dashboard() {
           </div>
         </Card>
       </div>
+      <DocumentNextStep />
       <Card className="recent-card">
         <div className="section-heading">
           <h2>Recent applications</h2>

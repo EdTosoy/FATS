@@ -9,3 +9,4 @@ export type WorkspaceRepository =
       getWorkspace?: () => Promise<import('./backup').WorkspaceData>;
     };
 export * from './migration';
+export * from './document';

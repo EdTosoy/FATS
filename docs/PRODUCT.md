@@ -1,12 +1,12 @@
 # Product
 
-## Current slice — Phase 4
+## Current slice — Phase 5
 
 The Phase 0–3 tracker remains available as a browser-local guest workspace. Optional email/password accounts now save applications, interviews, and notes in local PostgreSQL through the same FATS interface. Account registration/login do not transfer browser records. Settings offers a count preview and explicit confirmation for an additive transfer, retaining original local data and all record identities/relationships. Conflicts stop the transfer; duplicate confirmations do not duplicate records. Settings backups operate on the active account or guest workspace using the existing format.
 
 Account ownership is enforced on the server and in database relationships. Logging out clears the account view and revokes that session. Expiration blocks account saves and offers reauthentication while preserving mounted form inputs. Sidekick still requires final confirmation and can return to the same handoff after login. Maria Santos remains an explicitly labelled guest sample; signed-in greetings use the account name. No default records are created.
 
-Phase 4.1 adds required email verification, resend, forgot-password and reset forms, verified account status, and private operator database recovery. Development messages arrive in a local Mailpit inbox and never reach real recipients. Existing unverified accounts keep their records and verify before accessing them. Resetting a password signs out every session for that account; recovery requests use generic feedback. JSON exports and guest recovery remain available. This is a local foundation with no cloud resources or public deployment. Resume files, AI, payments, email automation beyond account recovery, calendars, notifications, and crawling remain outside scope. See [Phase 4.1 verification](PHASE_4_1_VERIFICATION.md) and [ADR 0002](decisions/0002-account-safety-and-recovery.md). The sections below retain the earlier guest-mode product decisions; statements about browser-only storage describe that mode.
+Phase 4.1 adds required email verification, resend, forgot-password and reset forms, verified account status, and private operator database recovery. Development messages arrive in a local Mailpit inbox and never reach real recipients. Existing unverified accounts keep their records and verify before accessing them. Resetting a password signs out every session for that account; recovery requests use generic feedback. JSON exports and guest recovery remain available. This is a local foundation with no cloud resources or public deployment. Phase 5 adds private PDF/DOCX document management for verified accounts. AI, payments, email automation beyond account recovery, calendars, notifications, crawling, and cloud deployment remain outside scope. See [Phase 4.1 verification](PHASE_4_1_VERIFICATION.md) and [ADR 0002](decisions/0002-account-safety-and-recovery.md). The sections below retain the earlier guest-mode product decisions; statements about browser-only storage describe that mode.
 
 ## Confirmed decisions
 
@@ -18,7 +18,7 @@ FATS (Friendly Applicant Tracking System) is a personal job-search companion des
 
 The current slice supports manually saving a title, company, external source URL, location, and optional description; listing, searching, filtering, viewing and editing those jobs; and choosing Saved, Applied, Assessment, Interview, Offer, Rejected, or Withdrawn. Users can link multiple manual interview records to each job, prepare, reschedule, complete, cancel, and reflect. Dashboard totals, nearest upcoming interview, preparation guidance, and recent applications come from the same persisted workspace.
 
-First-time users see zero applications, gentle three-step guidance, and a clear save action. No default applications or scheduled interviews are fabricated. Interviews guides users to save an application first; Resumes explains its current limits. Settings describes the local workspace; Help explains interview management and storage recovery.
+First-time users see zero applications, gentle three-step guidance, and a clear save action. No default applications or scheduled interviews are fabricated. Interviews guides users to save an application first; Resumes offers a private account library and a sign-in explanation for guests. Settings describes the local workspace; Help explains interview management and storage recovery.
 
 ## Phase 2 — manual interview management
 
@@ -47,7 +47,7 @@ These are reversible implementation assumptions, not settled policy for a future
 
 ## Honesty and boundaries
 
-FATS does not crawl links, contact companies, generate AI advice, upload files, send invitations/reminders, or apply on the user's behalf in this version. It does not use remote APIs, external credentials, subscriptions, or native apps. Local browser data can be lost if site data is cleared. Resume/library, calendar integrations, and notifications require separate future work.
+FATS does not crawl links, contact companies, generate AI advice, send invitations/reminders, or apply on the user's behalf in this version. It does not use remote APIs, external credentials, subscriptions, or native apps. Local browser data can be lost if site data is cleared. Calendar integrations and notifications require separate future work.
 
 ## Phase 2.1 — data safety and recovery
 
@@ -62,3 +62,13 @@ Chrome Sidekick helps users capture one opportunity from an external page, corre
 Capture is explicit and uses temporary access to the current tab. It prioritizes JobPosting structured data, then basic semantic HTML/metadata. Missing information stays blank; ambiguous multi-job pages require manual entry. Users can always type or paste a description without supported extraction or page access. There is no AI analysis, site-specific adapter, crawler, login bypass, automatic application, or background synchronization.
 
 This unpacked development build supports only the two documented local FATS origins on port 3000. Job fields travel through a checked local message bridge, never URL parameters/history. The extension retains one pending handoff in private session storage for up to 15 minutes of validity; a new handoff replaces it, and extension reload/browser restart clears it. Unsent panel drafts are volatile. Saved records remain in the existing browser workspace and its JSON backups. See [SIDEKICK.md](SIDEKICK.md) for trust boundaries and limitations.
+
+## Phase 5 — private documents and submitted resume versions
+
+Verified accounts can upload and organize resumes, cover letters, certificates, and other application documents. The library supports rename, combined search/category/archive filters, PDF preview, download, immutable numbered versions, an explicit default resume, and archive/restore. New/empty accounts have no documents. Guests are invited to sign in; actual bytes are never stored in localStorage.
+
+An application records one explicitly chosen resume version. New uploads, default changes, renaming, and archive actions leave existing submitted version IDs unchanged. Archived submitted files remain accessible. Referenced documents cannot be deleted or recategorized away from Resumes. Unlinked document deletion removes all versions after confirmation. Recording a file never sends it to an employer.
+
+Limits: nonempty PDF/DOCX up to 10 MiB, 100 MiB/account including history and archives, 50 documents, 20 versions/document. Standard unencrypted PDF 1.0–1.7 and a documented classic ZIP/UTF-8 DOCX subset are supported. Format checks and isolated previews are not malware scanning.
+
+Missing/corrupt files keep their metadata and application history with recovery guidance. JSON exports contain no document metadata/bytes/links; JSON replacement is blocked until submitted links are explicitly removed. Complete local operator archives include matching files and metadata. See [document behavior/storage](DOCUMENTS.md), [recovery](DATABASE_RECOVERY.md), and [verification](PHASE_5_VERIFICATION.md). Stop after Phase 5.

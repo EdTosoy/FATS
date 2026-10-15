@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAccount } from './account-provider';
 import { ApplicationProvider } from './application-provider';
+import { DocumentProvider } from './document-provider';
 import { HttpWorkspaceRepository } from '@/lib/http-workspace-repository';
 import { ActionLink, Button, Card } from './ui';
 import Link from 'next/link';
@@ -117,7 +118,9 @@ export function WorkspaceRoot({ children }: { children: ReactNode }) {
       key={account.user?.id ?? 'local'}
       repository={repository}
     >
-      <AppShell>{children}</AppShell>
+      <DocumentProvider>
+        <AppShell>{children}</AppShell>
+      </DocumentProvider>
     </ApplicationProvider>
   );
 }

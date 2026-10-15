@@ -18,7 +18,10 @@ export default defineConfig({
   globalSetup: './tests/helpers/account-setup.ts',
   webServer: {
     ...web.webServer,
-    command: 'pnpm --filter @fats/web dev --hostname 127.0.0.1 --port 3000',
+    command:
+      process.env.FATS_TEST_PRODUCTION === '1'
+        ? 'pnpm --filter @fats/web start --hostname 127.0.0.1 --port 3000'
+        : 'pnpm --filter @fats/web dev --hostname 127.0.0.1 --port 3000',
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: false,
     timeout: 120000,
@@ -27,6 +30,10 @@ export default defineConfig({
       BETTER_AUTH_URL: 'http://127.0.0.1:3000',
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
       FATS_MAIL_PORT: '11025',
+      FATS_DOCUMENTS_DIR: new URL(
+        './test-results/account-documents/',
+        import.meta.url,
+      ).pathname,
     },
   },
 });

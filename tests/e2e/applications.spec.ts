@@ -297,7 +297,9 @@ test('navigation and page boundaries are honest on desktop and mobile', async ({
       .click();
   }
   await expect(
-    page.getByRole('heading', { name: 'Your resume library is on the way.' }),
+    page.getByRole('heading', {
+      name: 'A private library for your next chapter.',
+    }),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: /Upload/ })).not.toBeVisible();
   await page.goto('/interviews');
