@@ -59,6 +59,9 @@ Capture supports JobPosting JSON-LD and basic metadata/semantic HTML, with manua
 - [Authentication and persistence decision](docs/decisions/0001-authentication-and-persistence.md)
 - [Phase 5 verification](docs/PHASE_5_VERIFICATION.md)
 - [Private documents and versions](docs/DOCUMENTS.md)
+- [Explainable resume comparison](docs/MATCHING.md)
+- [Phase 6 verification](docs/PHASE_6_VERIFICATION.md)
+- [Phase 6.1 evaluation preparation and authorization](docs/PHASE_6_1_VERIFICATION.md)
 - [Phase 4.1 verification](docs/PHASE_4_1_VERIFICATION.md)
 - [Account safety decision](docs/decisions/0002-account-safety-and-recovery.md)
 - [PostgreSQL backup and recovery](docs/DATABASE_RECOVERY.md)
@@ -102,7 +105,7 @@ The database helper generates ignored `.env.phase4-test`, uses loopback port 164
 
 Use the [database recovery runbook](docs/DATABASE_RECOVERY.md) for private PostgreSQL archives, compatibility checks, and explicitly confirmed restoration. JSON workspace exports remain available and exclude authentication data; database dumps contain password hashes and require operator care. A disposable real restore is covered by the integration suite.
 
-This remains a local foundation. Hosted email delivery, trusted-proxy and abuse policies, and deployment-specific recovery drills require separate work before inviting external users. Runtime account configuration refuses hosted origins while mail goes to a local inbox. AI, payments, calendar sync, notifications, crawling, and cloud deployment remain outside the authorized scope. Phase 5 adds local private document management below. See [Phase 4.1 evidence and limitations](docs/PHASE_4_1_VERIFICATION.md).
+This remains a local foundation. Hosted email delivery, trusted-proxy and abuse policies, and deployment-specific recovery drills require separate work before inviting external users. Runtime account configuration refuses hosted origins while mail goes to a local inbox. Payments, calendar sync, notifications, crawling, and cloud deployment remain outside this slice. Phases 5–6 add private documents and an optional explicit AI comparison below. See [Phase 4.1 evidence and limitations](docs/PHASE_4_1_VERIFICATION.md).
 
 ## Private resumes and documents — Phase 5
 
@@ -110,4 +113,14 @@ Run `pnpm db:migrate`, configure an absolute persistent private `FATS_DOCUMENTS_
 
 Open **Resumes** to upload, search, categorize, rename, preview supported PDFs, download, add versions, set a default resume, and archive documents. Application details explicitly record an exact submitted resume version. Uploading a new version never changes that record. Linked documents cannot be deleted; unlinked deletion requires confirmation. Limits are 10 MiB/file, 100 MiB/account including earlier/archived versions, 50 documents, and 20 versions/document.
 
-Settings JSON exports exclude document metadata, files, and submitted links. A complete operator backup consists of the PostgreSQL dump, version 2 manifest, and matching `.dump.documents/` content. Restore requires a separately selected database and fresh private file directory. `pnpm documents:check` audits file integrity without removing anything. See [document architecture and limits](docs/DOCUMENTS.md), [recovery instructions](docs/DATABASE_RECOVERY.md), and [executed Phase 5 verification](docs/PHASE_5_VERIFICATION.md). Stop after Phase 5.
+Settings JSON exports exclude document metadata, files, and submitted links. A complete operator backup consists of the PostgreSQL dump, version 2 manifest, and matching `.dump.documents/` content. Restore requires a separately selected database and fresh private file directory. `pnpm documents:check` audits file integrity without removing anything. See [document architecture and limits](docs/DOCUMENTS.md), [recovery instructions](docs/DATABASE_RECOVERY.md), and [executed Phase 5 verification](docs/PHASE_5_VERIFICATION.md).
+
+## Explainable resume comparison — Phase 6
+
+Signed-in users can choose an exact resume version on an application, review locally extracted PDF/DOCX and saved job text, then explicitly consent to sending that reviewed text for comparison. Reports show quoted requirements, supporting excerpts, partial/undocumented/unclear qualifications, and cautious suggestions. No scores, fabricated qualifications, automatic analysis, resume rewriting, or application changes are included. New resume uploads leave old reports intact; changed job descriptions visibly mark earlier reports outdated.
+
+Run `pnpm db:migrate`. Comparison stays honestly unavailable until a local operator configures `FATS_AI_PROVIDER=openai` and a private server-only `OPENAI_API_KEY`, then restarts FATS. The initial adapter pins OpenAI `gpt-5.4-mini-2026-03-17` with structured output, bounded requests, timeouts, and default daily limits of 5 attempts/account and 20 globally. Failures can consume provider charges and local limits. Contact removal is best effort; review all text before sharing. `store:false` does not guarantee zero provider retention. See [configuration, privacy, costs, extraction and evidence limits](docs/MATCHING.md).
+
+Reports reference exact resume/job/configuration snapshots and can be explicitly deleted. They expire after 30 days, with deletion on later comparison access rather than a scheduled purge. Settings JSON exports exclude reports/reviewed text; full operator archives include them. Referenced documents/applications and JSON replacement remain protected until reports are explicitly deleted, alongside existing reference rules. Run `pnpm test:e2e:matching` with the disposable test services for clearly labelled deterministic browser checks; no live provider is used. [Phase 6 verification](docs/PHASE_6_VERIFICATION.md) records actual results and remaining gaps. Stop after Phase 6.
+
+Phase 6.1 adds evaluation tooling only: `pnpm eval:matching` prepares 20 synthetic PDF/DOCX scenarios without provider calls. Live evaluation requires a separately approved exact plan, spending/request ceilings and a private key; `eval:matching:live` must never be run as an ordinary regression check. [The evaluation report](docs/PHASE_6_1_VERIFICATION.md) records prepared expectations, deterministic findings, privacy/budget controls, executed checks and current execution status. No live-model accuracy is claimed before that run and manual review.

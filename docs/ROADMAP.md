@@ -53,7 +53,7 @@ See [SIDEKICK.md](SIDEKICK.md) for commands and [PHASE_3_VERIFICATION.md](PHASE_
 
 ## Recommended next implementation step
 
-Phase 5 is the stopping point. Before external hosting, separately scope private storage isolation/malware scanning, managed orphan cleanup, hosted account delivery/abuse controls, encrypted off-device archives, and deployment-specific recovery drills. No cloud service or deployment is authorized.
+Phase 6.1 repaired the GPT-6 Luna undocumented-evidence contract, but live evaluation still understates academic skills. The separately authorized paired comparison stopped after two additional attempts: Luna repeated SQL/Excel underclassification; Mini returned HTTP 429 without usage. The full failed-request reservation remains held, leaving insufficient additional budget for another worst-case hold. Six combined attempts are preserved; the comparison has no model winner or private-beta clearance. Next, reconcile provider access/accounting and review continuation of the frozen comparison, then broader held-out and independent human validation. See [Phase 6.1 evidence](PHASE_6_1_VERIFICATION.md). Before external hosting, separately scope isolated extraction, scheduled retention, private storage/malware scanning, managed orphan cleanup, hosted account delivery/abuse controls, encrypted off-device archives, and deployment-specific recovery drills. No Phase 7, cloud service, or deployment is authorized by this recommendation.
 
 ## Phase 4 — authentication and durable persistence
 
@@ -76,9 +76,9 @@ Phase 5 is the stopping point. Before external hosting, separately scope private
 
 ## Later work — requires a separate scope
 
-Potential directions: managed document cleanup and hosted readiness; application notes/history; useful reminders; user-controlled AI assistance. Prioritize with users before building these.
+Potential directions: evaluated matching quality and retention controls; managed document cleanup and hosted readiness; application notes/history; useful reminders. Prioritize with users before building these.
 
-No AI provider, crawler, native app, subscription system, or deployment is part of Phase 5. Hosted origins and extension-store publication require separate authorization. Stop after Phase 5.
+No crawler, native app, subscription system, or deployment is included. Hosted origins and extension-store publication require separate authorization. Phase 6's optional matching provider is the only authorized AI slice. Stop after Phase 6.
 
 ## Phase 5 — resume and document management
 
@@ -87,4 +87,13 @@ No AI provider, crawler, native app, subscription system, or deployment is part 
 - Immutable numbered versions, explicit default resume, rename/category/search/archive controls, and safely restricted deletion.
 - Explicit application-to-version association that never follows a new upload automatically, plus a small contextual dashboard step.
 - Consistent PostgreSQL/file archives and explicitly targeted recovery, JSON omission/replacement guards, and read-only integrity audit.
-- Actual filesystem, PostgreSQL, browser, extension, and production verification: [Phase 5 evidence](PHASE_5_VERIFICATION.md). Stop after Phase 5.
+- Actual filesystem, PostgreSQL, browser, extension, and production verification: [Phase 5 evidence](PHASE_5_VERIFICATION.md).
+
+## Phase 6 — explainable resume-to-job matching
+
+- Local bounded PDF/DOCX extraction, source review, and explicit external-transmission consent on an application and exact resume version.
+- Server-side provider interface, pinned OpenAI adapter, strict structured output, fixed safe errors/timeouts, and persistent account/global usage limits.
+- Exact validated source citations, conservative classification checks, supported requirement priorities, cautious suggestions, and no scores or invented qualifications.
+- Owner-scoped versioned reports, stale job-revision detection, explicit reruns/deletion, and protected parent/JSON-replacement semantics.
+- Recovery of completed reports with paired private bytes; deterministic fixture tests only, with no live-model quality or cost claim.
+- See [design and limitations](MATCHING.md) and [executed Phase 6 evidence](PHASE_6_VERIFICATION.md). Stop after Phase 6.

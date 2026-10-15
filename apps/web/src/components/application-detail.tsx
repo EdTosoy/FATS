@@ -12,6 +12,7 @@ import {
   Check,
 } from 'lucide-react';
 import Link from 'next/link';
+import { ResumeMatching } from './resume-matching';
 import { ApplicationDocuments } from './application-documents';
 import { ApplicationInterviews } from './interview-list';
 import { useApplications } from './application-provider';
@@ -125,6 +126,7 @@ export function ApplicationDetail({ id }: { id: string }) {
             <p className="field-hint source-url">{application.sourceUrl}</p>
           </Card>
           <ApplicationDocuments applicationId={application.id} />
+          <ResumeMatching applicationId={application.id} />
           <ApplicationInterviews applicationId={application.id} />
           <Card className="description-card">
             <div className="section-heading">

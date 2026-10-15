@@ -43,6 +43,9 @@ const tables = [
   'document_versions',
   'application_document_versions',
   'document_garbage',
+  'matching_previews',
+  'matching_reports',
+  'matching_usage',
 ];
 export class DatabaseOperationError extends Error {}
 export interface DatabaseTarget {
@@ -525,7 +528,7 @@ export async function restoreDatabaseBackup(
         .join('\n');
       await appendFile(
         sql,
-        `\nDELETE FROM public.session; DELETE FROM public.verification; DELETE FROM public.workspace_stages;\nDO $fats$ BEGIN IF (SELECT jsonb_object_agg(name,checksum) FROM public.fats_schema_migrations) IS DISTINCT FROM '${ledger}'::jsonb THEN RAISE EXCEPTION 'Restored schema differs'; END IF; ${checks} ${documentChecks} END; $fats$;\n`,
+        `\nDELETE FROM public.session; DELETE FROM public.verification; DELETE FROM public.workspace_stages; DELETE FROM public.matching_previews; UPDATE public.matching_reports SET status='failed',failure='interrupted',sources=NULL WHERE status='running';\nDO $fats$ BEGIN IF (SELECT jsonb_object_agg(name,checksum) FROM public.fats_schema_migrations) IS DISTINCT FROM '${ledger}'::jsonb THEN RAISE EXCEPTION 'Restored schema differs'; END IF; ${checks} ${documentChecks} END; $fats$;\n`,
       );
       // psql wraps schema/data, count/ledger checks, and token revocation in
       // one transaction. Any error leaves the previous target intact.

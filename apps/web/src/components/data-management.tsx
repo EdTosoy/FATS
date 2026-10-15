@@ -128,8 +128,9 @@ export function DataManagement() {
           {account.user
             ? 'These tools export and replace your account records; local browser records stay separate.'
             : 'Clearing browser data or losing this device can remove your workspace.'}{' '}
-          Backups exclude document files and submitted resume links. Use a
-          complete local operator archive to recover your document library.
+          Backups exclude document metadata, files, submitted resume links,
+          comparison reports, and reviewed text. Use a complete local operator
+          archive to recover those account records.
         </p>
         <p className="backup-warning">
           Backups contain private, unencrypted information. Anyone with the file

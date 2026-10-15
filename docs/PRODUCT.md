@@ -1,12 +1,12 @@
 # Product
 
-## Current slice — Phase 5
+## Current slice — Phase 6
 
 The Phase 0–3 tracker remains available as a browser-local guest workspace. Optional email/password accounts now save applications, interviews, and notes in local PostgreSQL through the same FATS interface. Account registration/login do not transfer browser records. Settings offers a count preview and explicit confirmation for an additive transfer, retaining original local data and all record identities/relationships. Conflicts stop the transfer; duplicate confirmations do not duplicate records. Settings backups operate on the active account or guest workspace using the existing format.
 
 Account ownership is enforced on the server and in database relationships. Logging out clears the account view and revokes that session. Expiration blocks account saves and offers reauthentication while preserving mounted form inputs. Sidekick still requires final confirmation and can return to the same handoff after login. Maria Santos remains an explicitly labelled guest sample; signed-in greetings use the account name. No default records are created.
 
-Phase 4.1 adds required email verification, resend, forgot-password and reset forms, verified account status, and private operator database recovery. Development messages arrive in a local Mailpit inbox and never reach real recipients. Existing unverified accounts keep their records and verify before accessing them. Resetting a password signs out every session for that account; recovery requests use generic feedback. JSON exports and guest recovery remain available. This is a local foundation with no cloud resources or public deployment. Phase 5 adds private PDF/DOCX document management for verified accounts. AI, payments, email automation beyond account recovery, calendars, notifications, crawling, and cloud deployment remain outside scope. See [Phase 4.1 verification](PHASE_4_1_VERIFICATION.md) and [ADR 0002](decisions/0002-account-safety-and-recovery.md). The sections below retain the earlier guest-mode product decisions; statements about browser-only storage describe that mode.
+Phase 4.1 adds required email verification, resend, forgot-password and reset forms, verified account status, and private operator database recovery. Development messages arrive in a local Mailpit inbox and never reach real recipients. Existing unverified accounts keep their records and verify before accessing them. Resetting a password signs out every session for that account; recovery requests use generic feedback. JSON exports and guest recovery remain available. This is a local foundation with no cloud resources or public deployment. Phase 5 adds private PDF/DOCX document management; Phase 6 adds optional, explicitly requested resume comparison. Other AI features, payments, email automation beyond account recovery, calendars, notifications, crawling, and cloud deployment remain outside scope. See [Phase 4.1 verification](PHASE_4_1_VERIFICATION.md) and [ADR 0002](decisions/0002-account-safety-and-recovery.md). The sections below retain earlier guest-mode product decisions; statements about browser-only storage describe that mode.
 
 ## Confirmed decisions
 
@@ -47,7 +47,7 @@ These are reversible implementation assumptions, not settled policy for a future
 
 ## Honesty and boundaries
 
-FATS does not crawl links, contact companies, generate AI advice, send invitations/reminders, or apply on the user's behalf in this version. It does not use remote APIs, external credentials, subscriptions, or native apps. Local browser data can be lost if site data is cleared. Calendar integrations and notifications require separate future work.
+FATS does not crawl links, contact companies, send invitations/reminders, or apply on the user's behalf. Phase 6 optionally sends user-reviewed text to a configured AI provider after explicit consent; it provides narrow evidence-based comparison suggestions, with no general career coach. No subscriptions or native apps are included. Local browser data can be lost if site data is cleared. Calendar integrations and notifications require separate future work.
 
 ## Phase 2.1 — data safety and recovery
 
@@ -71,4 +71,12 @@ An application records one explicitly chosen resume version. New uploads, defaul
 
 Limits: nonempty PDF/DOCX up to 10 MiB, 100 MiB/account including history and archives, 50 documents, 20 versions/document. Standard unencrypted PDF 1.0–1.7 and a documented classic ZIP/UTF-8 DOCX subset are supported. Format checks and isolated previews are not malware scanning.
 
-Missing/corrupt files keep their metadata and application history with recovery guidance. JSON exports contain no document metadata/bytes/links; JSON replacement is blocked until submitted links are explicitly removed. Complete local operator archives include matching files and metadata. See [document behavior/storage](DOCUMENTS.md), [recovery](DATABASE_RECOVERY.md), and [verification](PHASE_5_VERIFICATION.md). Stop after Phase 5.
+Missing/corrupt files keep their metadata and application history with recovery guidance. JSON exports contain no document metadata/bytes/links; JSON replacement is blocked until submitted links and Phase 6 reports are explicitly removed. Complete local operator archives include matching files and metadata. See [document behavior/storage](DOCUMENTS.md), [recovery](DATABASE_RECOVERY.md), and [verification](PHASE_5_VERIFICATION.md).
+
+## Phase 6 — explainable resume comparison
+
+Verified users select an existing resume version within a saved application, review locally extracted PDF/DOCX and saved job text, and explicitly consent before a configured external provider sees that reviewed text. No analysis runs on upload. Reports explain quoted job requirements using exact resume evidence, partial/undocumented/unclear classifications, supported mandatory/preferred distinctions, and cautious actionable suggestions. “Not documented” never proves that a person lacks a skill. There are no percentage scores, hiring predictions, fabricated qualifications, generated resumes, or application mutations.
+
+Users can inspect every citation and its reviewed source, rerun deliberately, or delete a report. Earlier reports retain their exact resume version, job revision, and analysis configuration. Uploads never update them; job-description edits visibly mark them outdated. Archive preserves references; reports protect parents from deletion and block JSON replacement until explicitly deleted. Default usage caps are 5 attempts/account and 20 globally per UTC day, including provider failures. Missing provider configuration, extraction failures, refusals, limits, and timeouts have truthful states.
+
+Contact redaction is best effort; users review text before sharing. Scanned content/OCR and some complex layouts are unsupported or incomplete. Exact citations do not verify semantic conclusions or real qualifications; users must review assessments and confirm unclear requirements. Private reports expire after 30 days and are cleaned on later comparison access; inactive accounts can retain them longer. JSON exports exclude reports/reviewed text. Full operator archives include them. See [privacy, provider costs, extraction and evidence boundaries](MATCHING.md) and [actual Phase 6 verification](PHASE_6_VERIFICATION.md). Stop after Phase 6.

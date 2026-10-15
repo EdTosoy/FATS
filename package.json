@@ -34,7 +34,12 @@
     "mail:test:stop": "node apps/web/scripts/mail-test.mjs stop",
     "db:backup": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/database.mjs backup",
     "db:restore": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/database.mjs restore",
-    "documents:check": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/check-documents.mjs"
+    "documents:check": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/check-documents.mjs",
+    "test:e2e:matching": "node --env-file-if-exists=.env.phase4-test node_modules/@playwright/test/cli.js test --config=playwright.matching.config.ts",
+    "eval:matching": "FATS_EVAL_LIVE=0 vitest run --config vitest.evaluation.config.ts",
+    "eval:matching:live": "FATS_EVAL_LIVE=1 node --env-file-if-exists=apps/web/.env.local node_modules/vitest/vitest.mjs run --config vitest.evaluation.config.ts",
+    "eval:matching:comparison": "FATS_COMPARISON_LIVE=0 vitest run --config vitest.comparison.config.ts",
+    "eval:matching:comparison:live": "FATS_COMPARISON_LIVE=1 node --env-file-if-exists=apps/web/.env.local node_modules/vitest/vitest.mjs run --config vitest.comparison.config.ts"
   },
   "devDependencies": {
     "@fats/domain": "workspace:*",

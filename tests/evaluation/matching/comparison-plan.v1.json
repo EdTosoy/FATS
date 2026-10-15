@@ -1,0 +1,218 @@
+{
+  "version": "semantic-comparison-v1",
+  "status": "proposed_unapproved",
+  "executionReady": false,
+  "liveRequestsAuthorized": false,
+  "purpose": "Compare models on the identical frozen contract before changing prompts; label agreement is not verified proficiency.",
+  "datasetDigest": "070986feb51a84789503eac86441895d6c7256a32b8a0f75409489fb831e5525",
+  "sharedSourceSha256": {
+    "tests/evaluation/matching/dataset.ts": "184c8a292956735ef5998db2958e799ba3f20d297fd9ea3280b6586d48573154",
+    "tests/evaluation/matching/fixtures.ts": "c52887a1b2c7b797ff8ac073587e62be41e60e76092cacd445c08b1e41bdfa40",
+    "tests/evaluation/matching/grading.ts": "5cb1818a8d4b859662916e7d146e55aa31b3a2b42c9b334d93fe99343df968a9",
+    "apps/web/src/server/matching-provider.ts": "a24b16ad49cc36dbf6e1d339859e99187498fee2a1428ba86ac84791bd7d10c0",
+    "apps/web/src/server/resume-extraction.ts": "23dd7d8ab99e4ab156686f9cb340b7a2d709a581f9d4b4acb8d2fa3417872bcb",
+    "apps/web/src/server/document-validation.ts": "cc30013fa50481e3560bfa3c441111fd9843b92168a7e732143c30eef1c74c33",
+    "libs/domain/src/matching.ts": "504661d6a1c0be34a82b4496a02ad274e5c4caac9a47024808b6983e56d2c44a",
+    "pnpm-lock.yaml": "353e7c1c0758031f2812616cbe80acc11adc0b7716abc76d19a1daecfcba7f0f",
+    "tests/evaluation/matching/comparison-fixtures.v1.json": "bbbcb05a72e6aa40115eac13ab13374abbb0fbec823cf1b44ee7694b1c49c764"
+  },
+  "contractVersion": "matching-v1-contract-v2",
+  "requestSettings": {
+    "endpoint": "https://api.openai.com/v1/responses",
+    "service_tier": "default",
+    "reasoning": {
+      "effort": "low"
+    },
+    "max_output_tokens": 4000,
+    "store": false,
+    "timeoutMs": 30000,
+    "automaticRetries": 0,
+    "tools": [],
+    "temperature": null,
+    "seed": null
+  },
+  "models": [
+    {
+      "id": "gpt-6-luna",
+      "pricingUsdPerMillion": {
+        "input": 0.1,
+        "cachedInput": 0.01,
+        "cacheWrites": 0.125,
+        "output": 0.5
+      },
+      "worstCaseReservationMicros": 270000
+    },
+    {
+      "id": "gpt-5.4-mini-2026-03-17",
+      "pricingUsdPerMillion": {
+        "input": 0.75,
+        "cachedInput": 0.075,
+        "output": 4.5
+      },
+      "worstCaseReservationMicros": 320000
+    }
+  ],
+  "pricingCheckedOn": "2026-10-16",
+  "existingCheckpoint": {
+    "cumulativeAttempts": 4,
+    "conservativeBudgetMicros": 613,
+    "unroundedPricedUsd": "0.0005429",
+    "originalRequestCeiling": 20,
+    "originalBudgetMicros": 1000000,
+    "ledgerDirectory": "live-204b36bc-2df6-4a84-8a2b-04cc61b9dda8",
+    "ledgerDigest": "9768fecca521d092581c4d981b328ebf878337589fe88b74336c95d6c04939a8"
+  },
+  "proposedLimits": {
+    "additionalRequests": 12,
+    "perModelRequests": 6,
+    "additionalBudgetMicros": 500000,
+    "cumulativeRequestCeilingAfterExperiment": 16,
+    "cumulativeBudgetCeilingMicros": 500613,
+    "automaticRetries": 0
+  },
+  "cases": [
+    {
+      "id": "03",
+      "sourceDigest": "049d62779c72f61a87a7db6338567895dffee28ea4f64a7f0448fbb16ad037b2",
+      "previousLiveExposure": true,
+      "expected": [
+        {
+          "id": "sql",
+          "classification": "demonstrated"
+        },
+        {
+          "id": "excel",
+          "classification": "demonstrated"
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "sourceDigest": "e89333cf2d0d748c58df90be63e652bd20b89f24c1e1e712fc96c1081865a2de",
+      "previousLiveExposure": false,
+      "expected": [
+        {
+          "id": "years",
+          "classification": "partial"
+        },
+        {
+          "id": "api",
+          "classification": "demonstrated"
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "sourceDigest": "30b09986e661dbf432ef94f51ba5371f33cb83ee9dd349baa2ccdd92cc7e1253",
+      "previousLiveExposure": false,
+      "expected": [
+        {
+          "id": "sql",
+          "classification": "undocumented"
+        }
+      ]
+    },
+    {
+      "id": "19",
+      "sourceDigest": "a258f1edfc813b9ca7192ab034392ccc4226ab9898f61801b9acf09752c1633d",
+      "previousLiveExposure": false,
+      "expected": [
+        {
+          "id": "kubernetes",
+          "classification": "undocumented"
+        }
+      ]
+    },
+    {
+      "id": "C01",
+      "sourceDigest": "4744e4bd8ad40590b3f5c2870cf8b77f33e2d701c0b007b35f90dd22a5e545ea",
+      "previousLiveExposure": false,
+      "newFixture": true,
+      "expected": [
+        {
+          "id": "sql",
+          "classification": "demonstrated"
+        },
+        {
+          "id": "excel",
+          "classification": "demonstrated"
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "sourceDigest": "4d4d649fd78aa88c5236f9f859f2978c3e88376560c5f55019a2a581da2c564f",
+      "previousLiveExposure": false,
+      "newFixture": true,
+      "expected": [
+        {
+          "id": "paid-sql",
+          "classification": "partial"
+        }
+      ]
+    }
+  ],
+  "requestPairs": [
+    {
+      "caseId": "03",
+      "models": ["gpt-6-luna", "gpt-5.4-mini-2026-03-17"]
+    },
+    {
+      "caseId": "06",
+      "models": ["gpt-5.4-mini-2026-03-17", "gpt-6-luna"]
+    },
+    {
+      "caseId": "18",
+      "models": ["gpt-6-luna", "gpt-5.4-mini-2026-03-17"]
+    },
+    {
+      "caseId": "19",
+      "models": ["gpt-5.4-mini-2026-03-17", "gpt-6-luna"]
+    },
+    {
+      "caseId": "C01",
+      "models": ["gpt-6-luna", "gpt-5.4-mini-2026-03-17"]
+    },
+    {
+      "caseId": "C02",
+      "models": ["gpt-5.4-mini-2026-03-17", "gpt-6-luna"]
+    }
+  ],
+  "scoring": {
+    "frozenPrimaryTargetsPerModel": 9,
+    "sensitivityExcludeTargets": ["03:sql"],
+    "sensitivityTargetsPerModel": 8,
+    "missingOrInvalidOutput": "unserved; never silently excluded from end-to-end coverage",
+    "decomposition": "manual full-scope alignment before scoring; no credit for omitted qualifiers",
+    "review": "Separate reviewer, shuffled outputs, model identity/order/timing/token metadata withheld until semantic judgments are locked; no model grader. If unavailable, report review as unblinded.",
+    "metrics": [
+      "frozen-label agreement",
+      "scope/experience-level correctness",
+      "positive semantic evidence support",
+      "exact citations",
+      "invented qualifications",
+      "raw schema validity",
+      "server report acceptance",
+      "unserved coverage",
+      "latency",
+      "reported tokens",
+      "priced usage and conservative ledger cost"
+    ],
+    "decision": "Mini is a candidate improvement only if it gets both case-03 targets correct, has more correct targets overall and excluding 03:sql, and has no worse acceptance or unsupported-positive claims on unseen cases. Otherwise report ties or inconclusive evidence; no shipping clearance.",
+    "rubricPolicy": "Frozen labels remain primary. Reviewer interpretation: demonstrated is documented evidence satisfying the stated scope, not verified broad proficiency. Do not infer professional employment requirements. Flag 03:sql as under-specified and report the prespecified exclusion sensitivity; never rewrite gold after outcomes."
+  },
+  "executionPrerequisites": [
+    "Separate explicit authorization naming both models, low effort, 12 additional requests and $0.50 additional spend.",
+    "Existing live harness is Luna-only; add and deterministically verify an evaluation-only Mini-low profile and model-specific usage/reservation accounting after authorization, without changing the shared prompt/schema/validator.",
+    "Reconcile and continue the existing cumulative journal with no reset, no refunds of unknown charges and no per-model budget multiplication.",
+    "Recheck provider pricing and exact project model access within authorized calls; no unapproved credential/model probes.",
+    "Freeze a final executable plan and one normalized source payload per case; both models receive byte-identical source text, instructions and schema, excluding only model identity.",
+    "Do not send expected outcomes, reviewer ambiguity notes, personal/production data or original file bytes.",
+    "This JSON is protocol metadata, not an API body or executable approval. Omit tools, temperature and seed from actual requests as in the existing adapter; do not send timeout/retry metadata as API fields.",
+    "Freeze reviewer policy before results: demonstrated means documented evidence meeting the stated scope, not independently verified general proficiency. Keep 03:sql ambiguity flagged and report both frozen-label and prespecified sensitivity metrics."
+  ],
+  "sharedContractSha256": {
+    "instructions": "1f5dad4807fdfbfc5753bda9bc3d1b2921fb62cc98b91e63f49323aa3fd52852",
+    "schemaJson": "05dce05a16d40f881df02ff81e4708002584a4c8e88bb66a3e0eeff4dbc24e95"
+  }
+}

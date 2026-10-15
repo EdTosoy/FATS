@@ -1,0 +1,67 @@
+{
+  "version": "comparison-fixtures-v1",
+  "provenance": "New targeted synthetic controls authored by Codex after diagnosis but before any comparison-provider output; no independent human-expert validation. Original DATASET remains frozen.",
+  "cases": [
+    {
+      "id": "C01",
+      "title": "Graduate records assistant - academic evidence accepted",
+      "format": "docx",
+      "resume": [
+        "Synthetic graduate resume - independent comparison fixture only.",
+        "Used SQL queries to summarize loan counts in a university database project.",
+        "Created Excel pivot tables for a university equipment-loan survey.",
+        "Employment history: none."
+      ],
+      "job": [
+        "Synthetic vacancy: Graduate records assistant.",
+        "Entry-level role at a fictional organization. Apply outside FATS.",
+        "SQL queries required.",
+        "Excel pivot tables preferred.",
+        "Completed academic projects are accepted as evidence of these skills."
+      ],
+      "gold": [
+        {
+          "id": "sql",
+          "quote": "SQL queries required.",
+          "expected": ["demonstrated"],
+          "importance": "mandatory",
+          "evidence": ["Used SQL queries"],
+          "rationale": "Completed SQL queries directly demonstrate the named skill; this posting explicitly accepts academic projects and requires no employment duration."
+        },
+        {
+          "id": "excel",
+          "quote": "Excel pivot tables preferred.",
+          "expected": ["demonstrated"],
+          "importance": "preferred",
+          "evidence": ["Created Excel pivot tables"],
+          "rationale": "The actual preferred tool and operation are documented in an academic project, which the posting explicitly accepts."
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "SQL operations role - paid duration required",
+      "format": "pdf",
+      "resume": [
+        "Synthetic graduate resume - independent comparison fixture only.",
+        "Used SQL queries to summarize records in a university project.",
+        "Paid SQL employment: none. This project was completed during coursework."
+      ],
+      "job": [
+        "Synthetic vacancy: Junior database operations role.",
+        "Entry-level listing at a fictional organization. Apply outside FATS.",
+        "2 years of paid SQL work required."
+      ],
+      "gold": [
+        {
+          "id": "paid-sql",
+          "quote": "2 years of paid SQL work required.",
+          "expected": ["partial"],
+          "importance": "mandatory",
+          "evidence": ["Used SQL queries"],
+          "rationale": "Concrete SQL use supports the skill component only; coursework is not two years of paid SQL employment. Do not invent duration or employment."
+        }
+      ]
+    }
+  ]
+}

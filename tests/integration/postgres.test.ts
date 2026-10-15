@@ -186,6 +186,7 @@ describe('PostgreSQL migrations and real authentication', () => {
       '0002_workspace.sql',
       '0003_legacy_text.sql',
       '0004_documents.sql',
+      '0005_matching.sql',
     ]);
     expect(
       (
@@ -193,7 +194,7 @@ describe('PostgreSQL migrations and real authentication', () => {
           'SELECT name FROM fats_schema_migrations ORDER BY name',
         )
       ).rows,
-    ).toHaveLength(4);
+    ).toHaveLength(5);
     const a = await user(),
       b = await user();
     const data = await dataset(a);
@@ -215,7 +216,7 @@ describe('PostgreSQL migrations and real authentication', () => {
     try {
       await cp('apps/web/migrations', dir, { recursive: true });
       await writeFile(
-        dir + '/0005_failure.sql',
+        dir + '/0006_failure.sql',
         'CREATE TABLE phase4_should_rollback(id int); SELECT 1/0;',
       );
       await expect(

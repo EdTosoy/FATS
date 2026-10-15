@@ -13,6 +13,7 @@ if (
 export default defineConfig({
   ...web,
   testDir: './tests/account-e2e',
+  testIgnore: '**/matching.spec.ts',
   outputDir: 'test-results/account',
   timeout: 45000,
   globalSetup: './tests/helpers/account-setup.ts',
@@ -30,6 +31,9 @@ export default defineConfig({
       BETTER_AUTH_URL: 'http://127.0.0.1:3000',
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
       FATS_MAIL_PORT: '11025',
+      FATS_AI_PROVIDER: '',
+      OPENAI_API_KEY: '',
+      FATS_AI_TEST_MODE: '',
       FATS_DOCUMENTS_DIR: new URL(
         './test-results/account-documents/',
         import.meta.url,

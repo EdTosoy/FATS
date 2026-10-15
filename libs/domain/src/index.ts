@@ -10,3 +10,4 @@ export type WorkspaceRepository =
     };
 export * from './migration';
 export * from './document';
+export * from './matching';

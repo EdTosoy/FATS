@@ -272,6 +272,18 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
           'Keep this application while a submitted resume version is linked to it. Explicitly remove the link first.',
           409,
         );
+      if (
+        (
+          await client.query(
+            'SELECT 1 FROM matching_reports WHERE user_id=$1 AND application_id=$2 LIMIT 1',
+            [this.owner, id],
+          )
+        ).rowCount
+      )
+        throw new WorkspaceError(
+          'Delete this application’s comparison reports before deleting the application.',
+          409,
+        );
       await client.query(
         'DELETE FROM applications WHERE user_id=$1 AND id=$2',
         [this.owner, id],
@@ -375,6 +387,18 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     });
   }
   private async requireNoDocumentLinks(client: PoolClient) {
+    if (
+      (
+        await client.query(
+          'SELECT 1 FROM matching_reports WHERE user_id=$1 LIMIT 1',
+          [this.owner],
+        )
+      ).rowCount
+    )
+      throw new WorkspaceError(
+        'JSON exports exclude comparison reports and reviewed text. Delete comparison reports explicitly before replacing applications, or use a complete operator archive.',
+        409,
+      );
     if (
       (
         await client.query(

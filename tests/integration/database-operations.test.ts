@@ -247,7 +247,7 @@ it('performs a real confirmed restore and verifies records, relationships, crede
           'SELECT count(*)::int AS count FROM fats_schema_migrations',
         )
       ).rows[0].count,
-    ).toBe(4);
+    ).toBe(5);
     await expect(
       recovered.pool.query('DELETE FROM applications WHERE user_id=$1', [
         ownerId,
@@ -362,6 +362,50 @@ it('backs up and restores matching immutable document versions and application l
   await expect(createDatabaseBackup(source, file)).rejects.toThrow(
     'metadata-only',
   );
+  const { MatchingRepository } =
+    await import('../../apps/web/src/server/matching-repository');
+  const matchingProvider = {
+    configuration: {
+      provider: 'deterministic-test',
+      model: 'backup-fixture',
+      version: 'matching-v1',
+    },
+    label: 'Backup test fixture',
+    external: false,
+    analyze: async () => ({ requirements: [] }),
+  };
+  const matching = new MatchingRepository(
+    services.pool,
+    ownerId,
+    storage,
+    matchingProvider,
+  );
+  const prepared = await matching.prepare(
+    app.id,
+    first.versionId,
+    'Backup test',
+  );
+  if (!('id' in prepared))
+    throw new Error('Expected a readable synthetic resume.');
+  await matching.compare(prepared.id, randomUUID());
+  const matchingBefore = await matching.list(app.id);
+  const interrupted = randomUUID();
+  const pending = await matching.prepare(
+    app.id,
+    first.versionId,
+    'Backup test',
+  );
+  if (!('id' in pending))
+    throw new Error('Expected a readable synthetic resume.');
+  await services.pool.query(
+    "INSERT INTO matching_reports(user_id,id,preview_id,application_id,version_id,job_revision,job_hash,configuration,sources,status) SELECT user_id,$2,id,application_id,version_id,job_revision,job_hash,configuration,sources,'running' FROM matching_previews WHERE user_id=$1 AND id=$3",
+    [ownerId, interrupted, pending.id],
+  );
+  const usageBefore = (
+    await services.pool.query(
+      'SELECT day,scope,attempts FROM matching_usage ORDER BY day,scope',
+    )
+  ).rows;
   const manifest = await createDatabaseBackup(source, file, storage);
   expect(manifest.documents).toHaveLength(2);
   expect(manifest.version).toBe(2);
@@ -426,6 +470,33 @@ it('backs up and restores matching immutable document versions and application l
       new FilesystemDocumentStorage(recoveredRoot),
     );
     expect(await recovered.library()).toEqual(await documents.library());
+    const recoveredMatching = await new MatchingRepository(
+      pool,
+      ownerId,
+      new FilesystemDocumentStorage(recoveredRoot),
+      matchingProvider,
+    ).list(app.id);
+    expect(
+      recoveredMatching.filter((report) => report.id !== interrupted),
+    ).toEqual(matchingBefore);
+    expect(
+      recoveredMatching.find((report) => report.id === interrupted),
+    ).toMatchObject({
+      status: 'failed',
+      failure: 'interrupted',
+      sources: null,
+      result: null,
+    });
+    expect((await pool.query('SELECT 1 FROM matching_previews')).rowCount).toBe(
+      0,
+    );
+    expect(
+      (
+        await pool.query(
+          'SELECT day,scope,attempts FROM matching_usage ORDER BY day,scope',
+        )
+      ).rows,
+    ).toEqual(usageBefore);
     expect(
       Buffer.from((await recovered.download(first.versionId)).bytes),
     ).toEqual(Buffer.from((await documents.download(first.versionId)).bytes));

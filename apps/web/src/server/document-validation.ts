@@ -114,7 +114,7 @@ function xml(bytes: Uint8Array) {
 }
 // Deliberately supports classic ZIP/deflate only. Never extracts files to disk.
 // Check directory sizes BEFORE inflating, bound actual output, and verify CRC.
-function validateDocx(input: Uint8Array) {
+export function validatedDocxEntries(input: Uint8Array) {
   const bytes = Buffer.from(input);
   let end = -1;
   for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--)
@@ -257,6 +257,7 @@ function validateDocx(input: Uint8Array) {
       )
     )
       xml(content);
+  return entries;
 }
 export async function validateDocument(
   bytes: Uint8Array,
@@ -275,7 +276,7 @@ export async function validateDocument(
   if (!format) throw new DocumentValidationError('Choose a PDF or DOCX file.');
   try {
     if (format === 'pdf') await validatePdf(bytes);
-    else validateDocx(bytes);
+    else validatedDocxEntries(bytes);
   } catch {
     throw invalid();
   }

@@ -375,6 +375,18 @@ export class PostgresDocumentRepository {
           'This document is linked to an application. Archive it to keep the submitted version, or explicitly remove every application link before deleting.',
           409,
         );
+      if (
+        (
+          await client.query(
+            'SELECT 1 FROM matching_reports r JOIN document_versions v ON v.user_id=r.user_id AND v.id=r.version_id WHERE r.user_id=$1 AND v.document_id=$2 LIMIT 1',
+            [this.owner, id],
+          )
+        ).rowCount
+      )
+        throw new WorkspaceError(
+          'This document has comparison reports. Archive it, or delete its reports before deleting the document.',
+          409,
+        );
       await client.query(
         'INSERT INTO document_garbage(storage_key) SELECT storage_key FROM document_versions WHERE user_id=$1 AND document_id=$2',
         [this.owner, id],

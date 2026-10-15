@@ -1,6 +1,8 @@
 # Phase 0 / Phase 1 verification
 
-Current document/recovery evidence: [Phase 5 verification](PHASE_5_VERIFICATION.md). The reports below are historical.
+Phase 6.1 [evaluation preparation](PHASE_6_1_VERIFICATION.md) records current deterministic regressions and the authorized live run blocked on private key configuration. Live accuracy, latency and costs have not been measured.
+
+Current comparison/privacy/versioning and regression evidence: [Phase 6 verification](PHASE_6_VERIFICATION.md). Document/recovery baseline: [Phase 5 verification](PHASE_5_VERIFICATION.md). The reports below are historical.
 
 Current account safety/database recovery evidence: [Phase 4.1 verification](PHASE_4_1_VERIFICATION.md). [Phase 4 verification](PHASE_4_VERIFICATION.md) records the original account/database baseline. The results below are historical.
 
