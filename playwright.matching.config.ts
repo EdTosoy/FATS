@@ -12,6 +12,8 @@ export default defineConfig({
     ...server,
     env: {
       ...server.env,
+      // Dormant fixture suite only; ordinary account/guest suites stay disabled.
+      FATS_AI_MATCHING_ENABLED: '1',
       FATS_AI_PROVIDER: 'test-fixture',
       FATS_AI_TEST_MODE: '1',
       FATS_TEST_DATABASE_URL: process.env.FATS_TEST_DATABASE_URL!,

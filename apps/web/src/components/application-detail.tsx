@@ -20,7 +20,13 @@ import { useApplications } from './application-provider';
 import { CompanyAvatar, formatDate } from './application-table';
 import { ActionLink, Button, Card, PageHeading, StatusBadge } from './ui';
 
-export function ApplicationDetail({ id }: { id: string }) {
+export function ApplicationDetail({
+  id,
+  matchingEnabled = false,
+}: {
+  id: string;
+  matchingEnabled?: boolean;
+}) {
   const {
     applications,
     loading,
@@ -128,7 +134,7 @@ export function ApplicationDetail({ id }: { id: string }) {
           </Card>
           <OfferDesk applicationId={application.id} />
           <ApplicationDocuments applicationId={application.id} />
-          <ResumeMatching applicationId={application.id} />
+          {matchingEnabled && <ResumeMatching applicationId={application.id} />}
           <ApplicationInterviews applicationId={application.id} />
           <Card className="description-card">
             <div className="section-heading">

@@ -39,7 +39,14 @@ export default defineConfig({
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: false,
     // Guest regressions must never inherit a developer's database/origin.
-    env: { DATABASE_URL: '', BETTER_AUTH_URL: '', BETTER_AUTH_SECRET: '' },
+    env: {
+      DATABASE_URL: '',
+      BETTER_AUTH_URL: '',
+      BETTER_AUTH_SECRET: '',
+      FATS_AI_MATCHING_ENABLED: '0',
+      FATS_AI_PROVIDER: '',
+      OPENAI_API_KEY: '',
+    },
     timeout: 120000,
   },
 });

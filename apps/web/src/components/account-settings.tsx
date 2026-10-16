@@ -77,7 +77,7 @@ export function AccountSettings() {
           </h2>
           <p>
             {account.user
-              ? 'Applications, interviews, and notes are saved to your account. Export JSON backups to keep an independent copy.'
+              ? 'Applications, interviews, offers, and notes are saved to your account. Export JSON backups to keep an independent copy. Document files need a complete operator backup.'
               : 'Your jobs, interviews, and notes stay on this device, in this browser, for this site address. They aren’t synced to an account or another device.'}
           </p>
           <p className="muted">

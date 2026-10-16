@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import {
@@ -23,6 +23,7 @@ import {
   handleWorkspace,
 } from '../../apps/web/src/server/handlers';
 import { handleOffers } from '../../apps/web/src/server/offer-handlers';
+import { handleMatching } from '../../apps/web/src/server/matching-handlers';
 import { PostgresOfferRepository } from '../../apps/web/src/server/offer-repository';
 import { PostgresWorkspaceRepository } from '../../apps/web/src/server/workspace-repository';
 import { PostgresDocumentRepository } from '../../apps/web/src/server/document-repository';
@@ -160,6 +161,24 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await services.pool.query('DELETE FROM "rateLimit"');
+});
+it('blocks comparison access for a verified graduate even when provider credentials are configured', async () => {
+  const a = await user();
+  vi.stubEnv('FATS_AI_MATCHING_ENABLED', undefined);
+  vi.stubEnv('FATS_AI_PROVIDER', 'openai');
+  vi.stubEnv('OPENAI_API_KEY', 'synthetic-unused-beta-test-key');
+  try {
+    const response = await handleMatching(
+      new Request(origin + '/api/matching?applicationId=' + a.application.id, {
+        headers: { cookie: a.cookie, origin },
+      }),
+      services,
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: 'MATCHING_DISABLED' });
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
 afterAll(async () => {
   for (const id of owners) {

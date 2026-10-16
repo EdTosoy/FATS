@@ -142,6 +142,11 @@ test('registration, account CRUD, interview notes, session cookie, logout/login,
     fullPage: true,
   });
   const owner = await register(page);
+  const matchingRequests: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/matching')
+      matchingRequests.push(request.method());
+  });
   const cookies = await page.context().cookies();
   const session = cookies.find((cookie) =>
     cookie.name.includes('session_token'),
@@ -149,6 +154,24 @@ test('registration, account CRUD, interview notes, session cookie, logout/login,
   expect(session?.httpOnly).toBe(true);
   expect(session?.sameSite).toBe('Lax');
   const appUrl = await saveJob(page);
+  await expect(
+    page.getByRole('heading', {
+      name: 'Resume comparison',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  expect(matchingRequests).toEqual([]);
+  for (const action of [null, 'prepare', 'compare', 'delete']) {
+    const endpoint = '/api/matching?applicationId=' + appUrl.split('/').pop();
+    const response = action
+      ? await page.request.post(endpoint, {
+          headers: { origin: 'http://127.0.0.1:3000' },
+          data: { action, confirmed: true },
+        })
+      : await page.request.get(endpoint);
+    expect(response.status()).toBe(403);
+    expect(await response.json()).toMatchObject({ code: 'MATCHING_DISABLED' });
+  }
   expect(
     await page.evaluate(() => localStorage.getItem('fats.applications.v1')),
   ).toBeNull();

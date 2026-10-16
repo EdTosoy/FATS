@@ -22,8 +22,14 @@ FATS_DOCUMENTS_DIR=/absolute/private/path/fats-documents
 
 Phase 5 files require persistent local storage separate from PostgreSQL. Existing configurations need this variable added manually and a server restart; `db:configure` never overwrites them. Keep bytes outside public/static hosting roots; see [document setup](DOCUMENTS.md). Restore uses an independently configured `FATS_RESTORE_DOCUMENTS_DIR` and never replaces an existing directory.
 
-## Optional Phase 6 comparison
+## Private beta: matching stays paused
 
-After migration `0005_matching.sql`, add `FATS_AI_PROVIDER=openai` and a private server-only `OPENAI_API_KEY` to the ignored web environment file and restart FATS. No provider is enabled by default; a missing key never produces a simulated result. Optional limits are `FATS_AI_DAILY_ACCOUNT_LIMIT=5` (1–50), `FATS_AI_DAILY_GLOBAL_LIMIT=20` (1–500), and `FATS_AI_TIMEOUT_MS=30000` (1–60,000 ms). Never prefix a provider secret with `NEXT_PUBLIC_`. No live-provider check runs as part of setup or automated tests.
+Keep `FATS_AI_MATCHING_ENABLED=0` (or unset) and leave provider/key settings unset. The server reads this flag for both application details and `/api/matching`; disabled requests return `403 MATCHING_DISABLED` before account services, extraction, storage or provider access. Provider credentials alone cannot enable matching. Restart after configuration changes and reload open tabs. The client cannot enable the server flag. See [beta readiness](PRIVATE_BETA_READINESS.md).
+
+The existing Phase 6 implementation and historical reports are preserved. Its UI, report retrieval/deletion and comparison actions are all inaccessible while paused; no retention sweep runs through that endpoint. Existing report protection on document/application deletion remains. Operator recovery still preserves reports without rerunning analysis. Do not enable matching or run evaluations during beta preparation.
+
+## Historical Phase 6 configuration (requires separate authorization)
+
+Only after AI work is explicitly resumed: migration `0005_matching.sql`, the separate server opt-in `FATS_AI_MATCHING_ENABLED=1`, `FATS_AI_PROVIDER=openai`, and a private server-only `OPENAI_API_KEY` are required. No provider is enabled by default; a missing key never produces a simulated result. Optional limits are `FATS_AI_DAILY_ACCOUNT_LIMIT=5` (1–50), `FATS_AI_DAILY_GLOBAL_LIMIT=20` (1–500), and `FATS_AI_TIMEOUT_MS=30000` (1–60,000 ms). Never prefix a provider secret with `NEXT_PUBLIC_`. No live-provider check runs as part of setup or automated tests.
 
 The adapter pins `gpt-5.4-mini-2026-03-17`; changing its model/prompt/schema/extraction rules requires a deliberate analysis configuration revision and evaluation. Users review locally extracted text and separately consent to external transmission on every new comparison. Review [provider privacy, retention, usage costs, and extraction limits](MATCHING.md) before enabling it. Do not enable test fixtures in normal development/user databases. No hosted/cloud configuration is provisioned.

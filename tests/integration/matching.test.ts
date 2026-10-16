@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, beforeEach, it, expect } from 'vitest';
+import { beforeAll, afterAll, beforeEach, it, expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import {
@@ -147,6 +147,8 @@ function request(
   );
 }
 beforeAll(async () => {
+  // Explicit opt-in for this isolated, injected-provider suite only.
+  vi.stubEnv('FATS_AI_MATCHING_ENABLED', '1');
   const pool = createDatabasePool(url);
   try {
     await runMigrations(pool);
@@ -170,6 +172,7 @@ beforeEach(async () => {
   await services.pool.query('DELETE FROM matching_usage');
 });
 afterAll(async () => {
+  vi.unstubAllEnvs();
   for (const id of owners) {
     await services.pool.query('DELETE FROM matching_reports WHERE user_id=$1', [
       id,

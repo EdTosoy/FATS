@@ -243,6 +243,25 @@ it('authorizes live verified owners for upload, metadata, edit, linkage, downloa
     (await request(a.cookie, undefined, '?version=' + saved.versionId)).status,
   ).toBe(401);
 });
+it('documents the account-erasure boundary: no public delete endpoint and document restrictions preserve the account and bytes', async () => {
+  const a = await user();
+  const bytes = await pdfFixture('Synthetic account-erasure probe');
+  const saved = await a.repo.upload(bytes, 'synthetic.pdf', {
+    requestId: randomUUID(),
+    name: 'Synthetic resume',
+    category: 'Resumes',
+  });
+  expect((await auth('delete-user', { password })).status).toBe(404);
+  await expect(
+    services.pool.query('DELETE FROM "user" WHERE id=$1', [a.id]),
+  ).rejects.toMatchObject({ code: '23503' });
+  expect(
+    (await services.pool.query('SELECT id FROM "user" WHERE id=$1', [a.id]))
+      .rowCount,
+  ).toBe(1);
+  expect((await a.repo.download(saved.versionId)).bytes).toEqual(bytes);
+  expect((await request(a.cookie)).status).toBe(200);
+});
 it('keeps versions and submitted associations immutable, serializes uploads, restricts referenced deletion and JSON replacement', async () => {
   const a = await user(),
     b = await user(),

@@ -19,6 +19,7 @@ import {
   type MatchingProvider,
 } from './matching-provider';
 import { MatchingRepository } from './matching-repository';
+import { isMatchingEnabled, matchingDisabledResponse } from './matching-access';
 export async function handleMatching(
   request: Request,
   services: Services,
@@ -28,6 +29,7 @@ export async function handleMatching(
     limits?: ReturnType<typeof matchingLimits>;
   },
 ) {
+  if (!isMatchingEnabled()) return matchingDisabledResponse();
   try {
     requireOrigin(request, services.origin);
     const session = await services.auth.api.getSession({

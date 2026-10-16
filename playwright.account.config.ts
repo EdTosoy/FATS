@@ -32,6 +32,7 @@ export default defineConfig({
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
       FATS_MAIL_PORT: '11025',
       FATS_AI_PROVIDER: '',
+      FATS_AI_MATCHING_ENABLED: '0',
       OPENAI_API_KEY: '',
       FATS_AI_TEST_MODE: '',
       FATS_DOCUMENTS_DIR: new URL(

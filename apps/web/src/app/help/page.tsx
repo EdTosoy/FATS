@@ -78,13 +78,21 @@ export default function HelpPage() {
           <h3>Keep a backup and recover it</h3>
           <p>
             Open Settings → Data management to export your applications,
-            interviews, and notes as JSON. The file is private and unencrypted;
-            keep it somewhere safe. To recover it, choose the file, review the
-            counts, and explicitly confirm replacement. A full restore replaces
-            current records; it does not merge them. Cancel leaves your data
-            unchanged. Document files and submitted resume links are excluded.
-            JSON replacement is blocked while submitted links exist; use a
-            complete operator archive to recover documents.
+            interviews, notes, and recorded offer history as JSON. The file is
+            private and unencrypted; keep it somewhere safe. To recover it,
+            choose the file, review the preview, and explicitly confirm. Backups
+            with offers add missing records and skip identical ones; conflicts
+            stop the import. Older backups without offers replace applications
+            and interviews after confirmation. Replacement is blocked while
+            protected history or submitted links exist. Cancel leaves your data
+            unchanged.
+          </p>
+          <p>
+            JSON does not contain document files or submitted resume links.
+            Imported offer letters are historical references, not downloadable
+            documents. Review unavailable letters in the preview. Recovering
+            files and their links requires a complete operator archive with
+            matching private files.
           </p>
           <p>
             For unreadable browser data, sign out to open local recovery. A

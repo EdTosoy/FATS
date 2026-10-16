@@ -1,5 +1,7 @@
 # Explainable resume comparison — Phase 6
 
+**Private beta pause:** Phase 6 is preserved but inaccessible by default. `FATS_AI_MATCHING_ENABLED` must be exactly `1` on the server to expose its application panel and API; unset/other values deny all matching requests before service/provider/extraction access. Keep it unset or `0`. Provider credentials alone cannot enable it. No AI work or evaluation is authorized during private beta readiness. The configuration and journeys below describe the historical capability, not current beta availability. See [local configuration](LOCAL_CONFIGURATION.md) and [readiness](PRIVATE_BETA_READINESS.md).
+
 This is an optional, account-only comparison of one immutable resume version with one saved job description. It never edits resume bytes, records a submitted resume, changes an application, follows source links, or runs when a file is uploaded. Guest tracking, interviews, document management, and Sidekick keep their existing behavior. No general chatbot, rewriting, hiring prediction, percentage score, or automatic application is included.
 
 ## User journey and consent
@@ -40,7 +42,7 @@ FATS_AI_DAILY_GLOBAL_LIMIT=20
 FATS_AI_TIMEOUT_MS=30000
 ```
 
-Leave `FATS_AI_PROVIDER` unset to keep comparison unavailable. Never use `NEXT_PUBLIC_` for credentials. Invalid limits fail closed. Account limits allow 1–50, global limits 1–500, and timeout 1–60,000 ms; these are operator settings, not client input. Use a sensible timeout for real requests. Reports remain readable/deletable when a provider is disabled. Keys, resumes, extracted text, model requests/responses, and raw errors must not enter logs or telemetry.
+The server opt-in `FATS_AI_MATCHING_ENABLED=1` is additionally required, only after separate authorization to resume AI. Leave it unset/`0` for beta. Never use `NEXT_PUBLIC_` for credentials. Invalid limits fail closed. Account limits allow 1–50, global limits 1–500, and timeout 1–60,000 ms; these are operator settings, not client input. With the feature explicitly enabled, leaving `FATS_AI_PROVIDER` unset disables new provider work while allowing report reads/deletion. The beta gate instead denies all matching actions, preserving historical records and their parent protections. Keys, resumes, extracted text, model requests/responses, and raw errors must not enter logs or telemetry.
 
 OpenAI's API data controls state that API data is not used for training by default, while abuse-monitoring logs can generally retain content for up to 30 days, with exceptions. `store:false` disables Responses application-state storage; **it does not itself establish zero retention**. Provider terms, organizational controls, subprocessors, region availability, and applicable privacy requirements must be reviewed before external users or sensitive data. FATS configures neither Zero Data Retention nor regional processing. Local report deletion does not revoke provider-side retention or remove earlier operator archives.
 
