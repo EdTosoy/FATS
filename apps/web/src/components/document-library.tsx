@@ -503,6 +503,18 @@ export function DocumentLibraryView() {
           ) : undefined
         }
       />
+      <Card className="pdf-tools-entry">
+        <div>
+          <h2>A form to finish?</h2>
+          <p className="muted">
+            Fill a local PDF, add a personal signature mark, and download a
+            copy. Your file stays in your browser.
+          </p>
+        </div>
+        <ActionLink href="/resumes/pdf-tools" variant="secondary">
+          Open PDF Tools
+        </ActionLink>
+      </Card>
       {!account.user ? (
         <Card>
           <EmptyState

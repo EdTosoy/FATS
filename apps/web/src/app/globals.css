@@ -1,4 +1,251 @@
 @import 'tailwindcss';
+
+.pdf-tools-entry,
+.pdf-file-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 24px;
+  margin-bottom: 22px;
+}
+.pdf-tools-entry h2,
+.pdf-tools-entry p,
+.pdf-file-bar p {
+  margin: 0;
+}
+.pdf-file-bar strong {
+  overflow-wrap: anywhere;
+}
+.pdf-local-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  background: #eaf5f1;
+  color: #315c52;
+  border-radius: 12px;
+}
+.pdf-local-note p {
+  margin: 0;
+}
+.pdf-local-note svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.pdf-empty {
+  padding: 22px;
+}
+.pdf-empty label:focus-within {
+  outline: 3px solid var(--primary);
+  outline-offset: 4px;
+}
+.pdf-tools-status {
+  min-height: 22px;
+  margin: 6px 0 14px;
+}
+.pdf-tools-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.pdf-controls {
+  padding: 22px;
+  min-width: 0;
+}
+.pdf-controls fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.pdf-controls h2 {
+  font-size: 17px;
+  margin: 12px 0;
+}
+.pdf-controls details {
+  margin: 10px 0 20px;
+}
+.pdf-controls summary {
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.pdf-controls .button {
+  max-width: 100%;
+}
+.pdf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 12px 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.pdf-field input:not([type='checkbox']),
+.pdf-field select,
+.pdf-page-toolbar select {
+  min-width: 0;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.pdf-field input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--primary);
+}
+.pdf-position-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+.pdf-selection {
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+  margin-top: 16px;
+}
+.pdf-mark-list {
+  list-style: none;
+  padding: 0;
+}
+.pdf-mark-list .button {
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.pdf-preview-card {
+  min-width: 0;
+  overflow: hidden;
+}
+.pdf-page-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.pdf-page-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pdf-page-toolbar select {
+  width: auto;
+}
+.pdf-preview-region {
+  padding: 12px;
+  background: #edf0f4;
+}
+.pdf-preview-region > p {
+  margin: 0 0 12px;
+}
+.pdf-scroll-area {
+  overflow: auto;
+  max-height: 85vh;
+  padding: 5px;
+}
+.pdf-edit-page {
+  position: relative;
+  flex-shrink: 0;
+  margin-inline: auto;
+  background: white;
+  box-shadow: 0 2px 8px #202c3b20;
+}
+.pdf-base-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.pdf-placed-mark {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: move;
+  touch-action: none;
+}
+.pdf-placed-mark:hover {
+  outline: 1px dashed var(--primary);
+}
+.pdf-placed-mark.selected {
+  outline: 2px solid var(--primary);
+  background: #427dab0b;
+}
+.pdf-placed-mark:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+.pdf-mark-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.pdf-limit-note {
+  margin-top: 24px;
+  max-width: 900px;
+}
+.pdf-signature-pad {
+  width: 100%;
+  height: 120px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  touch-action: none;
+}
+.pdf-signature-preview {
+  width: 100%;
+  max-width: 320px;
+  height: 120px;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 22px;
+}
+.pdf-disabled {
+  opacity: 0.5;
+}
+@media (max-width: 1150px) {
+  .pdf-tools-layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .pdf-file-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (max-width: 760px) {
+  .pdf-tools-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pdf-preview-card {
+    grid-row: 1;
+  }
+  .pdf-tools-entry {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .pdf-file-bar {
+    padding: 16px;
+  }
+  .pdf-file-bar .document-actions {
+    gap: 8px;
+  }
+  .pdf-page-toolbar {
+    gap: 8px;
+    padding: 10px;
+  }
+  .pdf-page-toolbar .button {
+    font-size: 12px;
+    padding: 8px;
+  }
+}
 .portable-preview {
   overflow-wrap: anywhere;
 }

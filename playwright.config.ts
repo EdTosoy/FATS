@@ -35,7 +35,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm --filter @fats/web dev --hostname 127.0.0.1 --port 3000',
+    command:
+      process.env.FATS_TEST_PRODUCTION === '1'
+        ? 'pnpm --filter @fats/web start --hostname 127.0.0.1 --port 3000'
+        : 'pnpm --filter @fats/web dev --hostname 127.0.0.1 --port 3000',
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: false,
     // Guest regressions must never inherit a developer's database/origin.

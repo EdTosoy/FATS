@@ -1,0 +1,59 @@
+# PDF Tools MVP verification
+
+Date: 2026-10-17. Started from clean `main` at **a2a75d1cba043261c5e2db23afef8711e1a3bc81**, the committed Hardening 2 checkpoint (`feat(security): add document quarantine and parser isolation`). Inspected Git status/latest commits, root/web instructions, architecture, Documents, and Hardening 1/2 reports before editing. No previous uncommitted work was present.
+
+This milestone implements the [local PDF Tools workflow](PDF_TOOLS.md). It does not complete Hardening 2 or authorize real-data beta. No dependencies, scanner installation, provider requests, cloud changes, deployment, commits or pushes were performed. All files/accounts used in verification are generated synthetic fixtures.
+
+## Environment and commands
+
+Node 24.21.0, pnpm 11.27.0, Next 16.4.0, pdf-lib 1.17.1, PDF.js 6.4.299, Chromium 153.0.8010.52. Browser contexts are isolated, Chromium sandbox remains enabled, desktop viewport 1440×1100 and mobile iPhone 13 emulation (390×664 CSS pixels). Browser checks needed a scoped sandbox permission for the local server/browser; a first ordinary dev-server attempt failed with loopback `EPERM`, without changing sandbox/browser configuration.
+
+Nx commands below used `NX_DAEMON=false NX_ISOLATE_PLUGINS=false`. PostgreSQL and Mailpit use the repository's dedicated local test services/configuration, never the normal workspace database/inbox. `pnpm db:test:up` and `pnpm mail:test:up` both completed successfully. Account tests apply only dedicated test migrations through their existing setup.
+
+| Result | Executed command / evidence                                                                                                                                                                                                                                            |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PASS   | `pnpm exec vitest run --exclude 'tests/unit/matching*.test.ts'`: **185 tests / 18 files**, including 11 new PDF engine/model/worker cases. Existing application/interview/offer/backup/storage/scanner/isolation regressions included.                                 |
+| PASS   | `pnpm test:integration tests/integration/documents.test.ts tests/integration/document-intake.test.ts`: **14 tests / 2 files**, real dedicated PostgreSQL/private storage and existing isolated validation.                                                             |
+| PASS   | `pnpm typecheck`: four Nx projects; changed web/tools checks executed, unchanged domain/extension checks cached.                                                                                                                                                       |
+| PASS   | `pnpm lint`: four Nx projects; changed web/tools checks executed, unchanged domain/extension checks cached.                                                                                                                                                            |
+| PASS   | `pnpm exec playwright test`: **50/50** desktop/mobile guest journeys, including four new PDF Tools scenarios. Application CRUD/status/search, interviews/timezones, backups/corruption/write failures, keyboard/dialog and Sidekick handoff regressions retained.      |
+| PASS   | `pnpm build`: real optimized compilation, TypeScript and route generation, including `/resumes/pdf-tools` and both browser worker bundles. No deployment.                                                                                                              |
+| PASS   | `FATS_TEST_PRODUCTION=1 pnpm exec playwright test tests/e2e/pdf-tools.spec.ts`: **4/4** desktop/mobile scenarios against `next start`, including actual exported-byte reopening/rendering and request monitoring.                                                      |
+| PASS   | `FATS_TEST_PRODUCTION=1 pnpm test:e2e:account tests/account-e2e/document-intake.spec.ts`: **4/4**, real scanner-unavailable upload rejection/form preservation, legacy preview/download denial and account erasure covering legacy/quarantine bytes on desktop/mobile. |
+| PASS   | `pnpm format:check` and `git diff --check`, including the final documentation.                                                                                                                                                                                         |
+| PASS   | SHA-256 comparison against HEAD preserves **14 files**: all four original `uiux/*.png` moodboards, migrations 0001–0009 and `pnpm-lock.yaml`. No dependency manifests or server/domain security implementation changed.                                                |
+
+The production build reported two dynamic-filesystem tracing warnings at the unchanged `apps/web/src/server/document-scanner.ts:40–41`. Compilation succeeded; deployment/file-tracing packaging is outside this local milestone and was not repaired silently. Next's generated `next-env.d.ts` path changes were returned to the starting checkpoint.
+
+AI matching/evaluation/comparison unit files were deliberately excluded because AI work remains paused. The Hardening 2 report already records the frozen comparison-plan hash regression; this task neither reruns that experiment nor changes its plan/contracts. No full-suite AI/provider evaluation or live malware-scanner verification is claimed.
+
+## Acceptance evidence
+
+The actual browser journey opens the PDF Tools link from the guest document interface, selects a generated four-page employment form, fills single-line text, a checkbox, dropdown and radio choice, and applies the fields to the preview. It adds text, a chosen date, a checkmark, a typed personal signature and a pointer-drawn signature, edits positions/sizes, nudges with the keyboard, drags at a different zoom on desktop, removes/undoes a mark, and downloads a completed PDF. Undo/redo and signature dialog cancellation/focus return are exercised. Cancelling a signature clears its draft. Close/app-link discard confirmation can keep the editor intact.
+
+The fixture covers Letter, A4 with a nonzero CropBox origin, landscape and a smaller portrait page, with **0°, 90°, 180° and 270° existing rotations**. Exported bytes are parsed by pdf-lib and reopened as a fresh local PDF through PDF.js, with no HTML mark overlays. Each page is rendered. Pixel-region assertions independently find the exported blue marks at the intended page coordinates; the first-page text/date/check/typed-signature regions also assert margins to catch clipping. The rotated/cropped page includes the drawn signature. Form appearances and original headings are visibly present in inspected screenshots. Source bytes retain their SHA-256; a separate unit check confirms the original form values remain unchanged after export. Repeated exports start from the original and do not accumulate prior marks.
+
+Representative artifacts are ignored local evidence under:
+
+- `test-results/pdf-tools-complete-a-local-16fd6-ng-or-changing-the-original-desktop/`
+- `test-results/pdf-tools-complete-a-local-16fd6-ng-or-changing-the-original-mobile/`
+
+Each contains `synthetic-completed.pdf`, `editor.png`, and `export-page-1.png` through `export-page-4.png`. Actual desktop exports on all four pages, mobile editor/first-page export, and mobile rotated-page export were visually inspected. Added text, dates, checkmarks, both signature types and original content are visible without observed clipping or missing form appearances in these samples. Full-page mobile screenshots retain the shell's visible skip-link/focus state; this does not cover PDF content. Browser assertions verify no horizontal document overflow and no unhandled page errors. These are representative Chromium checks, not an accessibility certification or validation in every PDF reader.
+
+The request monitor records **zero POST/PUT/PATCH/DELETE requests** during the complete guest workflow and no external request origins; code/session requests remain on the local app origin. Browser localStorage contains none of the synthetic PDF text, filename or signature contents. Source inspection confirms no upload/fetch/persistence calls in the new editor. Blob downloads are local. PDF.js and processing workers are destroyed on cancellation/close/unmount; timeout tests verify termination/rejection and no continued use of a stopped pdf-lib worker.
+
+Negative tests cover wrong extensions, malformed bytes, fake encrypted structure, scripts/active actions, existing signature declarations, XFA/multiline forms, file/page/dimension/field/mark limits, oversized images, out-of-page marks, oversized/unsupported form text and read-only fields. Invalid form text produces a fixed error and preserves edits. A generated image-only PDF renders with explicit no-OCR guidance and supports added marks; closing/reopening its original shows no saved mark. Resource tests cover bounded history and the parser's operation deadline with termination. They do not prove an OS memory ceiling or test every pathological PDF/browser failure.
+
+## Security and remaining limitations
+
+The new route has no library-save path or direct server-document opening. It does not alter ownership, authentication, quarantine, accepted-state receipts, immutable versions, submitted links, migration/recovery or the production scanner adapter. The 14 integration cases exercise owner-scoped versions/access, storage integrity, quarantine invisibility/promotion, failed-scanner rejection, retry/recovery and deletion behavior. Successful persistence fixtures use the existing explicitly synthetic scanner dependency, **not actual antivirus evidence**.
+
+Hardening 2's live malware scanning remains unverified and production intake remains fail-closed. Saving locally edited bytes to trusted storage stays unavailable. Accepted-file browser intake with a real scanner, ClamAV/EICAR, operational scanner resource behavior, other browser engines/PDF viewers, real personal files and deployment are **NOT RUN**. Browser workers and limits are not malware scanning or OS containment.
+
+Exports flatten form fields and added raster marks. Existing PDF text is not edited, image text is not recognized, and page rearrangement/removal/new rotation, redaction and certified signing are outside the MVP. Multiline/unusual fields, encrypted/signed files and other unsupported cases are detailed in [the supported subset](PDF_TOOLS.md#supported-subset-and-limits). Drafts have no recovery after unmount; close/app-link/unload warnings do not make browser history navigation or a crashed tab a durable draft store. A visual signature offers no identity, legal-validity or employer-acceptance guarantee.
+
+Recommended next integration is an explicitly authorized Career Vault action reading only an owner-checked accepted version, followed by an optional explicit new-copy submission through secure intake after real scanning becomes operational. Career Vault and signature reuse remain unimplemented.
+
+## Corrections during verification
+
+Initial focused tests exposed an unnormalized malformed-catalog error; validation now checks the catalog/page tree inside the safe load error boundary. Lint rejected synchronous effect state resets; page/preview revisions now remount the renderer with its initial loading state. Early browser tests used ambiguous native-select/route-announcer locators and sampled an old canvas; they were corrected to use accessible combobox names, explicit numeric option values and the requested page's render-ready attribute. Coordinate/visibility checks remain in place and pass on the actual exported files. No security guard, test assertion or scanner requirement was disabled to obtain passing results.

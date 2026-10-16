@@ -1,5 +1,9 @@
 # Architecture
 
+## Local PDF Tools
+
+The separately authorized [PDF Tools MVP](PDF_TOOLS.md) adds `/resumes/pdf-tools` with browser-only file selection, bounded pdf-lib worker processing and PDF.js canvas preview. Editing state, form values and personal signature marks are in memory; downloads use local Blob URLs. It has no server persistence or account-library import path. Existing document authorization, quarantine/acceptance and immutable-version rules are unchanged. No dependencies, migrations, AI features or external services are added.
+
 ## Data protection hardening
 
 [Hardening 2](PRIVATE_BETA_HARDENING_2_VERIFICATION.md) adds migration 0009 security states to the existing file-intent ledger. Intake writes private quarantine, requires a fail-closed local scanner verdict and an isolated structural validator, then exclusively promotes bytes and commits accepted evidence/version metadata under live-owner locks. Downloads/previews/new links/extraction require exact-hash accepted evidence. SQL and filesystem promotion/cleanup remain separate recoverable steps. Restores invalidate acceptance; an explicit operator recheck preserves immutable history while checking bytes again. Both private locations participate in Hardening 1 erasure/recovery. Parser execution now uses fixed transient systemd services, cgroup resource limits and Bubblewrap namespaces; no in-process/worker fallback is allowed. No new package dependency or external service is added. ClamAV is not installed/configured or actually verified here, so scanner integration and real-data beta remain blocked; production uploads fail closed. The linked report distinguishes tested parser/recovery behavior from scanner assumptions and deployment requirements.

@@ -2,6 +2,10 @@
 
 Documents are available only in verified account workspaces. Guest applications, interviews, backups, and Sidekick remain available. A file stored here is never sent to an employer. Maria remains the labelled guest sample; no documents are seeded.
 
+## Local PDF Tools
+
+[PDF Tools](PDF_TOOLS.md) is linked from this interface and is available for guest/account users selecting a local PDF. It fills supported forms and adds personal visual marks entirely in browser memory, then downloads a completed copy. It does not fetch library versions, upload, save documents, change submitted links, or grant acceptance. Secure server intake remains blocked without required operational scanning. Signature marks are not certified digital signatures. See [verification](PDF_TOOLS_VERIFICATION.md).
+
 ## Hardening 2 intake update
 
 [Safe intake verification and operator setup](PRIVATE_BETA_HARDENING_2_VERIFICATION.md) supersedes the original worker/scanning descriptions below. Migration 0009 records `legacy`, `quarantined` and `accepted` security state separately from immutable versions. New files enter a private 0700 quarantine with server UUID filenames. Only a real local scanner verdict followed by isolated structural validation permits exclusive promotion and version publication. Download, preview, new links and extraction require accepted evidence matching the version SHA-256. Existing/restored files are unverified until an explicit operator recheck; history remains intact.
