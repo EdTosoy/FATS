@@ -268,36 +268,10 @@ hr {
   margin-top: 8px;
 }
 .brand-mark {
-  width: 31px;
-  height: 35px;
-  display: inline-block;
-  position: relative;
-}
-.brand-mark i {
-  position: absolute;
-  width: 14px;
-  height: 21px;
-  border-radius: 12px 12px 3px 12px;
-}
-.brand-mark i:first-child {
-  left: 13px;
-  top: 0;
-  background: var(--primary);
-  transform: rotate(14deg);
-}
-.brand-mark i:nth-child(2) {
-  left: 0;
-  top: 14px;
-  background: var(--mint);
-  transform: rotate(-22deg);
-}
-.brand-mark i:nth-child(3) {
-  left: 17px;
-  top: 20px;
-  width: 11px;
-  height: 16px;
-  background: var(--amber);
-  transform: rotate(42deg);
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 .nav-label {
   font-size: 9px;
@@ -345,8 +319,10 @@ hr {
   background: linear-gradient(130deg, #f1f8f7, #f8fbff);
 }
 .note-sprout {
-  color: #348b74;
-  font-size: 24px;
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 .sidebar-note p {
   font-size: 15px;
@@ -1629,7 +1605,8 @@ hr {
     display: none;
   }
   .mobile-brand .brand-mark {
-    transform: scale(0.83);
+    width: 36px;
+    height: 36px;
   }
   .mobile-menu {
     display: inline-flex;

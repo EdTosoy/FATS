@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import {
@@ -71,9 +72,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav aria-label="Main navigation">{navLinks(navigation)}</nav>
         <div className="sidebar-bottom">
           <div className="sidebar-note">
-            <span className="note-sprout" aria-hidden="true">
-              ✦
-            </span>
+            <Image
+              className="note-sprout"
+              src="/brand/icon.svg"
+              width={40}
+              height={40}
+              alt=""
+            />
             <p>
               Small steps.
               <br />
