@@ -50,6 +50,7 @@ export interface OfferTerms {
   documentVersionId: string;
 }
 export interface OfferEvent {
+  unavailableDocumentReference?: string;
   requestId: string;
   sequence: number;
   kind: 'terms' | 'negotiation' | 'decision' | 'review';

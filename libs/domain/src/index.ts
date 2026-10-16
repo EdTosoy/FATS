@@ -12,3 +12,4 @@ export * from './migration';
 export * from './document';
 export * from './matching';
 export * from './offer';
+export * from './offer-backup';

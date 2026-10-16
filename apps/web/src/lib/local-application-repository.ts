@@ -184,6 +184,10 @@ export class LocalApplicationRepository implements WorkspaceRepository {
   async previewRestore(text: string): Promise<RestorePreview> {
     this.pendingRestore = null;
     const backup = parseBackup(text);
+    if (backup.version === 2)
+      throw new ApplicationStorageError(
+        'Sign in to a verified account to import version 2 backups with offer history. Nothing was changed in this browser.',
+      );
     const raw = this.readRaw();
     let current = null;
     try {

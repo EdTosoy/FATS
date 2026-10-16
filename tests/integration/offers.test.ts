@@ -1,13 +1,27 @@
 import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
-import { OFFER_CHECKLIST, type OfferTerms } from '@fats/domain';
+import {
+  OFFER_CHECKLIST,
+  parseBackup,
+  serializeBackup,
+  createBackup,
+  portableEventCommand,
+  type OfferTerms,
+} from '@fats/domain';
+import {
+  portableOfferFixture,
+  portableTimestamp,
+} from '../helpers/portable-offer-fixture';
 import {
   createServices,
   createDatabasePool,
 } from '../../apps/web/src/server/services';
 import { runMigrations } from '../../apps/web/src/server/migrations';
-import { handleAuth } from '../../apps/web/src/server/handlers';
+import {
+  handleAuth,
+  handleWorkspace,
+} from '../../apps/web/src/server/handlers';
 import { handleOffers } from '../../apps/web/src/server/offer-handlers';
 import { PostgresOfferRepository } from '../../apps/web/src/server/offer-repository';
 import { PostgresWorkspaceRepository } from '../../apps/web/src/server/workspace-repository';
@@ -235,10 +249,11 @@ it('creates minimal and complete terms, preserves exact money and original histo
     startOn: '2026-11-02',
   });
   const exported = await a.workspace.exportBackup();
-  expect(exported).not.toContain('salaryAmount');
-  await expect(a.workspace.previewRestore(exported)).rejects.toThrow(
-    'Offer Desk',
-  );
+  expect(JSON.parse(exported).version).toBe(2);
+  expect(JSON.parse(exported).data.offers[0].events).toHaveLength(4);
+  expect(
+    (await a.workspace.previewRestore(exported)).portable?.identical.offers,
+  ).toBe(1);
   await expect(a.workspace.deleteApplication(app)).rejects.toMatchObject({
     status: 409,
   });
@@ -522,4 +537,264 @@ it('accepts validated multilingual optional fields within the bounded JSON reque
   const saved = (await a.offers.list())[0];
   expect(saved.events[0].notes.length).toBe(5000);
   expect(saved.events[0].terms?.notes.length).toBe(5000);
+});
+
+async function offerHistory(
+  owner: Awaited<ReturnType<typeof user>>,
+  versionId = '',
+) {
+  for (const event of portableOfferFixture().data.offers[0].events) {
+    const command = portableEventCommand(event);
+    if (command.kind === 'terms' && event.documentReference)
+      command.terms.documentVersionId = versionId;
+    await owner.offers.command(
+      owner.application.id,
+      event.requestId,
+      event.sequence - 1,
+      command,
+    );
+  }
+}
+function workspaceRequest(
+  cookie?: string,
+  body?: unknown,
+  headers: Record<string, string> = {},
+) {
+  return handleWorkspace(
+    new Request(origin + '/api/workspace', {
+      method: body ? 'POST' : 'GET',
+      headers: {
+        origin,
+        ...(cookie ? { cookie } : {}),
+        ...(body ? { 'content-type': 'application/json' } : {}),
+        ...headers,
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    }),
+    services,
+  );
+}
+it('exports and imports complete offer history additively, preserves file provenance without granting cross-user document access, and skips duplicates', async () => {
+  const a = await user(),
+    b = await user();
+  const letter = await a.documents.upload(
+    await pdfFixture('Portable offer letter'),
+    'offer.pdf',
+    {
+      requestId: randomUUID(),
+      name: 'Offer letter',
+      category: 'Other application documents',
+    },
+  );
+  await offerHistory(a, letter.versionId);
+  const text = await a.workspace.exportBackup(),
+    backup = parseBackup(text);
+  expect(backup.version).toBe(2);
+  if (backup.version !== 2) throw new Error('Expected version 2.');
+  expect(text).not.toContain('storage_key');
+  expect(text).not.toContain(a.id);
+  expect(backup.data.offers[0].events[0]).toMatchObject({
+    terms: { documentVersionId: '' },
+    documentReference: letter.versionId,
+  });
+  const same = await a.workspace.previewRestore(text);
+  expect(same.portable).toMatchObject({
+    identical: { offers: 1 },
+    unavailableDocuments: [],
+    conflicts: [],
+  });
+  await a.workspace.restoreBackup(same.token);
+  expect((await a.offers.list())[0].events[0].terms?.documentVersionId).toBe(
+    letter.versionId,
+  );
+  const preview = await b.workspace.previewRestore(text);
+  expect(preview.portable).toMatchObject({
+    added: { applications: 1, offers: 1 },
+    unavailableDocuments: [{ reference: letter.versionId }],
+    conflicts: [],
+  });
+  expect(await b.offers.list()).toEqual([]);
+  await b.workspace.restoreBackup(preview.token);
+  expect((await b.workspace.getWorkspace()).applications).toHaveLength(2);
+  const restored = (await b.offers.list())[0];
+  expect(restored).toMatchObject({
+    state: 'accepted',
+    version: 5,
+    questions: 'When does the day start?',
+  });
+  expect(restored.events[0]).toMatchObject({
+    terms: { documentVersionId: '' },
+    unavailableDocumentReference: letter.versionId,
+  });
+  await expect(b.documents.download(letter.versionId)).rejects.toMatchObject({
+    status: 404,
+  });
+  const exported = parseBackup(await b.workspace.exportBackup());
+  if (exported.version !== 2) throw new Error('Expected version 2.');
+  expect(exported.data.offers).toEqual(backup.data.offers);
+  const repeated = await b.workspace.previewRestore(text);
+  expect(repeated.portable?.identical.offers).toBe(1);
+  await b.workspace.restoreBackup(repeated.token);
+  await b.workspace.restoreBackup(repeated.token);
+  expect((await b.offers.list())[0].events).toHaveLength(5);
+  await services.pool.query('DELETE FROM "user" WHERE id=$1', [b.id]);
+  expect(await b.offers.list()).toEqual([]);
+  expect(
+    (
+      await services.pool.query('SELECT 1 FROM offer_events WHERE user_id=$1', [
+        b.id,
+      ])
+    ).rowCount,
+  ).toBe(0);
+});
+it('blocks conflicting decisions and stale previews; an applied token never reapplies old history', async () => {
+  const a = await user(),
+    b = await user();
+  await offerHistory(a);
+  const text = await a.workspace.exportBackup(),
+    preview = await b.workspace.previewRestore(text);
+  await b.workspace.create({
+    ...b.application,
+    title: 'Keep this new application',
+  });
+  await expect(b.workspace.restoreBackup(preview.token)).rejects.toMatchObject({
+    status: 409,
+  });
+  const fresh = await b.workspace.previewRestore(text);
+  await b.workspace.restoreBackup(fresh.token);
+  await b.offers.command(a.application.id, randomUUID(), 5, {
+    kind: 'decision',
+    occurredOn: '2026-10-22',
+    notes: 'Corrected decision',
+    decision: 'declined',
+    confirmed: true,
+  });
+  await b.workspace.restoreBackup(fresh.token);
+  expect((await b.offers.list())[0].state).toBe('declined');
+  const conflict = await b.workspace.previewRestore(text);
+  expect(conflict.portable?.conflicts).toHaveLength(1);
+  await expect(b.workspace.restoreBackup(conflict.token)).rejects.toMatchObject(
+    { status: 409 },
+  );
+  expect((await b.offers.list())[0].state).toBe('declined');
+  const collision = parseBackup(text);
+  if (collision.version !== 2) throw new Error('Expected version 2.');
+  const collisionId = randomUUID();
+  collision.data.applications[0].id = collisionId;
+  collision.data.offers[0].applicationId = collisionId;
+  const duplicateHistory = await b.workspace.previewRestore(
+    serializeBackup(collision),
+  );
+  expect(duplicateHistory.portable?.conflicts[0]).toContain(
+    'history identifier',
+  );
+  await expect(
+    b.workspace.restoreBackup(duplicateHistory.token),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(
+    (await b.workspace.getWorkspace()).applications.some(
+      (app) => app.id === collisionId,
+    ),
+  ).toBe(false);
+  const legacy = serializeBackup(
+    createBackup({ applications: [], interviews: [] }, portableTimestamp),
+  );
+  await expect(b.workspace.previewRestore(legacy)).rejects.toThrow(
+    'Offer Desk',
+  );
+});
+it('enforces verified sessions, confirmation, owner-bound and expired restore tokens, and rejects unauthorized/malformed JSON records', async () => {
+  const a = await user(),
+    b = await user(),
+    unverified = await user(false),
+    text = serializeBackup(portableOfferFixture());
+  const body = { action: 'preview-restore', text };
+  expect((await workspaceRequest(undefined, body)).status).toBe(401);
+  expect((await workspaceRequest(unverified.cookie, body)).status).toBe(403);
+  expect(
+    (await workspaceRequest(a.cookie, body, { origin: 'https://evil.test' }))
+      .status,
+  ).toBe(403);
+  expect(
+    (await workspaceRequest(a.cookie, body, { 'x-fats-account': b.id })).status,
+  ).toBe(409);
+  expect(
+    (
+      await workspaceRequest(a.cookie, {
+        action: 'preview-restore',
+        text: '{bad',
+      })
+    ).status,
+  ).toBe(400);
+  const forged = portableOfferFixture() as unknown as Record<string, unknown>;
+  forged.owner = b.id;
+  expect(
+    (
+      await workspaceRequest(a.cookie, {
+        action: 'preview-restore',
+        text: JSON.stringify(forged),
+      })
+    ).status,
+  ).toBe(400);
+  const response = await workspaceRequest(a.cookie, body);
+  expect(response.status).toBe(200);
+  const preview = await response.json();
+  expect(
+    (
+      await workspaceRequest(a.cookie, {
+        action: 'restore',
+        token: preview.token,
+        confirmed: false,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await workspaceRequest(b.cookie, {
+        action: 'restore',
+        token: preview.token,
+        confirmed: true,
+      })
+    ).status,
+  ).toBe(404);
+  await services.pool.query(
+    'UPDATE workspace_stages SET "expiresAt"=now()-interval \'1 second\' WHERE token=$1',
+    [preview.token],
+  );
+  expect(
+    (
+      await workspaceRequest(a.cookie, {
+        action: 'restore',
+        token: preview.token,
+        confirmed: true,
+      })
+    ).status,
+  ).toBe(409);
+  expect(await a.offers.list()).toEqual([]);
+});
+it('rolls back every portable collection on an append failure and permits the original preview to retry', async () => {
+  const a = await user(),
+    before = await a.workspace.getWorkspace(),
+    preview = await a.workspace.previewRestore(
+      serializeBackup(portableOfferFixture()),
+    );
+  const trigger = 'portable_failure_' + randomUUID().replaceAll('-', '');
+  await services.pool.query(
+    `CREATE FUNCTION ${trigger}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id='${a.id}'::uuid THEN RAISE EXCEPTION 'Synthetic portable write failure'; END IF; RETURN NEW; END; $$`,
+  );
+  await services.pool.query(
+    `CREATE TRIGGER ${trigger} BEFORE INSERT ON offer_events FOR EACH ROW EXECUTE FUNCTION ${trigger}()`,
+  );
+  try {
+    await expect(
+      a.workspace.restoreBackup(preview.token),
+    ).rejects.toMatchObject({ code: 'P0001' });
+    expect(await a.workspace.getWorkspace()).toEqual(before);
+    expect(await a.offers.list()).toEqual([]);
+  } finally {
+    await services.pool.query(`DROP TRIGGER ${trigger} ON offer_events`);
+    await services.pool.query(`DROP FUNCTION ${trigger}()`);
+  }
+  await a.workspace.restoreBackup(preview.token);
+  expect((await a.offers.list())[0].events).toHaveLength(5);
 });

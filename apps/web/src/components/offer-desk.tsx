@@ -106,11 +106,23 @@ function TermsSummary({ terms }: { terms: OfferTerms }) {
     </dl>
   );
 }
-function OfferAttachment({ versionId }: { versionId: string }) {
+function OfferAttachment({
+  versionId,
+  unavailable = false,
+}: {
+  versionId: string;
+  unavailable?: boolean;
+}) {
   const { library, error } = useDocuments();
   const [preview, setPreview] = useState<DocumentVersion | null>(null);
   if (!versionId)
-    return <p className="field-hint">No letter linked to these terms.</p>;
+    return (
+      <p className="field-hint">
+        {unavailable
+          ? 'Letter not included in the JSON backup. Its historical reference is retained without a file link. Upload a copy to your library and record its exact version when ready.'
+          : 'No letter linked to these terms.'}
+      </p>
+    );
   const document = library?.documents.find((d) =>
     d.versions.some((v) => v.id === versionId),
   );
@@ -225,7 +237,13 @@ export function OfferDesk({ applicationId }: { applicationId: string }) {
               <summary>Review current terms</summary>
               <TermsSummary terms={terms} />
             </details>
-            <OfferAttachment versionId={terms.documentVersionId} />
+            <OfferAttachment
+              versionId={terms.documentVersionId}
+              unavailable={Boolean(
+                [...offer.events].reverse().find((event) => event.terms)
+                  ?.unavailableDocumentReference,
+              )}
+            />
             <div className="document-actions">
               <Button
                 variant="secondary"
@@ -317,6 +335,9 @@ export function OfferDesk({ applicationId }: { applicationId: string }) {
                             <TermsSummary terms={event.terms} />
                             <OfferAttachment
                               versionId={event.terms.documentVersionId}
+                              unavailable={Boolean(
+                                event.unavailableDocumentReference,
+                              )}
                             />
                           </details>
                         </>

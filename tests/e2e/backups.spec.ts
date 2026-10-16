@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test as base, type Page } from '@playwright/test';
 import { createApplication, createInterview, createBackup } from '@fats/domain';
+import { portableOfferFixture } from '../helpers/portable-offer-fixture';
 
 const key = 'fats.applications.v1';
 const now = '2026-10-15T00:00:00.000Z';
@@ -345,4 +346,17 @@ test('recovers unreadable storage only after confirmation and rejects stale prev
   } finally {
     await otherTab.close();
   }
+});
+
+test('version 2 offer backups require a verified account and never discard guest records', async ({
+  page,
+}) => {
+  await seed(page);
+  const before = await saved(page);
+  await choose(page, portableOfferFixture());
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'verified account',
+  );
+  expect(await saved(page)).toBe(before);
+  await expect(page.getByRole('dialog')).not.toBeVisible();
 });

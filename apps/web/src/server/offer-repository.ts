@@ -19,7 +19,7 @@ export class PostgresOfferRepository {
       `SELECT o.*, COALESCE(jsonb_agg(jsonb_build_object(
         'requestId',e.request_id,'sequence',e.sequence,'kind',e.kind,
         'occurredOn',e.occurred_on,'recordedAt',e.recorded_at,'notes',e.notes,
-        'terms',e.terms,'decision',e.decision) ORDER BY e.sequence) FILTER (WHERE e.sequence IS NOT NULL),'[]') AS events
+        'terms',e.terms,'decision',e.decision) || CASE WHEN e.source_version_id IS NOT NULL THEN jsonb_build_object('unavailableDocumentReference',e.source_version_id) ELSE '{}'::jsonb END ORDER BY e.sequence) FILTER (WHERE e.sequence IS NOT NULL),'[]') AS events
        FROM offers o LEFT JOIN offer_events e USING(user_id,application_id)
        WHERE o.user_id=$1 GROUP BY o.user_id,o.application_id ORDER BY o.application_id`,
       [this.owner],

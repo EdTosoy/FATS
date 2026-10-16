@@ -1,4 +1,13 @@
 @import 'tailwindcss';
+.portable-preview {
+  overflow-wrap: anywhere;
+}
+.portable-preview ul {
+  padding-left: 20px;
+}
+.portable-preview li {
+  margin-bottom: 8px;
+}
 
 .offer-desk,
 .offer-next-steps {

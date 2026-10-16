@@ -188,6 +188,7 @@ describe('PostgreSQL migrations and real authentication', () => {
       '0004_documents.sql',
       '0005_matching.sql',
       '0006_offers.sql',
+      '0007_portable_offers.sql',
     ]);
     expect(
       (
@@ -195,7 +196,7 @@ describe('PostgreSQL migrations and real authentication', () => {
           'SELECT name FROM fats_schema_migrations ORDER BY name',
         )
       ).rows,
-    ).toHaveLength(6);
+    ).toHaveLength(7);
     const a = await user(),
       b = await user();
     const data = await dataset(a);
@@ -626,7 +627,7 @@ describe('Durable migration and account backups', () => {
     ).rejects.toThrow('missing parent');
     for (const text of [
       '{',
-      JSON.stringify({ format: 'fats-backup', version: 2 }),
+      JSON.stringify({ format: 'fats-backup', version: 3 }),
     ])
       await expect(target.repository.previewRestore(text)).rejects.toThrow();
     const empty = await target.repository.previewMigration(

@@ -25,6 +25,8 @@ import {
 } from '../../apps/web/src/server/database-operations';
 import { PostgresWorkspaceRepository } from '../../apps/web/src/server/workspace-repository';
 import { PostgresOfferRepository } from '../../apps/web/src/server/offer-repository';
+import { serializeBackup } from '@fats/domain';
+import { portableOfferFixture } from '../helpers/portable-offer-fixture';
 
 const base = process.env.FATS_TEST_DATABASE_URL;
 if (
@@ -248,7 +250,7 @@ it('performs a real confirmed restore and verifies records, relationships, crede
           'SELECT count(*)::int AS count FROM fats_schema_migrations',
         )
       ).rows[0].count,
-    ).toBe(6);
+    ).toBe(7);
     await expect(
       recovered.pool.query('DELETE FROM applications WHERE user_id=$1', [
         ownerId,
@@ -399,7 +401,17 @@ it('backs up and restores matching immutable document versions and application l
     decision: 'accepted',
     confirmed: true,
   });
+  const workspace = new PostgresWorkspaceRepository(services.pool, ownerId);
+  const portable = await workspace.previewRestore(
+    serializeBackup(portableOfferFixture()),
+  );
+  await workspace.restoreBackup(portable.token);
   const offersBefore = await offers.list();
+  expect(offersBefore).toHaveLength(2);
+  expect(
+    offersBefore.find((offer) => offer.applicationId === 'portable-application')
+      ?.events[0].unavailableDocumentReference,
+  ).toBeTruthy();
   const file = directory + '/with-documents.dump',
     recoveredRoot = directory + '/recovered-files';
   await expect(createDatabaseBackup(source, file)).rejects.toThrow(

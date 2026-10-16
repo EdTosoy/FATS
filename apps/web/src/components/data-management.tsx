@@ -7,6 +7,7 @@ import { MAX_BACKUP_BYTES, type RestorePreview } from '@fats/domain';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { Button, Card } from './ui';
+import { useOffers } from './offer-provider';
 
 function errorMessage(error: unknown) {
   return error instanceof Error
@@ -16,6 +17,7 @@ function errorMessage(error: unknown) {
 
 export function DataManagement() {
   const account = useAccount();
+  const { refresh: refreshOffers } = useOffers();
   const {
     exportBackup,
     previewRestore,
@@ -99,8 +101,11 @@ export function DataManagement() {
     setError('');
     try {
       await restoreBackup(preview.token);
+      if (account.user) await refreshOffers().catch(() => {});
       setMessage(
-        `Restore completed. ${preview.incoming.applications} ${preview.incoming.applications === 1 ? 'application' : 'applications'} and ${preview.incoming.interviews} ${preview.incoming.interviews === 1 ? 'interview' : 'interviews'} are saved ${account.user ? 'in your account' : 'in this browser'}.`,
+        preview.portable
+          ? `Import completed. Added ${preview.portable.added.applications} applications, ${preview.portable.added.interviews} interviews, and ${preview.portable.added.offers} offers. Existing records were kept. Letters were not restored from JSON.`
+          : `Restore completed. ${preview.incoming.applications} ${preview.incoming.applications === 1 ? 'application' : 'applications'} and ${preview.incoming.interviews} ${preview.incoming.interviews === 1 ? 'interview' : 'interviews'} are saved ${account.user ? 'in your account' : 'in this browser'}.`,
       );
       setPreview(null);
       setConfirmed(false);
@@ -123,14 +128,15 @@ export function DataManagement() {
         </span>
         <h2 id="data-management-title">Data management</h2>
         <p>
-          Keep a backup of your applications, interviews, preparation notes, and
-          reflections.{' '}
+          Keep a backup of your saved job search
+          {account.user ? ', including offer history' : ''}.{' '}
           {account.user
-            ? 'These tools export and replace your account records; local browser records stay separate.'
+            ? 'Version 2 imports add missing records and keep existing records. Legacy version 1 restores replace applications and interviews. Browser records stay separate.'
             : 'Clearing browser data or losing this device can remove your workspace.'}{' '}
           Backups exclude document metadata, files, submitted resume links,
-          comparison reports, reviewed text, and Offer Desk history. Use a
-          complete local operator archive to recover those account records.
+          comparison reports, and reviewed text. Offer letters are historical
+          references only in JSON; file bytes and live links require the
+          complete local operator archive.
         </p>
         <p className="backup-warning">
           Backups contain private, unencrypted information. Anyone with the file
@@ -143,8 +149,9 @@ export function DataManagement() {
           <section aria-labelledby="export-title">
             <h3 id="export-title">Export backup</h3>
             <p>
-              Download your saved applications and interviews as JSON. Export
-              before replacing data you want to keep.
+              Download your saved applications, interviews
+              {account.user ? ', and offers' : ''} as JSON. Export before
+              replacing data you want to keep.
             </p>
             <Button
               ref={exportButton}
@@ -165,8 +172,9 @@ export function DataManagement() {
           <section aria-labelledby="import-title">
             <h3 id="import-title">Import backup</h3>
             <p>
-              Preview a FATS backup, then confirm a full replacement. Records
-              are not merged.
+              Preview a FATS backup, then confirm its import. Version 2 adds
+              missing records and blocks conflicts; version 1 requires full
+              replacement.
             </p>
             <form onSubmit={inspectFile} className="backup-file-form">
               <label htmlFor="backup-file">Choose JSON backup</label>
@@ -184,8 +192,8 @@ export function DataManagement() {
                 }}
               />
               <p id="backup-file-hint" className="field-hint">
-                Version 1 FATS backup · maximum 10 MiB. Selecting a file does
-                not change your data.
+                Version 1 or 2 FATS backup · maximum 10 MiB. Version 2 requires
+                a verified account. Selecting a file does not change your data.
               </p>
               <Button
                 ref={previewButton}
@@ -228,12 +236,14 @@ export function DataManagement() {
               onPointerDownOutside={(event) => event.preventDefault()}
             >
               <Dialog.Title className="dialog-title">
-                Replace this workspace?
+                {preview.portable
+                  ? 'Import this backup?'
+                  : 'Replace this workspace?'}
               </Dialog.Title>
               <Dialog.Description className="muted">
-                Review the backup before importing. This replaces all current
-                applications, interviews, and notes with the backup contents.
-                Nothing is merged.
+                {preview.portable
+                  ? 'Add missing applications, interviews, and offer history. Identical records are skipped. Conflicts block the whole import; existing records and decisions are never overwritten.'
+                  : 'Review the backup before importing. This replaces all current applications, interviews, and notes with the backup contents. Nothing is merged.'}
               </Dialog.Description>
               <dl className="backup-counts">
                 <div>
@@ -245,14 +255,78 @@ export function DataManagement() {
                   <dd>{preview.incoming.interviews}</dd>
                 </div>
                 <div>
-                  <dt>Current applications to replace</dt>
+                  <dt>
+                    {preview.portable
+                      ? 'Current applications to keep'
+                      : 'Current applications to replace'}
+                  </dt>
                   <dd>{preview.current?.applications ?? 'Unreadable'}</dd>
                 </div>
                 <div>
-                  <dt>Current interviews to replace</dt>
+                  <dt>
+                    {preview.portable
+                      ? 'Current interviews to keep'
+                      : 'Current interviews to replace'}
+                  </dt>
                   <dd>{preview.current?.interviews ?? 'Unreadable'}</dd>
                 </div>
               </dl>
+              {preview.portable && (
+                <div className="portable-preview">
+                  <h3>Offer history</h3>
+                  <p>
+                    {preview.portable.offers.length} offers in this backup ·{' '}
+                    {preview.portable.added.offers} to add ·{' '}
+                    {preview.portable.identical.offers} identical offers to skip
+                  </p>
+                  <p>
+                    Add {preview.portable.added.applications} applications and{' '}
+                    {preview.portable.added.interviews} interviews. Skip{' '}
+                    {preview.portable.identical.applications} identical
+                    applications and {preview.portable.identical.interviews}{' '}
+                    identical interviews.
+                  </p>
+                  <ul>
+                    {preview.portable.offers.map((offer) => (
+                      <li key={offer.applicationId}>
+                        <strong>{offer.application}</strong> · {offer.revisions}{' '}
+                        terms revisions · {offer.state}
+                      </li>
+                    ))}
+                  </ul>
+                  {!!preview.portable.conflicts.length && (
+                    <div className="error-message" role="alert">
+                      <h3>Resolve conflicts before importing</h3>
+                      <p>
+                        Nothing will be imported while these saved records
+                        differ. Export both copies before resolving differences.
+                      </p>
+                      <ul>
+                        {preview.portable.conflicts.map((conflict) => (
+                          <li key={conflict}>{conflict}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <h3>Offer letters are not in JSON</h3>
+                  <p>
+                    {preview.portable.unavailableDocuments.length} document
+                    references will be retained without file links. JSON cannot
+                    recover PDF/DOCX files or verify access to an old version.
+                    Existing links on skipped offers stay as they are.
+                  </p>
+                  {!!preview.portable.unavailableDocuments.length && (
+                    <ul>
+                      {preview.portable.unavailableDocuments.map((item) => (
+                        <li key={`${item.application}-${item.sequence}`}>
+                          {item.application} · history entry {item.sequence}:
+                          letter unavailable from this backup
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
               <p className="muted">
                 Backup created{' '}
                 {new Date(preview.exportedAt).toLocaleString('en-PH')}.
@@ -266,7 +340,7 @@ export function DataManagement() {
                   developer tools before continuing; see Help for guidance.
                 </p>
               )}
-              {preview.incoming.applications === 0 && (
+              {preview.incoming.applications === 0 && !preview.portable && (
                 <p className="backup-warning">
                   This backup is empty. Restoring it removes all current
                   applications and interviews.
@@ -282,8 +356,9 @@ export function DataManagement() {
                     disabled={busy}
                   />
                   <span>
-                    I understand this replaces all current applications,
-                    interviews, and notes.
+                    {preview.portable
+                      ? 'I understand this adds supported records, keeps existing decisions, and does not restore offer-letter files or live links.'
+                      : 'I understand this replaces all current applications, interviews, and notes.'}
                   </span>
                 </label>
                 {error && (
@@ -304,8 +379,19 @@ export function DataManagement() {
                     >
                       Cancel import
                     </Button>
-                    <Button type="submit" disabled={busy || !confirmed}>
-                      {busy ? 'Restoring…' : 'Replace workspace'}
+                    <Button
+                      type="submit"
+                      disabled={
+                        busy ||
+                        !confirmed ||
+                        Boolean(preview.portable?.conflicts.length)
+                      }
+                    >
+                      {busy
+                        ? 'Restoring…'
+                        : preview.portable
+                          ? 'Import supported records'
+                          : 'Replace workspace'}
                     </Button>
                   </div>
                 </div>

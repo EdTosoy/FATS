@@ -53,7 +53,7 @@ See [SIDEKICK.md](SIDEKICK.md) for commands and [PHASE_3_VERIFICATION.md](PHASE_
 
 ## Recommended next implementation step
 
-Offer Desk is the current separately authorized non-AI extension. A recommended next separately scoped milestone is a portable Offer Desk export with a clear restore preview and safe document-version handling. Complete local recovery currently requires operator archives. Do not begin Career Vault, another phase, or production deployment. All AI development and live evaluation remain paused until explicitly resumed; prior comparison evidence remains in [Phase 6.1 verification](PHASE_6_1_VERIFICATION.md).
+Offer Desk is the current separately authorized non-AI extension. Offer Desk 1.1 extends the existing JSON backup flow with portable offer history, additive imports, conflict previews, and explicitly unlinked document references. Complete file-and-link recovery still requires operator archives. Further work requires separate scope. Do not begin Career Vault, another phase, or production deployment. All AI development and live evaluation remain paused until explicitly resumed; prior comparison evidence remains in [Phase 6.1 verification](PHASE_6_1_VERIFICATION.md).
 
 ## Offer Desk MVP — authorized extension
 

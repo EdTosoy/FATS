@@ -9,6 +9,11 @@ import {
   normalizeInterviewInput,
   type Interview,
 } from './interview';
+import {
+  validatePortableOffers,
+  type PortableWorkspaceData,
+  type PortableRestoreSummary,
+} from './offer-backup';
 
 export const BACKUP_FORMAT = 'fats-backup';
 export const BACKUP_VERSION = 1;
@@ -24,6 +29,13 @@ export interface WorkspaceBackup {
   exportedAt: string;
   data: WorkspaceData;
 }
+export interface PortableWorkspaceBackup {
+  format: typeof BACKUP_FORMAT;
+  version: 2;
+  exportedAt: string;
+  data: PortableWorkspaceData;
+}
+export type AnyWorkspaceBackup = WorkspaceBackup | PortableWorkspaceBackup;
 export interface WorkspaceCounts {
   applications: number;
   interviews: number;
@@ -33,6 +45,7 @@ export interface RestorePreview {
   exportedAt: string;
   incoming: WorkspaceCounts;
   current: WorkspaceCounts | null;
+  portable?: PortableRestoreSummary;
 }
 export interface BackupRepository {
   exportBackup(): Promise<string>;
@@ -145,9 +158,55 @@ export function createBackup(
     data: validateWorkspaceData(data),
   };
 }
-export function serializeBackup(backup: WorkspaceBackup): string {
+export function createPortableBackup(
+  data: unknown,
+  exportedAt: string,
+): PortableWorkspaceBackup {
+  const workspace = createBackup(data, exportedAt);
+  const raw = record(data);
+  if (
+    Object.keys(raw).some(
+      (key) => !['applications', 'interviews', 'offers'].includes(key),
+    )
+  )
+    throw new BackupValidationError('Unsupported version 2 backup fields.');
+  for (const row of [
+    ...(raw.applications as unknown[]),
+    ...(raw.interviews as unknown[]),
+  ]) {
+    if (
+      Object.keys(record(row)).some((key) =>
+        ['userId', 'user_id', 'owner', 'ownerId'].includes(key),
+      )
+    )
+      throw new BackupValidationError(
+        'Backup ownership must come from your signed-in account.',
+      );
+  }
+  try {
+    return {
+      format: BACKUP_FORMAT,
+      version: 2,
+      exportedAt,
+      data: {
+        ...workspace.data,
+        offers: validatePortableOffers(
+          raw.offers,
+          new Set(workspace.data.applications.map((row) => row.id)),
+        ),
+      },
+    };
+  } catch (error) {
+    throw new BackupValidationError(
+      error instanceof Error ? error.message : 'Invalid offer history.',
+    );
+  }
+}
+export function serializeBackup(backup: AnyWorkspaceBackup): string {
   const text = JSON.stringify(
-    createBackup(backup.data, backup.exportedAt),
+    backup.version === 2
+      ? createPortableBackup(backup.data, backup.exportedAt)
+      : createBackup(backup.data, backup.exportedAt),
     null,
     2,
   );
@@ -158,7 +217,7 @@ function checkSize(text: string) {
   if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES)
     throw new BackupValidationError('Choose a backup of 10 MiB or less.');
 }
-export function parseBackup(text: string): WorkspaceBackup {
+export function parseBackup(text: string): AnyWorkspaceBackup {
   checkSize(text);
   let value: unknown;
   try {
@@ -171,10 +230,21 @@ export function parseBackup(text: string): WorkspaceBackup {
   const row = record(value);
   if (row.format !== BACKUP_FORMAT)
     throw new BackupValidationError('This is not a FATS backup file.');
-  // Future migrations belong at this version boundary, before domain validation.
-  if (row.version !== BACKUP_VERSION)
+  if (
+    row.version === 2 &&
+    Object.keys(row).some(
+      (key) => !['format', 'version', 'exportedAt', 'data'].includes(key),
+    )
+  )
     throw new BackupValidationError(
-      'This backup version is not supported. Use a version 1 FATS backup.',
+      'Unsupported version 2 backup fields or ownership information.',
     );
-  return createBackup(row.data, stringField(row, 'exportedAt'));
+  // Future migrations belong at this version boundary, before domain validation.
+  if (row.version !== BACKUP_VERSION && row.version !== 2)
+    throw new BackupValidationError(
+      'This backup version is not supported. Use a version 1 or 2 FATS backup.',
+    );
+  return row.version === 2
+    ? createPortableBackup(row.data, stringField(row, 'exportedAt'))
+    : createBackup(row.data, stringField(row, 'exportedAt'));
 }

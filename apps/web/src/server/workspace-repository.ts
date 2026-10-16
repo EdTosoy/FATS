@@ -7,6 +7,8 @@ import {
   updateInterview,
   upcomingInterviews,
   createBackup,
+  createPortableBackup,
+  planPortableRestore,
   serializeBackup,
   parseBackup,
   validateWorkspaceData,
@@ -27,6 +29,7 @@ import {
   type RestorePreview,
   type LocalMigrationPreview,
 } from '@fats/domain';
+import { readPortableOffers, insertPortableOffer } from './portable-offers';
 
 export class WorkspaceError extends Error {
   constructor(
@@ -340,15 +343,64 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     });
   }
   async exportBackup() {
-    return serializeBackup(
-      createBackup(await this.getWorkspace(), new Date().toISOString()),
-    );
+    return this.transaction(false, async (client) => {
+      const data = await this.read(client),
+        offers = await readPortableOffers(client, this.owner),
+        now = new Date().toISOString();
+      return serializeBackup(
+        offers.length
+          ? createPortableBackup({ ...data, offers }, now)
+          : createBackup(data, now),
+      );
+    });
   }
   private async preview(
     text: string,
     kind: 'restore' | 'migration',
   ): Promise<LocalMigrationPreview> {
     const backup = parseBackup(text);
+    if (backup.version === 2) {
+      if (kind !== 'restore')
+        throw new WorkspaceError(
+          'Use Data management to preview a version 2 backup. Browser transfer only accepts version 1.',
+        );
+      databaseData(backup.data);
+      return this.transaction(false, async (client, revision) => {
+        const current = {
+          ...(await this.read(client)),
+          offers: await readPortableOffers(client, this.owner),
+        };
+        const { summary } = planPortableRestore(backup.data, current);
+        const token = randomUUID();
+        await client.query(
+          'DELETE FROM workspace_stages WHERE user_id=$1 AND "expiresAt" < now()',
+          [this.owner],
+        );
+        await client.query(
+          `INSERT INTO workspace_stages(token,user_id,kind,data,base_revision,fingerprint,"exportedAt","expiresAt") VALUES($1,$2,'restore',$3,$4,$5,$6,now()+interval '15 minutes')`,
+          [
+            token,
+            this.owner,
+            JSON.stringify(backup.data),
+            revision,
+            createHash('sha256')
+              .update(JSON.stringify(backup.data))
+              .digest('hex'),
+            backup.exportedAt,
+          ],
+        );
+        return {
+          token,
+          exportedAt: backup.exportedAt,
+          incoming: workspaceCounts(backup.data),
+          current: workspaceCounts(current),
+          portable: summary,
+          added: summary.added,
+          identical: summary.identical,
+          alreadyImported: false,
+        };
+      });
+    }
     const data = databaseData(backup.data);
     const hash = fingerprint(data);
     return this.transaction(false, async (client, revision) => {
@@ -407,7 +459,7 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       ).rowCount
     )
       throw new WorkspaceError(
-        'JSON backups exclude Offer Desk history and attachments. Replacement is blocked to preserve your offers. Use a complete operator database and file archive for recovery.',
+        'Version 1 backups exclude Offer Desk history. Replacement is blocked to preserve your offers. Use a version 2 backup to add supported records, or a complete operator database and file archive for full recovery.',
         409,
       );
     if (
@@ -466,7 +518,27 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         );
       const incoming = databaseData(validateWorkspaceData(stage.data));
       const current = await this.read(client);
-      if (kind === 'restore') {
+      if (kind === 'restore' && 'offers' in stage.data) {
+        const data = createPortableBackup(
+          stage.data,
+          new Date(stage.exportedAt).toISOString(),
+        ).data;
+        const { data: additions, summary } = planPortableRestore(data, {
+          ...current,
+          offers: await readPortableOffers(client, this.owner),
+        });
+        if (summary.conflicts.length)
+          throw new WorkspaceError(
+            'This backup conflicts with saved records. Nothing was imported. Keep both backups and resolve the differences before retrying.',
+            409,
+          );
+        for (const row of additions.applications)
+          await this.insert(client, 'applications', row);
+        for (const row of additions.interviews)
+          await this.insert(client, 'interviews', row);
+        for (const row of additions.offers)
+          await insertPortableOffer(client, this.owner, row);
+      } else if (kind === 'restore') {
         await this.requireNoDocumentLinks(client);
         await client.query('DELETE FROM interviews WHERE user_id=$1', [
           this.owner,
