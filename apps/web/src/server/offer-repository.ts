@@ -1,3 +1,4 @@
+import { assertActiveAccount } from './account-lifecycle';
 import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
@@ -14,6 +15,7 @@ export class PostgresOfferRepository {
     private readonly owner: string,
   ) {}
   async list(): Promise<Offer[]> {
+    await assertActiveAccount(this.pool, this.owner);
     // One statement gives a consistent snapshot of headers and their history.
     const { rows } = await this.pool.query(
       `SELECT o.*, COALESCE(jsonb_agg(jsonb_build_object(
@@ -58,6 +60,7 @@ export class PostgresOfferRepository {
       await client.query('BEGIN');
       await client.query("SET LOCAL lock_timeout='5s'");
       await client.query('SELECT pg_advisory_xact_lock_shared(16432,5)');
+      await assertActiveAccount(client, this.owner, true);
       await client.query(
         'INSERT INTO workspaces(user_id) VALUES($1) ON CONFLICT DO NOTHING',
         [this.owner],

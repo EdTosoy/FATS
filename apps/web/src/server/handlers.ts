@@ -1,3 +1,5 @@
+import type { PoolClient } from 'pg';
+import { assertActiveAccount } from './account-lifecycle';
 import {
   isCaptureId,
   validateJobCapture,
@@ -36,6 +38,7 @@ export async function handleAuth(
   services: Services,
 ): Promise<Response> {
   const started = Date.now();
+  let authGuard: PoolClient | undefined;
   const path = new URL(request.url).pathname.replace('/api/auth', '');
   const genericRequest = [
     '/sign-up/email',
@@ -107,6 +110,26 @@ export async function handleAuth(
           break;
       }
     }
+    authGuard = await services.pool.connect();
+    await authGuard.query('SELECT pg_advisory_lock_shared(16432,8)');
+    if (
+      typeof input.email === 'string' &&
+      (
+        await authGuard.query(
+          'SELECT 1 FROM "user" u JOIN account_erasures e ON e.user_id=u.id WHERE lower(u.email)=lower($1)',
+          [input.email],
+        )
+      ).rowCount
+    ) {
+      if (genericRequest)
+        return Response.json({ success: true }, { headers: privateHeaders });
+      throw new WorkspaceError(
+        path === '/sign-in/email'
+          ? 'Unable to sign in. Check your email and password, or verify your email.'
+          : 'This code is invalid, expired, or already used. Request a new code and try again.',
+        path === '/sign-in/email' ? 401 : 400,
+      );
+    }
     // Never forward arbitrary callback URLs, account fields, OTP types or queries.
     const forwarded = new Request(
       new URL('/api/auth' + libraryPath, services.origin),
@@ -144,6 +167,15 @@ export async function handleAuth(
     }
     if (path === '/get-session' || path === '/sign-in/email') {
       const result = await response.json();
+      if (result?.user) {
+        try {
+          await assertActiveAccount(services.pool, result.user.id);
+        } catch (error) {
+          if (error instanceof WorkspaceError && error.status === 401)
+            return Response.json({ user: null }, { headers: privateHeaders });
+          throw error;
+        }
+      }
       return Response.json(
         { user: publicUser(result?.user) },
         { headers: outgoing },
@@ -154,6 +186,15 @@ export async function handleAuth(
   } catch (error) {
     return errorResponse(error);
   } finally {
+    if (authGuard) {
+      let failed = false;
+      try {
+        await authGuard.query('SELECT pg_advisory_unlock_shared(16432,8)');
+      } catch {
+        failed = true;
+      }
+      authGuard.release(failed);
+    }
     if (genericRequest)
       await new Promise((resolve) =>
         setTimeout(resolve, Math.max(0, 500 - (Date.now() - started))),
@@ -217,6 +258,7 @@ export async function handleWorkspace(
         },
         { status: 403, headers: privateHeaders },
       );
+    await assertActiveAccount(services.pool, session.user.id);
     const expected = request.headers.get('x-fats-account');
     if (expected && expected !== session.user.id)
       return Response.json(

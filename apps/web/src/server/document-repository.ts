@@ -1,3 +1,6 @@
+import { admitUpload } from './upload-admission';
+import { cleanupDocumentGarbage } from './document-cleanup';
+import { assertActiveAccount } from './account-lifecycle';
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
@@ -31,6 +34,7 @@ export class PostgresDocumentRepository {
       await client.query("SET LOCAL lock_timeout='5s'");
       // Backups take the exclusive counterpart before exporting a snapshot.
       await client.query('SELECT pg_advisory_xact_lock_shared(16432,5)');
+      await assertActiveAccount(client, this.owner, true);
       await client.query(
         'INSERT INTO workspaces(user_id) VALUES($1) ON CONFLICT DO NOTHING',
         [this.owner],
@@ -54,6 +58,7 @@ export class PostgresDocumentRepository {
     }
   }
   async library(): Promise<DocumentLibrary> {
+    await assertActiveAccount(this.pool, this.owner);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
@@ -131,11 +136,36 @@ export class PostgresDocumentRepository {
       requestId: string;
     },
   ) {
+    const release = await admitUpload(this.pool, this.owner);
+    try {
+      return await this.uploadAdmitted(bytes, filename, input);
+    } finally {
+      await release();
+    }
+  }
+  async uploadAdmitted(
+    bytes: Uint8Array,
+    filename: unknown,
+    input: {
+      name?: unknown;
+      category?: unknown;
+      documentId?: string;
+      requestId: string;
+    },
+  ) {
     const file = await validateDocument(bytes, filename);
     const hash = documentHash(bytes);
     const details = input.documentId
       ? null
       : documentDetails(input.name, input.category);
+    // Separate committed intent: survives storage failure or uncertain SQL commit.
+    const key = randomUUID();
+    await this.transaction(async (client) => {
+      await client.query(
+        'INSERT INTO document_objects(storage_key,user_id) VALUES($1,$2)',
+        [key, this.owner],
+      );
+    });
     return this.transaction(async (client) => {
       const existing = await client.query(
         'SELECT * FROM document_versions WHERE user_id=$1 AND id=$2',
@@ -201,7 +231,6 @@ export class PostgresDocumentRepository {
             409,
           );
       }
-      const key = randomUUID();
       try {
         await this.storage.put(key, bytes);
       } catch {
@@ -334,6 +363,7 @@ export class PostgresDocumentRepository {
     });
   }
   async download(versionId: string) {
+    await assertActiveAccount(this.pool, this.owner);
     const { rows } = await this.pool.query(
       'SELECT * FROM document_versions WHERE user_id=$1 AND id=$2',
       [this.owner, versionId],
@@ -415,31 +445,6 @@ export class PostgresDocumentRepository {
     await this.cleanup();
   }
   async cleanup() {
-    // Serialize against backup and other cleanup processes. Only durable garbage
-    // rows authorize byte deletion; no deletion by filename guesses or age.
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query('SELECT pg_advisory_xact_lock_shared(16432,5)');
-      const { rows } = await client.query(
-        'SELECT storage_key FROM document_garbage FOR UPDATE SKIP LOCKED',
-      );
-      for (const row of rows) {
-        try {
-          await this.storage.remove(row.storage_key);
-          await client.query(
-            'DELETE FROM document_garbage WHERE storage_key=$1',
-            [row.storage_key],
-          );
-        } catch {
-          /* Retain durable retry entry. */
-        }
-      }
-      await client.query('COMMIT');
-    } catch {
-      await client.query('ROLLBACK');
-    } finally {
-      client.release();
-    }
+    await cleanupDocumentGarbage(this.pool, this.storage);
   }
 }

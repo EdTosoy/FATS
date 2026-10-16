@@ -294,16 +294,43 @@ it('keeps versions and submitted associations immutable, serializes uploads, res
     a.repo.associate(other.id, first.versionId),
   ).rejects.toMatchObject({ status: 404 });
   await a.repo.associate(app.id, first.versionId);
-  const versions = await Promise.all([
-    a.repo.upload(await pdfFixture('Version 2'), 'resume-v2.pdf', {
+  const pendingVersions = [
+    {
+      bytes: await pdfFixture('Version 2'),
+      filename: 'resume-v2.pdf',
       requestId: randomUUID(),
-      documentId: first.documentId,
-    }),
-    a.repo.upload(docxFixture(), 'resume-v3.docx', {
+    },
+    {
+      bytes: docxFixture(),
+      filename: 'resume-v3.docx',
       requestId: randomUUID(),
-      documentId: first.documentId,
-    }),
-  ]);
+    },
+  ];
+  const concurrent = await Promise.allSettled(
+    pendingVersions.map((v) =>
+      a.repo.upload(v.bytes, v.filename, {
+        requestId: v.requestId,
+        documentId: first.documentId,
+      }),
+    ),
+  );
+  expect(
+    concurrent.filter((result) => result.status === 'rejected'),
+  ).toHaveLength(1);
+  const versions = [];
+  for (const [index, result] of concurrent.entries()) {
+    if (result.status === 'fulfilled') versions.push(result.value);
+    else {
+      expect(result.reason).toMatchObject({ status: 429 });
+      const v = pendingVersions[index];
+      versions.push(
+        await a.repo.upload(v.bytes, v.filename, {
+          requestId: v.requestId,
+          documentId: first.documentId,
+        }),
+      );
+    }
+  }
   const library = await a.repo.library();
   expect(library.documents[0].versions.map((v) => v.number)).toEqual([3, 2, 1]);
   expect(library.associations[0].versionId).toBe(first.versionId);
@@ -429,7 +456,7 @@ it('rejects malformed/oversize files, interrupted uploads and storage errors wit
     duplex: 'half',
   } as RequestInit);
   expect((await handleDocuments(interrupted, services, storage)).status).toBe(
-    400,
+    408,
   );
   expect((await a.repo.library()).documents).toEqual([]);
   const docx = await upload(a.cookie, docxFixture(), {

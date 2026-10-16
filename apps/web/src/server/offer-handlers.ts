@@ -1,3 +1,4 @@
+import { assertActiveAccount } from './account-lifecycle';
 import { OfferValidationError } from '@fats/domain';
 import type { Services } from './services';
 import {
@@ -29,6 +30,7 @@ export async function handleOffers(request: Request, services: Services) {
         },
         { status: 403, headers: privateHeaders },
       );
+    await assertActiveAccount(services.pool, session.user.id);
     const expected = request.headers.get('x-fats-account');
     if (expected && expected !== session.user.id)
       return Response.json(

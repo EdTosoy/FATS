@@ -1,4 +1,7 @@
-import { MAX_DOCUMENT_BYTES, DocumentValidationError } from '@fats/domain';
+import { admitUpload } from './upload-admission';
+import { readUploadBody } from './upload-body';
+import { assertActiveAccount } from './account-lifecycle';
+import { DocumentValidationError } from '@fats/domain';
 import type { Services } from './services';
 import { PostgresDocumentRepository } from './document-repository';
 import {
@@ -20,6 +23,7 @@ export async function handleDocuments(
   services: Services,
   storage?: DocumentStorage,
 ): Promise<Response> {
+  let release: (() => Promise<void>) | undefined;
   try {
     // Uploads use a bounded raw body and JSON metadata header, avoiding an
     // unbounded multipart parser. The same exact-origin rules apply to writes.
@@ -53,6 +57,7 @@ export async function handleDocuments(
         },
         { status: 403, headers: privateHeaders },
       );
+    await assertActiveAccount(services.pool, session.user.id);
     const expected = request.headers.get('x-fats-account');
     if (expected && expected !== session.user.id)
       return Response.json(
@@ -140,41 +145,14 @@ export async function handleDocuments(
             !isStorageKey(meta.documentId)))
       )
         throw new WorkspaceError('Use a valid upload request.');
-      if (Number(request.headers.get('content-length')) > MAX_DOCUMENT_BYTES)
-        throw new WorkspaceError('Choose a file of 10 MiB or less.', 413);
-      const reader = request.body?.getReader();
-      if (!reader) throw new WorkspaceError('Choose a nonempty PDF or DOCX.');
-      const chunks: Uint8Array[] = [];
-      let size = 0;
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          size += value.length;
-          if (size > MAX_DOCUMENT_BYTES) {
-            await reader.cancel();
-            throw new WorkspaceError('Choose a file of 10 MiB or less.', 413);
-          }
-          chunks.push(value);
-        }
-      } catch (error) {
-        if (error instanceof WorkspaceError) throw error;
-        throw new WorkspaceError(
-          'The upload was interrupted. Keep your file and retry. No complete document was added.',
-        );
-      } finally {
-        reader.releaseLock();
-      }
-      const result = await repository.upload(
-        Buffer.concat(chunks, size),
-        meta.filename,
-        {
-          name: meta.name,
-          category: meta.category,
-          documentId: meta.documentId as string | undefined,
-          requestId: meta.requestId,
-        },
-      );
+      release = await admitUpload(services.pool, session.user.id);
+      const bytes = await readUploadBody(request);
+      const result = await repository.uploadAdmitted(bytes, meta.filename, {
+        name: meta.name,
+        category: meta.category,
+        documentId: meta.documentId as string | undefined,
+        requestId: meta.requestId,
+      });
       return Response.json(result, { headers: privateHeaders });
     }
     if (request.method !== 'POST')
@@ -234,5 +212,7 @@ export async function handleDocuments(
         { status: 400, headers: privateHeaders },
       );
     return errorResponse(error);
+  } finally {
+    await release?.();
   }
 }

@@ -24,3 +24,12 @@ export async function GET(request: Request) {
     return errorResponse(error);
   }
 }
+export async function POST(request: Request) {
+  try {
+    const { handleAccountErasure } =
+      await import('@/server/account-erasure-handler');
+    return await handleAccountErasure(request, getServices());
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

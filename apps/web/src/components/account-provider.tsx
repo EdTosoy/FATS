@@ -27,6 +27,8 @@ interface AccountState {
   configured: boolean;
 }
 interface AccountContextValue extends AccountState {
+  erasure: { receipt: string; status: 'pending' | 'complete' } | null;
+  recordErasure: (receipt: string, status: 'pending' | 'complete') => void;
   refreshSession: (broadcast?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   useLocal: () => void;
@@ -56,6 +58,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     error: '',
     configured: true,
   });
+  const [erasure, setErasure] = useState<AccountContextValue['erasure']>(null);
   const channel = useRef<BroadcastChannel | null>(null);
   const refreshSession = useCallback(async (broadcast = false) => {
     try {
@@ -121,7 +124,21 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (event.key === MODE_KEY || event.key === null) refresh();
     };
     channel.current = new BroadcastChannel('fats-account');
-    channel.current.onmessage = refresh;
+    channel.current.onmessage = (event) => {
+      if (event.data?.type === 'erasure') {
+        if (event.data.owner !== state.user?.id) return;
+        remember('local');
+        setState({
+          user: null,
+          mode: 'local',
+          loading: false,
+          expired: false,
+          error: '',
+          configured: true,
+        });
+        setErasure({ receipt: '', status: 'pending' });
+      } else refresh();
+    };
     window.addEventListener('focus', refresh);
     window.addEventListener('storage', synchronize);
     window.addEventListener(SESSION_EXPIRED_EVENT, expire);
@@ -134,7 +151,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       window.removeEventListener(SESSION_EXPIRED_EVENT, expire);
       window.removeEventListener(ACCOUNT_CHANGED_EVENT, changed);
     };
-  }, [refreshSession]);
+  }, [refreshSession, state.user?.id]);
   async function signOut() {
     const response = await fetch('/api/auth/sign-out', {
       method: 'POST',
@@ -161,9 +178,25 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     <AccountContext.Provider
       value={{
         ...state,
+        erasure,
+        recordErasure: (receipt, status) => {
+          const owner = state.user?.id;
+          remember('local');
+          setState({
+            user: null,
+            mode: 'local',
+            loading: false,
+            expired: false,
+            error: '',
+            configured: true,
+          });
+          setErasure({ receipt, status });
+          if (owner) channel.current?.postMessage({ type: 'erasure', owner });
+        },
         refreshSession,
         signOut,
         useLocal: () => {
+          setErasure(null);
           remember('local');
           setState((current) => ({
             ...current,

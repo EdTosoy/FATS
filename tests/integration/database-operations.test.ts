@@ -250,7 +250,7 @@ it('performs a real confirmed restore and verifies records, relationships, crede
           'SELECT count(*)::int AS count FROM fats_schema_migrations',
         )
       ).rows[0].count,
-    ).toBe(7);
+    ).toBe(8);
     await expect(
       recovered.pool.query('DELETE FROM applications WHERE user_id=$1', [
         ownerId,

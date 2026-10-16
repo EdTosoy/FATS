@@ -2,6 +2,12 @@
 
 Documents are available only in verified account workspaces. Guest applications, interviews, backups, and Sidekick remain available. A file stored here is never sent to an employer. Maria remains the labelled guest sample; no documents are seeded.
 
+## Hardening 1 lifecycle update
+
+[Data protection verification](PRIVATE_BETA_HARDENING_1_VERIFICATION.md) adds migration 0008, committed owner/file intents before publication, deterministic tracked partial names, and recoverable account erasure. Settings account deletion removes protected history and all owned live versions; ordinary document deletion restrictions still apply. SQL deletion and filesystem removal are separate durable steps. `pnpm data:cleanup` resumes requested erasures and reconciles tracked failed uploads; `pnpm documents:check` remains read-only. Run cleanup after interruption/restart using the matching original private root. Unknown legacy files require stopped, private operator reconciliation; they are never guessed/deleted by the command.
+
+Upload intake now has a 30-second deadline, one upload per owner/two globally through shared PostgreSQL locks, and 20 admitted attempts per account/hour. DOCX checks run in a five-second worker with the same JS heap/stack limits as PDF, plus expansion ratio max(1 KiB, 200× compressed entry size) and XML depth 100. Worker diagnostics are suppressed and termination is awaited. Existing byte/account/version/ZIP limits remain. These are local controls, **not malware scanning or full native-memory/process isolation**. Real/untrusted document beta stays blocked. Earlier Phase 5 descriptions below record the original implementation; the linked report defines current guarantees and limitations.
+
 ## Local setup
 
 Run the existing PostgreSQL migrations before starting FATS. New `db:configure` files include `FATS_DOCUMENTS_DIR`. For an existing private `apps/web/.env.local`, add an absolute, canonical path to a persistent directory, for example:

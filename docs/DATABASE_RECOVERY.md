@@ -4,6 +4,12 @@ Offer Desk adds `offers` and `offer_events` to the recognized schema. Full archi
 
 Phases 5–6 extend the verified **local PostgreSQL 17** archive/restore workflow to private files and comparison reports. It creates no cloud resources and does not automate a hosted disaster-recovery service. Stop the application before restoration. Keep an independent copy of the current database before replacing it, and prefer restoring into a fresh, dedicated database first.
 
+## Hardening 1 recovery state
+
+Migration 0008 adds recognized `document_objects`, `account_erasures`, and `document_upload_usage` tables. Full SQL archives retain pending erasure/file intent state; paired file bundles still include only live referenced versions. After a restore, keep the application stopped and run `pnpm data:cleanup` against the **restored database and matching fresh restored private directory**, then `pnpm documents:check`, before reopening access. Missing non-live bytes are safe for idempotent cleanup. A pending account stays blocked even when its prior session/recovery state was already revoked.
+
+Restoring an older archive can resurrect previously deleted accounts/data. Current live erasure cannot rewrite old archives, WAL/snapshots, inboxes or client downloads. Retain an independent restricted deletion register and reconcile it before reopening any recovered database; establish archive expiry and disposal policy. These operational requirements remain real-data beta blockers. See [Hardening 1 guarantees and test evidence](PRIVATE_BETA_HARDENING_1_VERIFICATION.md). Earlier revision archives must still use their matching migration/code set; do not bypass checksums.
+
 ## JSON exports and operational archives
 
 Phase 5 archives use manifest version 2. Complete document recovery requires the dump, manifest, and matching `.dump.documents/` directory. A dump alone contains document metadata but cannot recover file content. Version 1 operational archives remain revision-specific: recover them with the Phase 4.1 code, then test migration separately; do not edit manifests to bypass compatibility checks.

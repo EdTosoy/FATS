@@ -2,6 +2,21 @@
 
 Assessment date: 2026-10-16. Baseline: `daaffe4` (`feat(backups): support portable offer history`), following Offer Desk `b903a36`. The initial `main` tree was clean, with zero ahead/behind against the locally recorded `origin/main`. No remote fetch was used to infer the remote's current state. Offer Desk 1.1 was committed before this work. Changes in this assessment remain for manual review; no commit, push, deployment, paid infrastructure, or AI request was made.
 
+## Hardening 1 update — 2026-10-16
+
+The original assessment and verification history below are preserved as a checkpoint. [Hardening 1 verification](PRIVATE_BETA_HARDENING_1_VERIFICATION.md) supersedes the implementation gaps below where stated; **real personal-data beta remains blocked**.
+
+| Status                           | Protection / outstanding work                                                                                                                                                                                                                                                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implemented and locally verified | Explicit authenticated account erasure, session revocation/access blocking, child-first removal including historical reports/offers/stages, durable file-write ownership and retryable filesystem cleanup; cross-user isolation and fault recovery.                                                                                         |
+| Implemented and locally verified | Server-side 10 MiB body cap, 30-second intake deadline, 1-per-owner/2-global admission, 20 attempts/hour, bounded DOCX worker/decompression/XML and existing PDF/immutable-storage protections.                                                                                                                                             |
+| Partial — B4 / I5                | Live account erasure covers legacy matching records without enabling AI. Earlier unknown files, operator archives/WAL/snapshots, inbox/client copies and restoration of older data require an operational retention/deletion register and reconciliation policy. No guaranteed scheduled cleanup yet.                                       |
+| Partial — B2 / B5                | Concrete intake/worker limits reduce local exposure. No malware scanner/quarantine, full process/native-memory isolation, global disk cap or intended-host capacity/load evidence.                                                                                                                                                          |
+| Blocking — unchanged             | B1 hosted identity/delivery; B3 persistent storage, off-device encrypted recovery/retention ownership; B2 malware/isolation; B5 restricted access/network abuse design; remaining B4 operational erasure obligations.                                                                                                                       |
+| Future operation requirements    | Configure the correct persistent private root; migrate before startup; run/monitor `pnpm data:cleanup` and read-only audit after interruptions/restores; reconcile old unknown files and independent deletion records before reopening a restored service. Complete backup expiry/privacy/support/accessibility and measured recovery work. |
+
+The detailed report defines the exact live-data guarantees, exclusions, tests and failures. No remote service, AI feature, infrastructure purchase or real-data access was enabled.
+
 ## Readiness decision
 
 **Do not invite users to entrust real applications, resumes or employment documents to a remote beta yet.** The core local workflows have automated evidence, but hosted verification, file safety/admission controls, operational storage/recovery and complete erasure are unresolved. A successful local build or restore drill does not resolve those risks.

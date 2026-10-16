@@ -5,6 +5,10 @@ const config: NextConfig = {
   transpilePackages: ['@fats/domain'],
   turbopack: { root: fileURLToPath(new URL('../..', import.meta.url)) },
   devIndicators: false,
+  outputFileTracingIncludes: {
+    '/api/documents': ['./src/server/docx-parser.mjs'],
+    '/api/matching': ['./src/server/docx-parser.mjs'],
+  },
   allowedDevOrigins: ['127.0.0.1'],
 };
 

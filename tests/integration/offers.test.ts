@@ -483,7 +483,11 @@ it('rejects invalid payloads and supports account cascade deletion with no orpha
   expect(await a.offers.list()).toEqual([]);
   await a.offers.command(a.application.id, randomUUID(), 0, termCommand());
   await services.pool.query('DELETE FROM "user" WHERE id=$1', [a.id]);
-  expect(await a.offers.list()).toEqual([]);
+  await expect(a.offers.list()).rejects.toMatchObject({ status: 401 });
+  expect(
+    (await services.pool.query('SELECT 1 FROM offers WHERE user_id=$1', [a.id]))
+      .rowCount,
+  ).toBe(0);
   expect(
     (
       await services.pool.query('SELECT 1 FROM offer_events WHERE user_id=$1', [
@@ -657,7 +661,11 @@ it('exports and imports complete offer history additively, preserves file proven
   await b.workspace.restoreBackup(repeated.token);
   expect((await b.offers.list())[0].events).toHaveLength(5);
   await services.pool.query('DELETE FROM "user" WHERE id=$1', [b.id]);
-  expect(await b.offers.list()).toEqual([]);
+  await expect(b.offers.list()).rejects.toMatchObject({ status: 401 });
+  expect(
+    (await services.pool.query('SELECT 1 FROM offers WHERE user_id=$1', [b.id]))
+      .rowCount,
+  ).toBe(0);
   expect(
     (
       await services.pool.query('SELECT 1 FROM offer_events WHERE user_id=$1', [

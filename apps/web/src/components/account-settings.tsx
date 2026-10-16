@@ -1,4 +1,5 @@
 'use client';
+import { AccountErasure } from './account-erasure';
 import { useState } from 'react';
 import { LockKeyhole, UserRound } from 'lucide-react';
 import { useAccount } from './account-provider';
@@ -89,6 +90,7 @@ export function AccountSettings() {
         </Card>
       </div>
       <LocalDataMigration />
+      <AccountErasure />
     </>
   );
 }

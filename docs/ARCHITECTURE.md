@@ -1,5 +1,9 @@
 # Architecture
 
+## Data protection hardening
+
+[Hardening 1](PRIVATE_BETA_HARDENING_1_VERIFICATION.md) extends the existing architecture with migration 0008, durable file-write ownership, pending account erasure and database-backed upload admission. A committed access block/session revocation precedes child-first relational erasure and retryable private-file unlinking; SQL and filesystem work are separate steps. `pnpm data:cleanup` recovers requested deletions and tracked failed uploads without guessing from inventory. New document intake has owner/global/hourly admission, bounded stream lifetime and DOCX worker limits. No scanner or infrastructure is added, and real-data beta remains blocked. The Phase 5 descriptions below retain the original design context; the linked report specifies current behavior and operational exclusions.
+
 ## Confirmed decisions
 
 Private beta readiness adds one default-off server configuration boundary: `FATS_AI_MATCHING_ENABLED` must be exactly `1` to render Phase 6 or use its endpoint. The route denies access before `getServices()`, and the handler repeats the guard before touching dependencies. This also protects stale tabs and direct API requests if provider credentials were accidentally configured. No schema/provider/domain changes or removal of historical reports are involved. All AI work remains paused. See [readiness and current verification](PRIVATE_BETA_READINESS.md).

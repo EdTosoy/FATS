@@ -39,7 +39,8 @@
     "eval:matching": "FATS_EVAL_LIVE=0 vitest run --config vitest.evaluation.config.ts",
     "eval:matching:live": "FATS_EVAL_LIVE=1 node --env-file-if-exists=apps/web/.env.local node_modules/vitest/vitest.mjs run --config vitest.evaluation.config.ts",
     "eval:matching:comparison": "FATS_COMPARISON_LIVE=0 vitest run --config vitest.comparison.config.ts",
-    "eval:matching:comparison:live": "FATS_COMPARISON_LIVE=1 node --env-file-if-exists=apps/web/.env.local node_modules/vitest/vitest.mjs run --config vitest.comparison.config.ts"
+    "eval:matching:comparison:live": "FATS_COMPARISON_LIVE=1 node --env-file-if-exists=apps/web/.env.local node_modules/vitest/vitest.mjs run --config vitest.comparison.config.ts",
+    "data:cleanup": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/cleanup-data.mjs"
   },
   "devDependencies": {
     "@fats/domain": "workspace:*",

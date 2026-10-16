@@ -2,6 +2,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAccount } from './account-provider';
+import { AccountErasureResult } from './account-erasure';
 import { ApplicationProvider } from './application-provider';
 import { DocumentProvider } from './document-provider';
 import { OfferProvider } from './offer-provider';
@@ -64,6 +65,7 @@ export function WorkspaceRoot({ children }: { children: ReactNode }) {
     () => (id ? new HttpWorkspaceRepository(id) : undefined),
     [id],
   );
+  if (account.erasure) return <AccountErasureResult />;
   if (account.loading)
     return (
       <p className="loading-state" role="status">

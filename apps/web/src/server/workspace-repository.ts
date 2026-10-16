@@ -1,3 +1,4 @@
+import { assertActiveAccount } from './account-lifecycle';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
@@ -31,14 +32,8 @@ import {
 } from '@fats/domain';
 import { readPortableOffers, insertPortableOffer } from './portable-offers';
 
-export class WorkspaceError extends Error {
-  constructor(
-    message: string,
-    public readonly status = 400,
-  ) {
-    super(message);
-  }
-}
+export { WorkspaceError } from './workspace-error.ts';
+import { WorkspaceError } from './workspace-error.ts';
 const APP_FIELDS = [
   'id',
   'title',
@@ -109,6 +104,7 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     try {
       await client.query('BEGIN');
       await client.query("SET LOCAL lock_timeout = '5s'");
+      await assertActiveAccount(client, this.owner, true);
       await client.query(
         'INSERT INTO workspaces(user_id) VALUES($1) ON CONFLICT DO NOTHING',
         [this.owner],
@@ -149,6 +145,7 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     });
   }
   async getWorkspace(): Promise<WorkspaceData> {
+    await assertActiveAccount(this.pool, this.owner);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');

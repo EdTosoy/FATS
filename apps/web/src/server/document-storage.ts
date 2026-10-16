@@ -9,7 +9,7 @@ import {
   realpath,
 } from 'node:fs/promises';
 import { resolve, join, isAbsolute, parse } from 'node:path';
-import { randomUUID, createHash } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { DocumentHealth } from '@fats/domain';
 
 // Keys are opaque, server-generated UUIDs. No URLs, public paths or owner input.
@@ -67,7 +67,7 @@ export class FilesystemDocumentStorage implements DocumentStorage {
   async put(key: string, bytes: Uint8Array) {
     const destination = this.path(key);
     await this.ready(true);
-    const temporary = join(this.root, randomUUID() + '.partial');
+    const temporary = join(this.root, key + '.partial');
     const handle = await open(
       temporary,
       constants.O_WRONLY |
@@ -135,10 +135,22 @@ export class FilesystemDocumentStorage implements DocumentStorage {
   }
   async remove(key: string) {
     const path = this.path(key);
-    await this.ready();
-    await unlink(path).catch((error) => {
-      if (error.code !== 'ENOENT') throw error;
-    });
+    try {
+      await this.ready();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
+    }
+    for (const target of [path, join(this.root, key + '.partial')])
+      await unlink(target).catch((error) => {
+        if (error.code !== 'ENOENT') throw error;
+      });
+    const directory = await open(this.root, 'r');
+    try {
+      await directory.sync();
+    } finally {
+      await directory.close();
+    }
   }
   async inventory() {
     await this.ready();

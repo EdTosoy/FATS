@@ -1,3 +1,4 @@
+import { assertActiveAccount } from './account-lifecycle';
 import { randomUUID, createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
@@ -34,6 +35,7 @@ export class MatchingRepository {
     try {
       await client.query('BEGIN');
       await client.query("SET LOCAL lock_timeout='5s'");
+      await assertActiveAccount(client, this.owner, true);
       await client.query(
         'INSERT INTO workspaces(user_id) VALUES($1) ON CONFLICT DO NOTHING',
         [this.owner],
