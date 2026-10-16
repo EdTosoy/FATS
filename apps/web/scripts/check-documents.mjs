@@ -40,6 +40,10 @@ if (!process.env.DATABASE_URL || !process.env.FATS_DOCUMENTS_DIR) {
           error instanceof StorageIntegrityError ? error.health : 'unavailable'
         ]++;
       }
+    const unverified = await pool.query(
+      "SELECT count(*) FROM document_versions v LEFT JOIN document_objects o USING(storage_key) WHERE o.intake_state IS DISTINCT FROM 'accepted' OR o.accepted_sha256 IS DISTINCT FROM v.sha256",
+    );
+    counts.unverified = Number(unverified.rows[0].count);
     const keys = new Set(rows.map((row) => row.storage_key + '.blob'));
     const pending = (
       await pool.query('SELECT storage_key FROM document_garbage')
@@ -50,7 +54,12 @@ if (!process.env.DATABASE_URL || !process.env.FATS_DOCUMENTS_DIR) {
       else if (name.endsWith('.blob') && !keys.has(name)) counts.unreferenced++;
     }
     console.log(JSON.stringify(counts));
-    if (counts.missing || counts.corrupt || counts.unavailable)
+    if (
+      counts.missing ||
+      counts.corrupt ||
+      counts.unavailable ||
+      counts.unverified
+    )
       process.exitCode = 1;
   } catch {
     console.error(

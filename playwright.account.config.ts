@@ -35,6 +35,13 @@ export default defineConfig({
       FATS_AI_MATCHING_ENABLED: '0',
       OPENAI_API_KEY: '',
       FATS_AI_TEST_MODE: '',
+      // Dedicated fail-closed browser cases must not inherit scanner credentials
+      // or signatures from an operator's shell. Accepted-file journeys require
+      // an explicitly configured scanner run and are recorded separately.
+      FATS_CLAMAV_DATABASE_DIR:
+        process.env.FATS_TEST_CLAMAV === '1'
+          ? (process.env.FATS_CLAMAV_DATABASE_DIR ?? '')
+          : '',
       FATS_DOCUMENTS_DIR: new URL(
         './test-results/account-documents/',
         import.meta.url,

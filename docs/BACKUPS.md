@@ -1,5 +1,7 @@
 # JSON backups and recovery
 
+Hardening 2 does not change the portable JSON format or add private files/scan evidence to exports. Restored/uploaded file copies must pass the fail-closed private intake process before becoming usable; an old document reference is never a scan result or authorization. Complete operator recovery now invalidates prior acceptance and requires explicit file rechecking. See [safe intake evidence](PRIVATE_BETA_HARDENING_2_VERIFICATION.md) and the recovery runbook. Actual scanner verification and real-data beta remain blocked.
+
 For operator PostgreSQL archives covering all accounts and authentication material, use the separate [database recovery runbook](DATABASE_RECOVERY.md). This document describes user-level JSON exports. Both remain available in Phase 5; restoring a database also revokes sessions/recovery tokens, while JSON restores affect only the selected workspace's records.
 
 ## Account workspaces (Phase 4)

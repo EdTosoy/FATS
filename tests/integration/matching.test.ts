@@ -1,3 +1,4 @@
+import { syntheticScanner } from '../helpers/document-scanner';
 import { beforeAll, afterAll, beforeEach, it, expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -94,7 +95,12 @@ async function user() {
       .map((c) => c.split(';')[0])
       .join('; '),
     workspace: new PostgresWorkspaceRepository(services.pool, user.id),
-    documents: new PostgresDocumentRepository(services.pool, user.id, storage),
+    documents: new PostgresDocumentRepository(
+      services.pool,
+      user.id,
+      storage,
+      syntheticScanner,
+    ),
     matches: new MatchingRepository(
       services.pool,
       user.id,

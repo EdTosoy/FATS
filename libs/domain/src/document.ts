@@ -11,7 +11,7 @@ export const MAX_DOCUMENTS = 50;
 export const MAX_DOCUMENT_VERSIONS = 20;
 export type DocumentFormat = 'pdf' | 'docx';
 export type DocumentHealth =
-  'available' | 'missing' | 'corrupt' | 'unavailable';
+  'available' | 'missing' | 'corrupt' | 'unavailable' | 'unverified';
 export interface DocumentVersion {
   id: string;
   documentId: string;

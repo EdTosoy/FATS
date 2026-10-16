@@ -2,6 +2,7 @@ import { admitUpload } from './upload-admission';
 import { readUploadBody } from './upload-body';
 import { assertActiveAccount } from './account-lifecycle';
 import { DocumentValidationError } from '@fats/domain';
+import type { DocumentScanner } from './document-scanner';
 import type { Services } from './services';
 import { PostgresDocumentRepository } from './document-repository';
 import {
@@ -22,6 +23,7 @@ export async function handleDocuments(
   request: Request,
   services: Services,
   storage?: DocumentStorage,
+  scanner?: DocumentScanner,
 ): Promise<Response> {
   let release: (() => Promise<void>) | undefined;
   try {
@@ -81,6 +83,7 @@ export async function handleDocuments(
       services.pool,
       session.user.id,
       adapter,
+      scanner,
     );
     const url = new URL(request.url);
     if (request.method === 'GET') {

@@ -2,7 +2,15 @@
 
 Documents are available only in verified account workspaces. Guest applications, interviews, backups, and Sidekick remain available. A file stored here is never sent to an employer. Maria remains the labelled guest sample; no documents are seeded.
 
-## Hardening 1 lifecycle update
+## Hardening 2 intake update
+
+[Safe intake verification and operator setup](PRIVATE_BETA_HARDENING_2_VERIFICATION.md) supersedes the original worker/scanning descriptions below. Migration 0009 records `legacy`, `quarantined` and `accepted` security state separately from immutable versions. New files enter a private 0700 quarantine with server UUID filenames. Only a real local scanner verdict followed by isolated structural validation permits exclusive promotion and version publication. Download, preview, new links and extraction require accepted evidence matching the version SHA-256. Existing/restored files are unverified until an explicit operator recheck; history remains intact.
+
+PDF/DOCX validation now runs in systemd/cgroup v2 plus Bubblewrap processes: 256 MiB total memory/no swap, one CPU equivalent, 32 tasks, 5 seconds validation/10 seconds extraction, 128 KiB output and private 16 MiB tmpfs. Host credentials/private files/network are excluded. Existing body/admission/quota/archive limits remain. Real exhaustion/termination and PostgreSQL quarantine/promotion/deletion recovery tests are recorded in the report. The filesystem and SQL are coordinated through durable intents, not an atomic cross-system transaction.
+
+The ClamAV adapter is fail-closed, with private official signatures/freshness checks and bounded per-scan processes. **ClamAV is absent and actual detection is not verified. Uploads fail while scanner checks are unavailable; there is no synthetic-data production bypass.** Signature/structure validation is not malware scanning. Real-data beta remains blocked. After separate scanner configuration authorization, verify `pnpm documents:scanner` and the actual scanner integration tests. Keep access stopped after restoration: reconcile deletion obligations, run `pnpm data:cleanup`, `pnpm documents:recheck`, then `pnpm documents:check` using the matching database/root. Failed rechecks preserve blocked history and report pending counts. Setup/resource/maintenance details and remaining limitations are in the linked report.
+
+## Hardening 1 lifecycle update (historical checkpoint)
 
 [Data protection verification](PRIVATE_BETA_HARDENING_1_VERIFICATION.md) adds migration 0008, committed owner/file intents before publication, deterministic tracked partial names, and recoverable account erasure. Settings account deletion removes protected history and all owned live versions; ordinary document deletion restrictions still apply. SQL deletion and filesystem removal are separate durable steps. `pnpm data:cleanup` resumes requested erasures and reconciles tracked failed uploads; `pnpm documents:check` remains read-only. Run cleanup after interruption/restart using the matching original private root. Unknown legacy files require stopped, private operator reconciliation; they are never guessed/deleted by the command.
 

@@ -1,5 +1,7 @@
 # Moderated private beta usability plan
 
+Hardening 2 update: the document tasks below now require a configured, actually verified local scanner and the isolated runtime; production intake has no synthetic-file bypass and fails closed while checks are unavailable. Account erasure is implemented through explicit Settings confirmation, with durable cleanup of quarantine and accepted files. Use the current [readiness decision](PRIVATE_BETA_READINESS.md) and [Hardening 2 verification](PRIVATE_BETA_HARDENING_2_VERIFICATION.md) before rehearsing; earlier workflow/cleanup descriptions below remain the original study-plan checkpoint. No real-data session is authorized.
+
 Status: prepared, **not conducted**. Intended participants: 5–10 fresh graduates or first-time job seekers, including people with little experience organizing applications. Run sequential 60–75 minute sessions on an isolated local installation with supplied synthetic data. Start with five; if material changes follow, report the next five separately rather than combining different versions into one success rate. This small qualitative study does not establish population-level usability or production security.
 
 This plan permits rehearsal with fictional records only. It does not authorize recruitment messages, real document collection, remote hosting, public tunnels, AI use or recording participants without separate consent. See [readiness and unresolved blockers](PRIVATE_BETA_READINESS.md).

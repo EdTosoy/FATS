@@ -1,3 +1,4 @@
+import { syntheticScanner } from '../helpers/document-scanner';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -119,7 +120,12 @@ async function user(verified = true) {
     application,
     workspace,
     offers: new PostgresOfferRepository(services.pool, id),
-    documents: new PostgresDocumentRepository(services.pool, id, storage),
+    documents: new PostgresDocumentRepository(
+      services.pool,
+      id,
+      storage,
+      syntheticScanner,
+    ),
   };
 }
 function request(

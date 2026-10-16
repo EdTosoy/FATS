@@ -74,7 +74,7 @@ test('account deletion confirmation, keyboard cancel, invalid upload feedback an
     .getByRole('button', { name: 'Upload document', exact: true })
     .click();
   await expect(dialog.getByRole('alert')).toContainText(
-    'malformed or unsupported',
+    'malformed, unsupported, or exceeded safe processing limits',
   );
   await expect(dialog.getByLabel('Document name', { exact: true })).toHaveValue(
     'Synthetic resume',

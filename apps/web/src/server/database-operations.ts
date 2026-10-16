@@ -533,7 +533,7 @@ export async function restoreDatabaseBackup(
         .join('\n');
       await appendFile(
         sql,
-        `\nDELETE FROM public.session; DELETE FROM public.verification; DELETE FROM public.workspace_stages; DELETE FROM public.matching_previews; UPDATE public.matching_reports SET status='failed',failure='interrupted',sources=NULL WHERE status='running';\nDO $fats$ BEGIN IF (SELECT jsonb_object_agg(name,checksum) FROM public.fats_schema_migrations) IS DISTINCT FROM '${ledger}'::jsonb THEN RAISE EXCEPTION 'Restored schema differs'; END IF; ${checks} ${documentChecks} END; $fats$;\n`,
+        `\nDELETE FROM public.session; DELETE FROM public.verification; DELETE FROM public.workspace_stages; DELETE FROM public.matching_previews; UPDATE public.document_objects SET intake_state='legacy',accepted_sha256=NULL,scan_engine=NULL,signature_revision=NULL,signature_at=NULL,scanned_at=NULL WHERE intake_state='accepted'; UPDATE public.matching_reports SET status='failed',failure='interrupted',sources=NULL WHERE status='running';\nDO $fats$ BEGIN IF (SELECT jsonb_object_agg(name,checksum) FROM public.fats_schema_migrations) IS DISTINCT FROM '${ledger}'::jsonb THEN RAISE EXCEPTION 'Restored schema differs'; END IF; ${checks} ${documentChecks} END; $fats$;\n`,
       );
       // psql wraps schema/data, count/ledger checks, and token revocation in
       // one transaction. Any error leaves the previous target intact.

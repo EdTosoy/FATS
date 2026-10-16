@@ -1,3 +1,4 @@
+import { syntheticScanner } from '../helpers/document-scanner';
 import { beforeAll, afterAll, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import {
@@ -250,7 +251,7 @@ it('performs a real confirmed restore and verifies records, relationships, crede
           'SELECT count(*)::int AS count FROM fats_schema_migrations',
         )
       ).rows[0].count,
-    ).toBe(8);
+    ).toBe(9);
     await expect(
       recovered.pool.query('DELETE FROM applications WHERE user_id=$1', [
         ownerId,
@@ -346,6 +347,7 @@ it('backs up and restores matching immutable document versions and application l
     services.pool,
     ownerId,
     storage,
+    syntheticScanner,
   );
   const first = await documents.upload(await pdfFixture(), 'resume.pdf', {
     requestId: randomUUID(),
@@ -524,6 +526,23 @@ it('backs up and restores matching immutable document versions and application l
       ownerId,
       new FilesystemDocumentStorage(recoveredRoot),
     );
+    expect(
+      (await recovered.library()).documents[0].versions.every(
+        (v) => v.health === 'unverified',
+      ),
+    ).toBe(true);
+    await expect(recovered.download(first.versionId)).rejects.toMatchObject({
+      status: 409,
+    });
+    const { recheckDocuments } =
+      await import('../../apps/web/src/server/document-recheck');
+    expect(
+      await recheckDocuments(
+        pool,
+        new FilesystemDocumentStorage(recoveredRoot),
+        syntheticScanner,
+      ),
+    ).toEqual({ accepted: 2, pending: 0 });
     expect(await recovered.library()).toEqual(await documents.library());
     expect(await new PostgresOfferRepository(pool, ownerId).list()).toEqual(
       offersBefore,

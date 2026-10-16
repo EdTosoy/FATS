@@ -1,3 +1,4 @@
+import { requireAcceptedDocument } from './document-acceptance';
 import { assertActiveAccount } from './account-lifecycle';
 import { randomUUID, createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
@@ -210,6 +211,7 @@ export class MatchingRepository {
       };
     const extraction = await this.extractionGate(async () => {
       let bytes: Uint8Array;
+      await requireAcceptedDocument(this.pool, row);
       try {
         bytes = await verifiedDocumentBytes(this.storage, row);
       } catch {

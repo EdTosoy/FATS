@@ -4,6 +4,12 @@ Offer Desk adds `offers` and `offer_events` to the recognized schema. Full archi
 
 Phases 5–6 extend the verified **local PostgreSQL 17** archive/restore workflow to private files and comparison reports. It creates no cloud resources and does not automate a hosted disaster-recovery service. Stop the application before restoration. Keep an independent copy of the current database before replacing it, and prefer restoring into a fresh, dedicated database first.
 
+## Hardening 2 acceptance after recovery
+
+Migration 0009 adds security/scan evidence to the existing `document_objects` ledger. Restore clears acceptance to `legacy` without modifying immutable document versions or bytes. Before reopening a restored workspace, reconcile the independent deletion register, run `pnpm data:cleanup`, configure/verify the real scanner with `pnpm documents:scanner`, run `pnpm documents:recheck`, then `pnpm documents:check` against the matching restored database and fresh file directory. Unverified/unsafe/missing files remain blocked for download, preview, new links and extraction; original metadata/history is retained. The file bundle includes referenced versions, not uncommitted quarantine bytes. Missing non-live quarantine bytes can be cleaned idempotently through the durable intent ledger.
+
+Actual ClamAV operation is not verified on this host and remains a blocker. Recovery tests use explicitly labelled synthetic scanner receipts to verify relational/file recovery, not malware protection. See [Hardening 2 verification and runtime setup](PRIVATE_BETA_HARDENING_2_VERIFICATION.md). Retain earlier exact-revision archive/checksum rules and operator backup expiry/deletion-register obligations.
+
 ## Hardening 1 recovery state
 
 Migration 0008 adds recognized `document_objects`, `account_erasures`, and `document_upload_usage` tables. Full SQL archives retain pending erasure/file intent state; paired file bundles still include only live referenced versions. After a restore, keep the application stopped and run `pnpm data:cleanup` against the **restored database and matching fresh restored private directory**, then `pnpm documents:check`, before reopening access. Missing non-live bytes are safe for idempotent cleanup. A pending account stays blocked even when its prior session/recovery state was already revoked.

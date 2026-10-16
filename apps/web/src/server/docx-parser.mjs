@@ -1,4 +1,4 @@
-// Internal bounded parser. Called only inside a resource-limited worker.
+// Internal bounded parser. Called only inside the cgroup/namespace process.
 import { inflateRawSync, crc32 } from 'node:zlib';
 import { SaxesParser } from 'saxes';
 const invalid = () => new Error('Unsupported document');

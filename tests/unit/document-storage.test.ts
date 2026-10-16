@@ -108,3 +108,35 @@ it('validates actual PDF and DOCX structures without trusting MIME or filenames'
   expect(() => documentDetails('', 'Resumes')).toThrow();
   expect(() => documentDetails('Resume', 'unknown')).toThrow();
 }, 20000);
+
+it('keeps quarantine private, promotes exclusively, verifies hashes and removes every partial location', async () => {
+  const root = await mkdtemp('/tmp/fats-quarantine-'),
+    store = new FilesystemDocumentStorage(root),
+    key = randomUUID(),
+    bytes = await pdfFixture();
+  try {
+    await store.quarantine(key, bytes);
+    expect((await stat(root + '/quarantine')).mode & 0o077).toBe(0);
+    await expect(store.read(key, bytes.length)).rejects.toMatchObject({
+      health: 'missing',
+    });
+    expect(await store.readQuarantine(key, bytes.length)).toEqual(bytes);
+    await expect(
+      store.promote(key, bytes.length, '0'.repeat(64)),
+    ).rejects.toThrow();
+    await store.promote(key, bytes.length, documentHash(bytes));
+    expect(await store.read(key, bytes.length)).toEqual(bytes);
+    await store.quarantine(key, bytes);
+    await expect(
+      store.promote(key, bytes.length, documentHash(bytes)),
+    ).rejects.toThrow();
+    for (const dir of ['', '/quarantine'])
+      await writeFile(root + dir + '/' + key + '.partial', 'partial', {
+        mode: 0o600,
+      });
+    await store.remove(key);
+    expect(await store.inventory()).toEqual([]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

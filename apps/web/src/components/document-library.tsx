@@ -58,8 +58,14 @@ export function VersionActions({
     </div>
   ) : (
     <p className="error-message">
-      File {version.health}. Metadata and submitted links are safe. Ask the
-      local operator to recover the matching file from a complete backup.
+      {version.health === 'unverified' ? (
+        'This file needs safety verification. Ask the local operator to recheck it before opening or using it. Metadata and history are preserved.'
+      ) : (
+        <>
+          File {version.health}. Metadata and submitted links are safe. Ask the
+          local operator to recover the matching file from a complete backup.
+        </>
+      )}
     </p>
   );
 }

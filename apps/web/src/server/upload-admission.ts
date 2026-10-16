@@ -2,7 +2,11 @@ import type { Pool } from 'pg';
 import { assertActiveAccount } from './account-lifecycle.ts';
 import { WorkspaceError } from './workspace-error.ts';
 export const UPLOAD_TIMEOUT_MS = 30000;
-export async function admitUpload(pool: Pool, owner: string) {
+export async function admitUpload(
+  pool: Pool,
+  owner: string,
+  consumeAttempt = true,
+) {
   const guard = await pool.connect();
   let owned = false,
     slot = 0;
@@ -51,19 +55,21 @@ export async function admitUpload(pool: Pool, owner: string) {
       );
     await guard.query('BEGIN');
     await assertActiveAccount(guard, owner, true);
-    await guard.query(
-      "DELETE FROM document_upload_usage WHERE user_id=$1 AND window_start < date_trunc('hour',now())",
-      [owner],
-    );
-    const usage = await guard.query(
-      "INSERT INTO document_upload_usage(user_id,window_start,attempts) VALUES($1,date_trunc('hour',now()),1) ON CONFLICT(user_id,window_start) DO UPDATE SET attempts=document_upload_usage.attempts+1 WHERE document_upload_usage.attempts<20 RETURNING attempts",
-      [owner],
-    );
-    if (!usage.rowCount)
-      throw new WorkspaceError(
-        'You have reached 20 upload attempts this hour. Try again after the next hour begins.',
-        429,
+    if (consumeAttempt) {
+      await guard.query(
+        "DELETE FROM document_upload_usage WHERE user_id=$1 AND window_start < date_trunc('hour',now())",
+        [owner],
       );
+      const usage = await guard.query(
+        "INSERT INTO document_upload_usage(user_id,window_start,attempts) VALUES($1,date_trunc('hour',now()),1) ON CONFLICT(user_id,window_start) DO UPDATE SET attempts=document_upload_usage.attempts+1 WHERE document_upload_usage.attempts<20 RETURNING attempts",
+        [owner],
+      );
+      if (!usage.rowCount)
+        throw new WorkspaceError(
+          'You have reached 20 upload attempts this hour. Try again after the next hour begins.',
+          429,
+        );
+    }
     await guard.query('COMMIT');
   } catch (error) {
     await guard.query('ROLLBACK').catch(() => {});

@@ -15,6 +15,9 @@ import type { DocumentHealth } from '@fats/domain';
 // Keys are opaque, server-generated UUIDs. No URLs, public paths or owner input.
 export interface DocumentStorage {
   put(key: string, bytes: Uint8Array): Promise<void>;
+  quarantine?(key: string, bytes: Uint8Array): Promise<void>;
+  readQuarantine?(key: string, size: number): Promise<Uint8Array>;
+  promote?(key: string, size: number, sha256: string): Promise<void>;
   read(key: string, expectedSize: number): Promise<Uint8Array>;
   remove(key: string): Promise<void>;
 }
@@ -64,10 +67,56 @@ export class FilesystemDocumentStorage implements DocumentStorage {
     if (!isStorageKey(key)) throw new Error('Invalid internal document key.');
     return join(this.root, key + '.blob');
   }
+  private async quarantineDirectory(create = false) {
+    await this.ready(create);
+    const directory = join(this.root, 'quarantine');
+    if (create)
+      await mkdir(directory, { mode: 0o700 }).catch((error) => {
+        if (error.code !== 'EEXIST') throw error;
+      });
+    const info = await lstat(directory);
+    if (
+      !info.isDirectory() ||
+      info.isSymbolicLink() ||
+      (info.mode & 0o077) !== 0 ||
+      (await realpath(directory)) !== directory
+    )
+      throw new Error('Private quarantine is unavailable.');
+    return directory;
+  }
   async put(key: string, bytes: Uint8Array) {
-    const destination = this.path(key);
     await this.ready(true);
-    const temporary = join(this.root, key + '.partial');
+    await this.write(this.root, key, bytes);
+  }
+  async quarantine(key: string, bytes: Uint8Array) {
+    await this.write(await this.quarantineDirectory(true), key, bytes);
+  }
+  async readQuarantine(key: string, size: number) {
+    return this.readFrom(await this.quarantineDirectory(), key, size);
+  }
+  async promote(key: string, size: number, sha256: string) {
+    if (documentHash(await this.readQuarantine(key, size)) !== sha256)
+      throw new StorageIntegrityError('corrupt');
+    const directory = await this.quarantineDirectory();
+    await link(join(directory, key + '.blob'), this.path(key));
+    const root = await open(this.root, 'r');
+    try {
+      await root.sync();
+    } finally {
+      await root.close();
+    }
+    await unlink(join(directory, key + '.blob'));
+    const quarantine = await open(directory, 'r');
+    try {
+      await quarantine.sync();
+    } finally {
+      await quarantine.close();
+    }
+  }
+  private async write(directory: string, key: string, bytes: Uint8Array) {
+    this.path(key);
+    const destination = join(directory, key + '.blob');
+    const temporary = join(directory, key + '.partial');
     const handle = await open(
       temporary,
       constants.O_WRONLY |
@@ -81,11 +130,11 @@ export class FilesystemDocumentStorage implements DocumentStorage {
       await handle.sync();
       await handle.close();
       await link(temporary, destination); // Atomic exclusive publication; never overwrites a version.
-      const directory = await open(this.root, 'r');
+      const directoryHandle = await open(directory, 'r');
       try {
-        await directory.sync();
+        await directoryHandle.sync();
       } finally {
-        await directory.close();
+        await directoryHandle.close();
       }
     } finally {
       await handle.close().catch(() => {});
@@ -93,7 +142,11 @@ export class FilesystemDocumentStorage implements DocumentStorage {
     }
   }
   async read(key: string, expectedSize: number) {
-    const path = this.path(key);
+    return this.readFrom(this.root, key, expectedSize);
+  }
+  private async readFrom(directory: string, key: string, expectedSize: number) {
+    this.path(key);
+    const path = join(directory, key + '.blob');
     try {
       await this.ready();
       const handle = await open(
@@ -134,27 +187,44 @@ export class FilesystemDocumentStorage implements DocumentStorage {
     }
   }
   async remove(key: string) {
-    const path = this.path(key);
+    this.path(key);
     try {
       await this.ready();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
       throw error;
     }
-    for (const target of [path, join(this.root, key + '.partial')])
-      await unlink(target).catch((error) => {
-        if (error.code !== 'ENOENT') throw error;
-      });
-    const directory = await open(this.root, 'r');
+    const directories = [this.root];
     try {
-      await directory.sync();
-    } finally {
-      await directory.close();
+      directories.push(await this.quarantineDirectory());
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    for (const directory of directories) {
+      for (const suffix of ['.blob', '.partial'])
+        await unlink(join(directory, key + suffix)).catch((error) => {
+          if (error.code !== 'ENOENT') throw error;
+        });
+      const handle = await open(directory, 'r');
+      try {
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
     }
   }
   async inventory() {
     await this.ready();
-    return readdir(this.root);
+    const names = (await readdir(this.root)).filter(
+      (name) => name !== 'quarantine',
+    );
+    try {
+      for (const name of await readdir(await this.quarantineDirectory()))
+        names.push('quarantine/' + name);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    return names;
   }
 }
 export async function verifiedDocumentBytes(

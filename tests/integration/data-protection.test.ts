@@ -1,3 +1,4 @@
+import { syntheticScanner } from '../helpers/document-scanner';
 import { portableEventCommand } from '@fats/domain';
 import { portableOfferFixture } from '../helpers/portable-offer-fixture';
 import { PostgresOfferRepository } from '../../apps/web/src/server/offer-repository';
@@ -85,7 +86,12 @@ async function user() {
       .map((c) => c.split(';')[0])
       .join('; '),
     workspace: new PostgresWorkspaceRepository(services.pool, id),
-    documents: new PostgresDocumentRepository(services.pool, id, storage),
+    documents: new PostgresDocumentRepository(
+      services.pool,
+      id,
+      storage,
+      syntheticScanner,
+    ),
   };
 }
 function erase(
@@ -509,8 +515,13 @@ it('recovers durable partial/publication intents after storage failure and prese
     bytes = await pdfFixture();
   const broken: DocumentStorage = {
     read: storage.read.bind(storage),
-    remove: storage.remove.bind(storage),
-    put: async (key, data) => {
+    remove: async () => {
+      throw Error('synthetic cleanup unavailable');
+    },
+    put: storage.put.bind(storage),
+    readQuarantine: storage.readQuarantine.bind(storage),
+    promote: storage.promote.bind(storage),
+    quarantine: async (key, data) => {
       await writeFile(root + '/' + key + '.partial', data.subarray(0, 10), {
         mode: 0o600,
       });
@@ -518,11 +529,16 @@ it('recovers durable partial/publication intents after storage failure and prese
     },
   };
   await expect(
-    new PostgresDocumentRepository(services.pool, a.id, broken).upload(
-      bytes,
-      'resume.pdf',
-      { requestId: randomUUID(), name: 'Resume', category: 'Resumes' },
-    ),
+    new PostgresDocumentRepository(
+      services.pool,
+      a.id,
+      broken,
+      syntheticScanner,
+    ).upload(bytes, 'resume.pdf', {
+      requestId: randomUUID(),
+      name: 'Resume',
+      category: 'Resumes',
+    }),
   ).rejects.toMatchObject({ status: 503 });
   expect(
     (
@@ -655,16 +671,20 @@ it('orders deletion after a storage publication already holding the owner row lo
   const slow: DocumentStorage = {
     read: storage.read.bind(storage),
     remove: storage.remove.bind(storage),
-    put: async (key, data) => {
+    put: storage.put.bind(storage),
+    quarantine: storage.quarantine.bind(storage),
+    readQuarantine: storage.readQuarantine.bind(storage),
+    promote: async (key, size, hash) => {
       entered();
       await wait;
-      await storage.put(key, data);
+      await storage.promote(key, size, hash);
     },
   };
   const uploading = new PostgresDocumentRepository(
     services.pool,
     a.id,
     slow,
+    syntheticScanner,
   ).upload(await pdfFixture(), 'resume.pdf', {
     requestId: randomUUID(),
     name: 'Resume',

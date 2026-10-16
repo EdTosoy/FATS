@@ -1,3 +1,4 @@
+import { requireAcceptedDocument } from './document-acceptance';
 import { assertActiveAccount } from './account-lifecycle';
 import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
@@ -119,12 +120,13 @@ export class PostgresOfferRepository {
         // Existing archived links can be retained, while new choices use active library files.
         const document = (
           await client.query(
-            `SELECT d.archived FROM document_versions v JOIN documents d ON d.user_id=v.user_id AND d.id=v.document_id WHERE v.user_id=$1 AND v.id=$2`,
+            `SELECT v.*,d.archived FROM document_versions v JOIN documents d ON d.user_id=v.user_id AND d.id=v.document_id WHERE v.user_id=$1 AND v.id=$2`,
             [this.owner, command.terms.documentVersionId],
           )
         ).rows[0];
         if (!document)
           throw new WorkspaceError('Document version not found.', 404);
+        await requireAcceptedDocument(client, document);
         if (
           document.archived &&
           !(

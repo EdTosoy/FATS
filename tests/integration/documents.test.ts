@@ -1,3 +1,4 @@
+import { syntheticScanner } from '../helpers/document-scanner';
 import { beforeAll, afterAll, beforeEach, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
@@ -69,7 +70,12 @@ async function user(verified = true) {
   return {
     id,
     cookie,
-    repo: new PostgresDocumentRepository(services.pool, id, storage),
+    repo: new PostgresDocumentRepository(
+      services.pool,
+      id,
+      storage,
+      syntheticScanner,
+    ),
     workspace: new PostgresWorkspaceRepository(services.pool, id),
   };
 }
@@ -92,6 +98,7 @@ function request(
     }),
     services,
     storage,
+    syntheticScanner,
   );
 }
 function upload(
@@ -123,6 +130,7 @@ function upload(
     }),
     services,
     adapter,
+    syntheticScanner,
   );
 }
 beforeAll(async () => {
@@ -422,9 +430,12 @@ it('rejects malformed/oversize files, interrupted uploads and storage errors wit
   ).toBe(413);
   const failing: DocumentStorage = {
     ...storage,
-    put: async () => {
+    put: storage.put.bind(storage),
+    quarantine: async () => {
       throw new Error('PRIVATE failure detail');
     },
+    readQuarantine: storage.readQuarantine.bind(storage),
+    promote: storage.promote.bind(storage),
     read: storage.read.bind(storage),
     remove: storage.remove.bind(storage),
   };
@@ -614,7 +625,7 @@ it('runs the native Node read-only operator audit against actual bytes without l
   expect(await storage.inventory()).toEqual(before);
 });
 
-it('keeps a failed database publication invisible, retains safe orphan bytes, and permits an upload retry', async () => {
+it('keeps a failed database publication invisible, reconciles its bytes, and permits an upload retry', async () => {
   const a = await user(),
     bytes = await pdfFixture(),
     requestId = randomUUID();
@@ -634,13 +645,12 @@ it('keeps a failed database publication invisible, retains safe orphan bytes, an
         name: 'Retry resume',
         category: 'Resumes',
       }),
-    ).rejects.toMatchObject({ code: 'P0001' });
+    ).rejects.toMatchObject({ status: 503 });
     expect((await a.repo.library()).documents).toEqual([]);
     const retained = (await storage.inventory()).filter(
       (name) => !before.has(name),
     );
-    expect(retained).toHaveLength(1);
-    expect(retained[0]).toMatch(/\.blob$/);
+    expect(retained).toHaveLength(0);
   } finally {
     await services.pool.query(
       `DROP TRIGGER ${functionName} ON document_versions`,

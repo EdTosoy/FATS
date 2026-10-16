@@ -61,7 +61,7 @@ it('releases slow and aborted upload streams within the time budget', async () =
   abort.abort();
   await expect(pending).rejects.toMatchObject({ status: 408 });
 });
-it('enforces ZIP expansion ratio, entry count, XML depth and malformed structure in the worker', async () => {
+it('enforces ZIP expansion ratio, entry count, XML depth and malformed structure in isolated processes', async () => {
   const many = Object.fromEntries(
     Array.from({ length: 501 }, (_, i) => ['word/extra' + i + '.xml', '<x/>']),
   );
@@ -81,38 +81,4 @@ it('enforces ZIP expansion ratio, entry count, XML depth and malformed structure
   await expect(
     validateDocument(docxFixture(), 'good.docx'),
   ).resolves.toMatchObject({ format: 'docx' });
-});
-it('terminates workers on timeout, abnormal exit, and JS heap exhaustion', async () => {
-  const { Worker } = await import('node:worker_threads');
-  const { finishDocumentWorker, DocumentWorkerLimit } =
-    await import('../../apps/web/src/server/document-worker');
-  const busy = new Worker('while(true) {}', {
-    eval: true,
-    stdout: true,
-    stderr: true,
-  });
-  await expect(finishDocumentWorker(busy, 30)).rejects.toBeInstanceOf(
-    DocumentWorkerLimit,
-  );
-  expect(busy.threadId).toBe(-1);
-  const early = new Worker('process.exit(0)', {
-    eval: true,
-    stdout: true,
-    stderr: true,
-  });
-  await expect(finishDocumentWorker(early)).rejects.toThrow('interrupted');
-  const heap = new Worker(
-    'const a=[];while(true)a.push(new Array(10000).fill("synthetic"));',
-    {
-      eval: true,
-      resourceLimits: {
-        maxOldGenerationSizeMb: 8,
-        maxYoungGenerationSizeMb: 2,
-      },
-      stdout: true,
-      stderr: true,
-    },
-  );
-  await expect(finishDocumentWorker(heap)).rejects.toThrow('failed');
-  expect(heap.threadId).toBe(-1);
 });
