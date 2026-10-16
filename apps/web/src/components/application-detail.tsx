@@ -1,4 +1,5 @@
 'use client';
+import { OfferDesk } from './offer-desk';
 
 import { useState } from 'react';
 import { APPLICATION_STATUSES, type ApplicationStatus } from '@fats/domain';
@@ -125,6 +126,7 @@ export function ApplicationDetail({ id }: { id: string }) {
             </div>
             <p className="field-hint source-url">{application.sourceUrl}</p>
           </Card>
+          <OfferDesk applicationId={application.id} />
           <ApplicationDocuments applicationId={application.id} />
           <ResumeMatching applicationId={application.id} />
           <ApplicationInterviews applicationId={application.id} />

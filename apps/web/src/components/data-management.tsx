@@ -129,8 +129,8 @@ export function DataManagement() {
             ? 'These tools export and replace your account records; local browser records stay separate.'
             : 'Clearing browser data or losing this device can remove your workspace.'}{' '}
           Backups exclude document metadata, files, submitted resume links,
-          comparison reports, and reviewed text. Use a complete local operator
-          archive to recover those account records.
+          comparison reports, reviewed text, and Offer Desk history. Use a
+          complete local operator archive to recover those account records.
         </p>
         <p className="backup-warning">
           Backups contain private, unencrypted information. Anyone with the file

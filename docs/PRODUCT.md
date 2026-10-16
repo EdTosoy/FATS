@@ -1,6 +1,10 @@
 # Product
 
-## Current slice — Phase 6
+## Current slice — Offer Desk MVP
+
+The separately authorized [Offer Desk](OFFER_DESK.md) extends an existing application at the Offer stage for fresh graduates. Verified accounts can record incomplete terms, review a beginner-friendly checklist, keep HR questions, link immutable private letter versions, track response dates, preserve revisions/negotiation, and confirm real-world decisions. It adds no top-level navigation, AI, employer communication, or legal acceptance. Application stages and interviews remain manual and separate. Guests receive a sign-in explanation; JSON backups omit offers and replacement protects existing offer history. Complete recovery uses the operator database/file bundle. All AI-related development and live evaluation are paused pending explicit authorization. No Career Vault or other phase is started.
+
+## Retained Phase 0–6 behavior
 
 The Phase 0–3 tracker remains available as a browser-local guest workspace. Optional email/password accounts now save applications, interviews, and notes in local PostgreSQL through the same FATS interface. Account registration/login do not transfer browser records. Settings offers a count preview and explicit confirmation for an additive transfer, retaining original local data and all record identities/relationships. Conflicts stop the transfer; duplicate confirmations do not duplicate records. Settings backups operate on the active account or guest workspace using the existing format.
 

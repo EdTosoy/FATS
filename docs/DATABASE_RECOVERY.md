@@ -1,5 +1,7 @@
 # Database backups and recovery
 
+Offer Desk adds `offers` and `offer_events` to the recognized schema. Full archives preserve offer revisions, negotiation/decision history, checklist/questions, request fingerprints, and exact private letter links. After restoration, open application Offer Desk, compare original/revised terms and decisions, and download the linked version. Settings JSON excludes offers and blocks replacement while offer history exists. See [Offer Desk recovery choices](OFFER_DESK.md) and [executed verification](OFFER_DESK_VERIFICATION.md).
+
 Phases 5–6 extend the verified **local PostgreSQL 17** archive/restore workflow to private files and comparison reports. It creates no cloud resources and does not automate a hosted disaster-recovery service. Stop the application before restoration. Keep an independent copy of the current database before replacing it, and prefer restoring into a fresh, dedicated database first.
 
 ## JSON exports and operational archives

@@ -252,6 +252,18 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
   }
   async deleteApplication(id: string) {
     return this.transaction(true, async (client) => {
+      if (
+        (
+          await client.query(
+            'SELECT 1 FROM offers WHERE user_id=$1 AND application_id=$2',
+            [this.owner, id],
+          )
+        ).rowCount
+      )
+        throw new WorkspaceError(
+          'Keep this application to preserve its offer history.',
+          409,
+        );
       const data = await this.read(client);
       if (!data.applications.some((row) => row.id === id))
         throw new WorkspaceError('Application not found.', 404);
@@ -387,6 +399,17 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     });
   }
   private async requireNoDocumentLinks(client: PoolClient) {
+    if (
+      (
+        await client.query('SELECT 1 FROM offers WHERE user_id=$1 LIMIT 1', [
+          this.owner,
+        ])
+      ).rowCount
+    )
+      throw new WorkspaceError(
+        'JSON backups exclude Offer Desk history and attachments. Replacement is blocked to preserve your offers. Use a complete operator database and file archive for recovery.',
+        409,
+      );
     if (
       (
         await client.query(

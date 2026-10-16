@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useAccount } from './account-provider';
 import { ApplicationProvider } from './application-provider';
 import { DocumentProvider } from './document-provider';
+import { OfferProvider } from './offer-provider';
 import { HttpWorkspaceRepository } from '@/lib/http-workspace-repository';
 import { ActionLink, Button, Card } from './ui';
 import Link from 'next/link';
@@ -119,7 +120,9 @@ export function WorkspaceRoot({ children }: { children: ReactNode }) {
       repository={repository}
     >
       <DocumentProvider>
-        <AppShell>{children}</AppShell>
+        <OfferProvider>
+          <AppShell>{children}</AppShell>
+        </OfferProvider>
       </DocumentProvider>
     </ApplicationProvider>
   );

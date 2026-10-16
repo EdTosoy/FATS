@@ -355,6 +355,18 @@ export class PostgresDocumentRepository {
   async delete(id: string) {
     await this.transaction(async (client) => {
       if (
+        (
+          await client.query(
+            'SELECT 1 FROM offer_events e JOIN document_versions v ON v.user_id=e.user_id AND v.id=e.version_id WHERE e.user_id=$1 AND v.document_id=$2 LIMIT 1',
+            [this.owner, id],
+          )
+        ).rowCount
+      )
+        throw new WorkspaceError(
+          'This document is part of offer history. Archive it to preserve the exact offer letter or contract.',
+          409,
+        );
+      if (
         !(
           await client.query(
             'SELECT 1 FROM documents WHERE user_id=$1 AND id=$2',

@@ -1,5 +1,122 @@
 @import 'tailwindcss';
 
+.offer-desk,
+.offer-next-steps {
+  padding: 26px;
+  margin-bottom: 24px;
+  scroll-margin-top: 24px;
+  overflow-wrap: anywhere;
+}
+.offer-desk > p {
+  margin: 12px 0;
+}
+.offer-salary {
+  font-size: 23px;
+  font-weight: 650;
+}
+.offer-desk details,
+.offer-dialog details {
+  margin: 14px 0;
+}
+.offer-desk summary,
+.offer-dialog summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 8px 0;
+}
+.offer-dialog details > label,
+.offer-dialog details > .form-grid {
+  margin-top: 12px;
+}
+.offer-terms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 14px 0;
+}
+.offer-terms dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.offer-terms dd {
+  margin: 3px 0 0;
+  white-space: pre-wrap;
+}
+.offer-deadline {
+  padding: 8px 12px;
+  background: var(--canvas);
+  border-radius: 8px;
+}
+.offer-deadline.soon {
+  background: #fff3df;
+  color: #76501d;
+}
+.offer-deadline.passed {
+  background: #faece7;
+  color: #87472d;
+}
+.offer-review-summary {
+  border-block: 1px solid var(--border);
+  padding: 18px 0;
+  margin: 20px 0;
+}
+.offer-review-summary h3 {
+  margin: 0;
+}
+.offer-history ol {
+  padding-left: 22px;
+}
+.offer-history li {
+  padding: 0 0 15px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.offer-attachment {
+  margin: 12px 0;
+}
+.offer-checklist {
+  display: grid;
+  gap: 14px;
+}
+.job-form .offer-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-weight: 400;
+}
+.job-form .offer-confirm input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.offer-next-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+@media (max-width: 640px) {
+  .offer-desk,
+  .offer-next-steps {
+    padding: 20px;
+  }
+  .offer-terms {
+    grid-template-columns: 1fr;
+  }
+  .offer-next-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .offer-dialog .form-footer,
+  .offer-dialog .form-footer > div {
+    flex-wrap: wrap;
+  }
+  .offer-dialog .form-footer .button {
+    white-space: normal;
+  }
+}
+
 .auth-layout {
   max-width: 760px;
   margin: 0 auto;

@@ -24,6 +24,7 @@ import {
   type DatabaseTarget,
 } from '../../apps/web/src/server/database-operations';
 import { PostgresWorkspaceRepository } from '../../apps/web/src/server/workspace-repository';
+import { PostgresOfferRepository } from '../../apps/web/src/server/offer-repository';
 
 const base = process.env.FATS_TEST_DATABASE_URL;
 if (
@@ -247,7 +248,7 @@ it('performs a real confirmed restore and verifies records, relationships, crede
           'SELECT count(*)::int AS count FROM fats_schema_migrations',
         )
       ).rows[0].count,
-    ).toBe(5);
+    ).toBe(6);
     await expect(
       recovered.pool.query('DELETE FROM applications WHERE user_id=$1', [
         ownerId,
@@ -357,6 +358,48 @@ it('backs up and restores matching immutable document versions and application l
     await new PostgresWorkspaceRepository(services.pool, ownerId).getWorkspace()
   ).applications[0];
   await documents.associate(app.id, first.versionId);
+  const offers = new PostgresOfferRepository(services.pool, ownerId);
+  const offerTerms = {
+    receivedOn: '2026-10-16',
+    salaryAmount: '35000.0001',
+    currency: 'PHP',
+    frequency: 'monthly',
+    employmentType: 'Probationary',
+    arrangement: 'hybrid',
+    location: 'Makati',
+    benefits: 'Meal allowance',
+    startOn: '2026-11-02',
+    deadlineOn: '2026-10-20',
+    timeZone: 'Asia/Manila',
+    notes: 'Clarify hours',
+    documentVersionId: first.versionId,
+  };
+  await offers.command(app.id, randomUUID(), 0, {
+    kind: 'terms',
+    occurredOn: '2026-10-16',
+    notes: 'Original offer',
+    terms: offerTerms,
+  });
+  await offers.command(app.id, randomUUID(), 1, {
+    kind: 'terms',
+    occurredOn: '2026-10-20',
+    notes: 'Revised offer',
+    terms: { ...offerTerms, salaryAmount: '38000' },
+  });
+  await offers.command(app.id, randomUUID(), 2, {
+    kind: 'review',
+    occurredOn: '2026-10-20',
+    checklist: Array(10).fill('Need to clarify'),
+    questions: 'What are the hours?',
+  });
+  await offers.command(app.id, randomUUID(), 3, {
+    kind: 'decision',
+    occurredOn: '2026-10-21',
+    notes: 'Communicated to HR',
+    decision: 'accepted',
+    confirmed: true,
+  });
+  const offersBefore = await offers.list();
   const file = directory + '/with-documents.dump',
     recoveredRoot = directory + '/recovered-files';
   await expect(createDatabaseBackup(source, file)).rejects.toThrow(
@@ -470,6 +513,9 @@ it('backs up and restores matching immutable document versions and application l
       new FilesystemDocumentStorage(recoveredRoot),
     );
     expect(await recovered.library()).toEqual(await documents.library());
+    expect(await new PostgresOfferRepository(pool, ownerId).list()).toEqual(
+      offersBefore,
+    );
     const recoveredMatching = await new MatchingRepository(
       pool,
       ownerId,
@@ -500,7 +546,9 @@ it('backs up and restores matching immutable document versions and application l
     expect(
       Buffer.from((await recovered.download(first.versionId)).bytes),
     ).toEqual(Buffer.from((await documents.download(first.versionId)).bytes));
-    await expect(recovered.delete(first.documentId)).rejects.toThrow('linked');
+    await expect(recovered.delete(first.documentId)).rejects.toThrow(
+      'offer history',
+    );
   } finally {
     await pool.end();
   }

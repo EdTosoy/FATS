@@ -187,6 +187,7 @@ describe('PostgreSQL migrations and real authentication', () => {
       '0003_legacy_text.sql',
       '0004_documents.sql',
       '0005_matching.sql',
+      '0006_offers.sql',
     ]);
     expect(
       (
@@ -194,7 +195,7 @@ describe('PostgreSQL migrations and real authentication', () => {
           'SELECT name FROM fats_schema_migrations ORDER BY name',
         )
       ).rows,
-    ).toHaveLength(5);
+    ).toHaveLength(6);
     const a = await user(),
       b = await user();
     const data = await dataset(a);

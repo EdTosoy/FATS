@@ -1,4 +1,5 @@
 'use client';
+import { OfferNextSteps } from './offer-desk';
 
 import {
   ArrowRight,
@@ -171,6 +172,7 @@ export function Dashboard() {
           </Card>
         ))}
       </div>
+      <OfferNextSteps />
       <div className="dashboard-middle">
         <Card className="next-step-card">
           <div className="section-heading">

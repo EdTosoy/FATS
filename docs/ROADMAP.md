@@ -53,7 +53,16 @@ See [SIDEKICK.md](SIDEKICK.md) for commands and [PHASE_3_VERIFICATION.md](PHASE_
 
 ## Recommended next implementation step
 
-Phase 6.1 repaired the GPT-6 Luna undocumented-evidence contract, but live evaluation still understates academic skills. The separately authorized paired comparison stopped after two additional attempts: Luna repeated SQL/Excel underclassification; Mini returned HTTP 429 without usage. The full failed-request reservation remains held, leaving insufficient additional budget for another worst-case hold. Six combined attempts are preserved; the comparison has no model winner or private-beta clearance. Next, reconcile provider access/accounting and review continuation of the frozen comparison, then broader held-out and independent human validation. See [Phase 6.1 evidence](PHASE_6_1_VERIFICATION.md). Before external hosting, separately scope isolated extraction, scheduled retention, private storage/malware scanning, managed orphan cleanup, hosted account delivery/abuse controls, encrypted off-device archives, and deployment-specific recovery drills. No Phase 7, cloud service, or deployment is authorized by this recommendation.
+Offer Desk is the current separately authorized non-AI extension. A recommended next separately scoped milestone is a portable Offer Desk export with a clear restore preview and safe document-version handling. Complete local recovery currently requires operator archives. Do not begin Career Vault, another phase, or production deployment. All AI development and live evaluation remain paused until explicitly resumed; prior comparison evidence remains in [Phase 6.1 verification](PHASE_6_1_VERIFICATION.md).
+
+## Offer Desk MVP — authorized extension
+
+- Contextual application flow for incomplete offer terms, exact decimal gross amounts, and explicit timezone/calendar deadlines.
+- Beginner checklist and HR questions; immutable revised terms, negotiation notes, and confirmed decision history.
+- Existing private PDF/DOCX library and exact version references, preserving ownership and historical letters.
+- Reviewing-offer deadlines on the dashboard, without notifications or inferred employer withdrawal.
+- Owner-scoped PostgreSQL migration, transactional version conflicts, retry protection, JSON replacement guards, and operator recovery compatibility.
+- See [design and limits](OFFER_DESK.md) and [executed verification](OFFER_DESK_VERIFICATION.md). No AI, new top-level product, Career Vault, or deployment.
 
 ## Phase 4 — authentication and durable persistence
 

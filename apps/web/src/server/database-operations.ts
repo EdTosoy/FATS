@@ -46,6 +46,8 @@ const tables = [
   'matching_previews',
   'matching_reports',
   'matching_usage',
+  'offers',
+  'offer_events',
 ];
 export class DatabaseOperationError extends Error {}
 export interface DatabaseTarget {
