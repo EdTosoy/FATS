@@ -10,6 +10,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { workspaceActivityDays, type WorkspaceSnapshot } from '@fats/domain';
 import type {
   ApplicationInput,
   WorkspaceRepository,
@@ -37,6 +38,7 @@ interface ApplicationContextValue {
   previewRestore: (text: string) => Promise<RestorePreview>;
   restoreBackup: (token: string) => Promise<void>;
   cancelRestore: (token: string) => void;
+  activityDays: string[];
   applications: JobApplication[];
   interviews: Interview[];
   now: string;
@@ -74,6 +76,7 @@ export function ApplicationProvider({
     [providedRepository],
   );
   const channel = useRef<BroadcastChannel | null>(null);
+  const [activityDays, setActivityDays] = useState<string[]>([]);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [now, setNow] = useState('');
@@ -91,7 +94,9 @@ export function ApplicationProvider({
           ([applications, interviews]) => ({ applications, interviews }),
         );
     return snapshot.then(
-      ({ applications, interviews }) => {
+      (snapshot: WorkspaceSnapshot) => {
+        const { applications, interviews } = snapshot;
+        setActivityDays(workspaceActivityDays(snapshot));
         setInterviews(interviews);
         setNow(new Date().toISOString());
         setApplications(applications);
@@ -191,6 +196,7 @@ export function ApplicationProvider({
         a.scheduledAt.localeCompare(b.scheduledAt),
       ),
     );
+    setActivityDays(workspaceActivityDays({ ...data, activityDays }));
     setNow(new Date().toISOString());
     setError(null);
     setLoading(false);
@@ -205,6 +211,7 @@ export function ApplicationProvider({
           await refresh();
           channel.current?.postMessage('refresh');
         },
+        activityDays,
         applications,
         interviews,
         now,

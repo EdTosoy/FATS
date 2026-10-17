@@ -1,3 +1,4 @@
+import { recordMomentum } from './momentum';
 import { requireAcceptedDocument } from './document-acceptance';
 import {
   ClamavDocumentScanner,
@@ -326,6 +327,12 @@ export class PostgresDocumentRepository {
             'INSERT INTO documents(user_id,id,name,category) VALUES($1,$2,$3,$4)',
             [this.owner, id, details.name, details.category],
           );
+        const duplicateContent = (
+          await client.query(
+            'SELECT 1 FROM document_versions WHERE user_id=$1 AND sha256=$2 LIMIT 1',
+            [this.owner, hash],
+          )
+        ).rowCount;
         await client.query(
           'INSERT INTO document_versions(user_id,document_id,id,version_number,original_filename,format,byte_size,sha256,storage_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
           [
@@ -344,6 +351,7 @@ export class PostgresDocumentRepository {
           'UPDATE documents SET updated_at=now() WHERE user_id=$1 AND id=$2',
           [this.owner, id],
         );
+        if (!duplicateContent) await recordMomentum(client, this.owner);
         return { documentId: id, versionId: input.requestId };
       });
     } catch (error) {
@@ -503,6 +511,18 @@ export class PostgresDocumentRepository {
   }
   async delete(id: string) {
     await this.transaction(async (client) => {
+      if (
+        (
+          await client.query(
+            'SELECT 1 FROM career_events e JOIN document_versions v ON v.user_id=e.user_id AND v.id=e.version_id WHERE e.user_id=$1 AND v.document_id=$2 LIMIT 1',
+            [this.owner, id],
+          )
+        ).rowCount
+      )
+        throw new WorkspaceError(
+          'This document is part of Career Vault history. Archive it to preserve its exact versions.',
+          409,
+        );
       if (
         (
           await client.query(

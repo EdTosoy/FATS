@@ -34,6 +34,7 @@ const tables = [
   'verification',
   'rateLimit',
   'workspaces',
+  'momentum_days',
   'applications',
   'interviews',
   'workspace_stages',
@@ -51,6 +52,8 @@ const tables = [
   'matching_usage',
   'offers',
   'offer_events',
+  'career_employments',
+  'career_events',
 ];
 export class DatabaseOperationError extends Error {}
 export interface DatabaseTarget {

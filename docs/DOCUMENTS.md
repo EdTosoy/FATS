@@ -4,6 +4,8 @@ Documents are available only in verified account workspaces. Guest applications,
 
 ## Local PDF Tools
 
+[Career Vault](CAREER_VAULT.md) can link an existing owner-authorized, accepted, integrity-checked version to personal employment metadata without copying bytes. Received metadata never proves a file exists. Earlier version references remain in immutable history and restrict ordinary document deletion; archive preserves them. Downloads repeat current checks, so legacy/quarantined/missing files remain blocked. New-file saving stays unavailable while scanning is paused. Portable JSON retains unlinked provenance only; complete recovery needs the operator bundle.
+
 [PDF Tools](PDF_TOOLS.md) is linked from this interface and is available for guest/account users selecting a local PDF. It fills supported forms and adds personal visual marks entirely in browser memory, then downloads a completed copy. It does not fetch library versions, upload, save documents, change submitted links, or grant acceptance. Secure server intake remains blocked without required operational scanning. Signature marks are not certified digital signatures. See [verification](PDF_TOOLS_VERIFICATION.md).
 
 ## Hardening 2 intake update

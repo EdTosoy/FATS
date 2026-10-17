@@ -6,10 +6,13 @@ export type WorkspaceRepository =
   import('./application').ApplicationRepository &
     import('./interview').InterviewRepository &
     import('./backup').BackupRepository & {
-      getWorkspace?: () => Promise<import('./backup').WorkspaceData>;
+      getWorkspace?: () => Promise<import('./momentum').WorkspaceSnapshot>;
     };
 export * from './migration';
 export * from './document';
 export * from './matching';
 export * from './offer';
 export * from './offer-backup';
+export * from './career';
+export * from './career-backup';
+export * from './momentum';

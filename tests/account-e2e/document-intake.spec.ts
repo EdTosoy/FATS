@@ -1,3 +1,4 @@
+import { browserTestOrigin } from '../helpers/browser-origin';
 import { test, expect, type Page } from '@playwright/test';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { access } from 'node:fs/promises';
@@ -10,7 +11,7 @@ import {
 } from '../../apps/web/src/server/document-storage';
 import { beginAccountErasure } from '../../apps/web/src/server/account-lifecycle';
 import { recoverAccountErasure } from '../../apps/web/src/server/account-erasure';
-const origin = 'http://127.0.0.1:3000',
+const origin = browserTestOrigin,
   password = 'Synthetic-intake-browser-passphrase!',
   pool = createDatabasePool(process.env.FATS_TEST_DATABASE_URL!),
   owners: string[] = [];

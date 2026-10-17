@@ -1,10 +1,11 @@
+import { browserTestOrigin } from '../helpers/browser-origin';
 import { test as base, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { serializeBackup } from '@fats/domain';
 import { portableOfferFixture } from '../helpers/portable-offer-fixture';
 import { testEmail } from '../helpers/test-inbox';
 import { createDatabasePool } from '../../apps/web/src/server/services';
-const origin = 'http://127.0.0.1:3000',
+const origin = browserTestOrigin,
   password = 'Synthetic-portable-passphrase-42!';
 const pool = createDatabasePool(process.env.FATS_TEST_DATABASE_URL!),
   owners: string[] = [];

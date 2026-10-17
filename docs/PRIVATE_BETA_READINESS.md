@@ -1,5 +1,9 @@
 # Private beta readiness — Part 1
 
+## Career Vault scope update — 2026-10-17
+
+The separately authorized [Career Vault MVP](CAREER_VAULT.md), after committed PDF Tools `6297c1b`, adds only the bounded non-AI employment/document metadata organizer. It does not complete Hardening 2, enable file intake, install ClamAV or authorize real-data beta/deployment. Required live scanning remains paused. The earlier assessment's operational, privacy/retention, recovery, hosted email/transport, monitoring and accessibility blockers remain. Historical references below to Career Vault being outside scope describe that earlier checkpoint; [current verification](CAREER_VAULT_VERIFICATION.md) records this extension separately.
+
 Assessment date: 2026-10-16. Baseline: `daaffe4` (`feat(backups): support portable offer history`), following Offer Desk `b903a36`. The initial `main` tree was clean, with zero ahead/behind against the locally recorded `origin/main`. No remote fetch was used to infer the remote's current state. Offer Desk 1.1 was committed before this work. Changes in this assessment remain for manual review; no commit, push, deployment, paid infrastructure, or AI request was made.
 
 ## Hardening 2 update — 2026-10-17

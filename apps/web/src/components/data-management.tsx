@@ -104,7 +104,7 @@ export function DataManagement() {
       if (account.user) await refreshOffers().catch(() => {});
       setMessage(
         preview.portable
-          ? `Import completed. Added ${preview.portable.added.applications} applications, ${preview.portable.added.interviews} interviews, and ${preview.portable.added.offers} offers. Existing records were kept. Letters were not restored from JSON.`
+          ? `Import completed. Added ${preview.portable.added.applications} applications, ${preview.portable.added.interviews} interviews, and ${preview.portable.added.offers} offers.${preview.portable.career ? ` Added ${preview.portable.career.added} employment records with their document-register history.` : ''} Existing records were kept. Files were not restored from JSON.`
           : `Restore completed. ${preview.incoming.applications} ${preview.incoming.applications === 1 ? 'application' : 'applications'} and ${preview.incoming.interviews} ${preview.incoming.interviews === 1 ? 'interview' : 'interviews'} are saved ${account.user ? 'in your account' : 'in this browser'}.`,
       );
       setPreview(null);
@@ -129,14 +129,16 @@ export function DataManagement() {
         <h2 id="data-management-title">Data management</h2>
         <p>
           Keep a backup of your saved job search
-          {account.user ? ', including offer history' : ''}.{' '}
           {account.user
-            ? 'Version 2 imports add missing records and keep existing records. Legacy version 1 restores replace applications and interviews. Browser records stay separate.'
+            ? ', including offers and Career Vault history'
+            : ''}.{' '}
+          {account.user
+            ? 'Version 2 and 3 imports add missing records and keep existing records. Version 3 includes Career Vault metadata and document-register history. Legacy version 1 restores replace applications and interviews when history protections permit. Browser records stay separate.'
             : 'Clearing browser data or losing this device can remove your workspace.'}{' '}
-          Backups exclude document metadata, files, submitted resume links,
-          comparison reports, and reviewed text. Offer letters are historical
-          references only in JSON; file bytes and live links require the
-          complete local operator archive.
+          Backups exclude library document metadata, files, submitted resume
+          links, comparison reports, and reviewed text. Offer letters are
+          historical references only in JSON; file bytes and live links require
+          the complete local operator archive.
         </p>
         <p className="backup-warning">
           Backups contain private, unencrypted information. Anyone with the file
@@ -150,8 +152,10 @@ export function DataManagement() {
             <h3 id="export-title">Export backup</h3>
             <p>
               Download your saved applications, interviews
-              {account.user ? ', and offers' : ''} as JSON. Export before
-              replacing data you want to keep.
+              {account.user
+                ? ', offers, and Career Vault metadata with its history'
+                : ''}{' '}
+              as JSON. Export before replacing data you want to keep.
             </p>
             <Button
               ref={exportButton}
@@ -172,8 +176,8 @@ export function DataManagement() {
           <section aria-labelledby="import-title">
             <h3 id="import-title">Import backup</h3>
             <p>
-              Preview a FATS backup, then confirm its import. Version 2 adds
-              missing records and blocks conflicts; version 1 requires full
+              Preview a FATS backup, then confirm its import. Versions 2 and 3
+              add missing records and block conflicts; version 1 requires full
               replacement.
             </p>
             <form onSubmit={inspectFile} className="backup-file-form">
@@ -192,8 +196,9 @@ export function DataManagement() {
                 }}
               />
               <p id="backup-file-hint" className="field-hint">
-                Version 1 or 2 FATS backup · maximum 10 MiB. Version 2 requires
-                a verified account. Selecting a file does not change your data.
+                Version 1, 2 or 3 FATS backup · maximum 10 MiB. Versions 2 and 3
+                require a verified account. Selecting a file does not change
+                your data.
               </p>
               <Button
                 ref={previewButton}
@@ -242,7 +247,7 @@ export function DataManagement() {
               </Dialog.Title>
               <Dialog.Description className="muted">
                 {preview.portable
-                  ? 'Add missing applications, interviews, and offer history. Identical records are skipped. Conflicts block the whole import; existing records and decisions are never overwritten.'
+                  ? 'Add missing applications, interviews, offer history and any Career Vault records included. Identical records are skipped. Conflicts block the whole import; existing records and decisions are never overwritten.'
                   : 'Review the backup before importing. This replaces all current applications, interviews, and notes with the backup contents. Nothing is merged.'}
               </Dialog.Description>
               <dl className="backup-counts">
@@ -273,6 +278,24 @@ export function DataManagement() {
               </dl>
               {preview.portable && (
                 <div className="portable-preview">
+                  {preview.portable.career && (
+                    <section aria-label="Career Vault import preview">
+                      <h3>Career Vault</h3>
+                      <p>
+                        {preview.portable.career.total} employment records in
+                        this backup · {preview.portable.career.added} to add ·{' '}
+                        {preview.portable.career.identical} identical records to
+                        skip.
+                      </p>
+                      <p>
+                        {preview.portable.career.documents} document entries
+                        with their complete tracking history.{' '}
+                        {preview.portable.career.unavailableDocuments}{' '}
+                        historical file references will remain unlinked; JSON
+                        does not restore file bytes or grant download access.
+                      </p>
+                    </section>
+                  )}
                   <h3>Offer history</h3>
                   <p>
                     {preview.portable.offers.length} offers in this backup ·{' '}
@@ -357,7 +380,7 @@ export function DataManagement() {
                   />
                   <span>
                     {preview.portable
-                      ? 'I understand this adds supported records, keeps existing decisions, and does not restore offer-letter files or live links.'
+                      ? `I understand this adds supported records, keeps existing decisions${preview.portable.career ? ' and Career Vault history' : ''}, and does not restore offer-letter or employment files or live links.`
                       : 'I understand this replaces all current applications, interviews, and notes.'}
                   </span>
                 </label>

@@ -1,4 +1,6 @@
 import {
+  validateActivityDays,
+  type WorkspaceSnapshot,
   parseBackup,
   serializeBackup,
   validateWorkspaceData,
@@ -18,7 +20,7 @@ import {
 export const SESSION_EXPIRED_EVENT = 'fats:session-expired';
 export const ACCOUNT_CHANGED_EVENT = 'fats:account-changed';
 export class HttpWorkspaceRepository implements WorkspaceRepository {
-  private reading: Promise<WorkspaceData> | null = null;
+  private reading: Promise<WorkspaceSnapshot> | null = null;
   private pendingCreates = new Map<string, string>();
   constructor(private readonly accountId: string) {}
   async request<T>(
@@ -56,10 +58,15 @@ export class HttpWorkspaceRepository implements WorkspaceRepository {
     }
     return data as T;
   }
-  getWorkspace(): Promise<WorkspaceData> {
+  getWorkspace(): Promise<WorkspaceSnapshot> {
     if (!this.reading)
       this.reading = this.request<unknown>()
-        .then(validateWorkspaceData)
+        .then((value) => ({
+          ...validateWorkspaceData(value),
+          activityDays: validateActivityDays(
+            (value as WorkspaceSnapshot).activityDays,
+          ),
+        }))
         .finally(() => {
           this.reading = null;
         });

@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 import { existsSync } from 'node:fs';
+import {
+  browserTestOrigin,
+  browserTestPort,
+} from './tests/helpers/browser-origin';
 
 const executablePath =
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
@@ -17,7 +21,7 @@ export default defineConfig({
   retries: 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: browserTestOrigin,
     trace: 'retain-on-failure',
     launchOptions: { executablePath, chromiumSandbox: true },
   },
@@ -37,9 +41,9 @@ export default defineConfig({
   webServer: {
     command:
       process.env.FATS_TEST_PRODUCTION === '1'
-        ? 'pnpm --filter @fats/web start --hostname 127.0.0.1 --port 3000'
-        : 'pnpm --filter @fats/web dev --hostname 127.0.0.1 --port 3000',
-    url: 'http://127.0.0.1:3000',
+        ? `pnpm --filter @fats/web start --hostname 127.0.0.1 --port ${browserTestPort}`
+        : `pnpm --filter @fats/web dev --hostname 127.0.0.1 --port ${browserTestPort}`,
+    url: browserTestOrigin,
     reuseExistingServer: false,
     // Guest regressions must never inherit a developer's database/origin.
     env: {

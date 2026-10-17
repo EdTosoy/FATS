@@ -1,5 +1,13 @@
 # Database backups and recovery
 
+## Career Vault recovery
+
+Migration 0010 adds recognized `career_employments` and `career_events` tables. Complete operator archives preserve current employment, immutable register/employment snapshots, request fingerprints, associations and original recorded timestamps. Private linked bytes are not duplicated: they remain in the matching existing file bundle. Account erasure removes career events/headers before protected application/offer/file parents and keeps existing access-block/cleanup semantics.
+
+After an independently targeted restore, verify employment details, prior register states, notes and associations alongside the original records. Accepted receipts are still invalidated; legacy/quarantined/missing files stay blocked until required real scanning/rechecking is operational. Keep access stopped, reconcile deletion obligations and follow the existing cleanup/recheck/audit sequence. Scanning remains paused in this milestone. Do not use an old receipt or JSON UUID as file authorization.
+
+Settings version 3 recovers portable vault metadata/history additively, with conflicts blocking all changes and file references explicitly unlinked. It is not a full library/authentication archive. Older operator archives require their exact earlier code/migrations; do not change manifests/checksums to bypass compatibility. The dedicated disposable restore drill checks Career Vault metadata/history while retaining independent-target, idle-application and exact destructive-confirmation requirements. See [Career Vault](CAREER_VAULT.md) and [verification](CAREER_VAULT_VERIFICATION.md).
+
 Offer Desk adds `offers` and `offer_events` to the recognized schema. Full archives preserve offer revisions, negotiation/decision history, checklist/questions, request fingerprints, and exact private letter links. After restoration, open application Offer Desk, compare original/revised terms and decisions, and download the linked version. Settings version 2 JSON restores offer history additively, with original letter references kept explicitly unlinked. Migration 0007 adds this provenance column; full operator archives preserve it alongside actual live document links and bytes. Legacy JSON replacement still protects existing offers. See [Offer Desk recovery choices](OFFER_DESK.md) and [executed verification](OFFER_DESK_VERIFICATION.md).
 
 Phases 5–6 extend the verified **local PostgreSQL 17** archive/restore workflow to private files and comparison reports. It creates no cloud resources and does not automate a hosted disaster-recovery service. Stop the application before restoration. Keep an independent copy of the current database before replacing it, and prefer restoring into a fresh, dedicated database first.

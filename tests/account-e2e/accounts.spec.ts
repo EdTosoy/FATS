@@ -1,3 +1,4 @@
+import { browserTestOrigin } from '../helpers/browser-origin';
 import { test as base, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { createServices } from '../../apps/web/src/server/services';
@@ -18,7 +19,7 @@ const test = base.extend({
 const password = 'Synthetic-browser-passphrase-42!';
 const db = createServices(
   process.env.FATS_TEST_DATABASE_URL!,
-  'http://127.0.0.1:3000',
+  browserTestOrigin,
   randomUUID() + randomUUID(),
 );
 const owners: string[] = [];
@@ -165,7 +166,7 @@ test('registration, account CRUD, interview notes, session cookie, logout/login,
     const endpoint = '/api/matching?applicationId=' + appUrl.split('/').pop();
     const response = action
       ? await page.request.post(endpoint, {
-          headers: { origin: 'http://127.0.0.1:3000' },
+          headers: { origin: browserTestOrigin },
           data: { action, confirmed: true },
         })
       : await page.request.get(endpoint);
@@ -473,7 +474,7 @@ test('invalid login stays useful and another account cannot see or update saved 
   const other = await browser.newContext();
   const second = await other.newPage();
   try {
-    await second.goto('http://127.0.0.1:3000/sign-in');
+    await second.goto(browserTestOrigin + '/sign-in');
     await second.getByLabel('Email', { exact: true }).fill(owner.email);
     await second
       .getByLabel('Password', { exact: true })
@@ -492,7 +493,7 @@ test('invalid login stays useful and another account cannot see or update saved 
     ).toHaveCount(0);
     const id = detail.split('/').pop();
     const denied = await second.request.post('/api/workspace', {
-      headers: { origin: 'http://127.0.0.1:3000' },
+      headers: { origin: browserTestOrigin },
       data: { action: 'delete-application', id },
     });
     expect(denied.status()).toBe(404);
@@ -506,4 +507,54 @@ test('invalid login stays useful and another account cannot see or update saved 
   } finally {
     await other.close();
   }
+});
+
+test('momentum stays separate across guest/account workspaces and survives a fresh sign-in', async ({
+  page,
+}) => {
+  async function momentum() {
+    if ((page.viewportSize()?.width ?? 0) <= 760) {
+      const toggle = page.getByRole('button', {
+        name: /^(Open|Close) navigation$/,
+      });
+      await expect(toggle).toBeVisible();
+      if ((await toggle.getAttribute('aria-expanded')) === 'false')
+        await toggle.click();
+    }
+    return page.locator('.momentum:visible');
+  }
+  await saveJob(page, 'Synthetic guest momentum');
+  await expect((await momentum()).locator('.momentum-streak')).toHaveText(
+    '1day in a row',
+  );
+  const guestRaw = await page.evaluate(() =>
+    localStorage.getItem('fats.applications.v1'),
+  );
+  const account = await register(page);
+  await expect((await momentum()).locator('.momentum-streak')).toHaveText(
+    '0days in a row',
+  );
+  await saveJob(page, 'Synthetic account momentum');
+  await expect((await momentum()).locator('.momentum-streak')).toHaveText(
+    '1day in a row',
+  );
+  await page.reload();
+  await expect((await momentum()).locator('.momentum-count')).toHaveText(
+    '1 active day this week',
+  );
+  expect(
+    await page.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBe(guestRaw);
+  await page.goto('/settings');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(
+    page.getByRole('link', { name: 'Sign in to an account', exact: true }),
+  ).toBeVisible();
+  await expect((await momentum()).locator('.momentum-streak')).toHaveText(
+    '1day in a row',
+  );
+  await signIn(page, account.email);
+  await expect((await momentum()).locator('.momentum-streak')).toHaveText(
+    '1day in a row',
+  );
 });

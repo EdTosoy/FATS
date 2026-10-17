@@ -4,6 +4,7 @@ import { mkdtemp, cp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import {
+  activityDate,
   createBackup,
   serializeBackup,
   type ApplicationInput,
@@ -191,6 +192,8 @@ describe('PostgreSQL migrations and real authentication', () => {
       '0007_portable_offers.sql',
       '0008_data_lifecycle.sql',
       '0009_document_intake.sql',
+      '0010_career_vault.sql',
+      '0011_momentum.sql',
     ]);
     expect(
       (
@@ -198,7 +201,7 @@ describe('PostgreSQL migrations and real authentication', () => {
           'SELECT name FROM fats_schema_migrations ORDER BY name',
         )
       ).rows,
-    ).toHaveLength(9);
+    ).toHaveLength(11);
     const a = await user(),
       b = await user();
     const data = await dataset(a);
@@ -391,6 +394,7 @@ describe('Owner-scoped API and repository', () => {
     expect(await (await request(b.cookie)).json()).toEqual({
       applications: [],
       interviews: [],
+      activityDays: [],
     });
     const id = data.applications[0].id,
       interview = data.interviews[0];
@@ -449,6 +453,7 @@ describe('Owner-scoped API and repository', () => {
     expect(await owner.repository.getWorkspace()).toEqual({
       applications: [],
       interviews: [],
+      activityDays: [activityDate(created.createdAt)],
     });
   });
   it('validates untrusted records, invalid dates, timezones, URLs, statuses, and oversized bodies without writes', async () => {
@@ -681,7 +686,10 @@ describe('Durable migration and account backups', () => {
     const data = await dataset(owner);
     await dataset(other);
     const exported = await owner.repository.exportBackup();
-    expect(JSON.parse(exported).data).toEqual(data);
+    expect(JSON.parse(exported).data).toEqual({
+      applications: data.applications,
+      interviews: data.interviews,
+    });
     expect(exported).not.toContain(owner.id);
     expect(exported).not.toContain(password);
     const empty = await owner.repository.previewRestore(

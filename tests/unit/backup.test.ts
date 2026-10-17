@@ -85,7 +85,7 @@ describe('versioned FATS backups', () => {
     'rejects malformed or non-backup JSON: %s',
     (text) => expect(() => parseBackup(text)).toThrow(),
   );
-  it.each([0, 3, '1', null])('rejects unsupported version %s', (version) => {
+  it.each([0, 4, '1', null])('rejects unsupported version %s', (version) => {
     expect(() =>
       parseBackup(JSON.stringify({ ...createBackup(data, now), version })),
     ).toThrow('version is not supported');

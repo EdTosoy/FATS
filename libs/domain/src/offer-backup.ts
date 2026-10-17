@@ -21,6 +21,7 @@ export interface PortableWorkspaceData extends WorkspaceData {
   offers: PortableOffer[];
 }
 export interface PortableRestoreSummary {
+  career?: import('./career-backup').CareerRestoreSummary;
   mode: 'add';
   added: { applications: number; interviews: number; offers: number };
   identical: { applications: number; interviews: number; offers: number };

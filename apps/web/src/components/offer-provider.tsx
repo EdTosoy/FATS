@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Offer, OfferCommand } from '@fats/domain';
+import { useApplications } from './application-provider';
 import { useAccount } from './account-provider';
 import {
   ACCOUNT_CHANGED_EVENT,
@@ -29,6 +30,7 @@ interface OfferContext {
 }
 const Context = createContext<OfferContext | null>(null);
 export function OfferProvider({ children }: { children: ReactNode }) {
+  const { refreshWorkspace } = useApplications();
   const { user } = useAccount(),
     id = user?.id;
   const [offers, setOffers] = useState<Offer[]>([]),
@@ -109,6 +111,7 @@ export function OfferProvider({ children }: { children: ReactNode }) {
         command: async (applicationId, baseVersion, requestId, command) => {
           await request({ applicationId, baseVersion, requestId, command });
           await refresh();
+          await refreshWorkspace();
         },
       }}
     >

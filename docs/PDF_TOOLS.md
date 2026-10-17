@@ -11,7 +11,7 @@ PDF Tools is a small, local form-completion workspace at `/resumes/pdf-tools`, l
 5. For a signature, type a name in the local italic serif style or draw with a pointer. Inspect the preview before placing. Drawing has a typed alternative for keyboard users. Signature drafts clear after placement/cancellation; there is no signature library.
 6. Download the completed PDF and inspect every page before sharing. The status identifies changes that have not been downloaded. Closing an edited file requires a discard choice; browser unload protection warns for outstanding changes. Drafts last only in the mounted tab and are not backups.
 
-The export flattens form appearances and added marks. Added text and signature marks can be edited while the original editor remains open; a downloaded/reopened copy contains their finished appearances. There is no OCR, original paragraph editing, redaction, page rotation/reordering/removal, certified signing, or Career Vault implementation.
+The export flattens form appearances and added marks. Added text and signature marks can be edited while the original editor remains open; a downloaded/reopened copy contains their finished appearances. There is no OCR, original paragraph editing, redaction, page rotation/reordering/removal, certified signing, or automatic saving to Career Vault.
 
 ## Architecture and dependencies
 
@@ -54,8 +54,8 @@ The local editor never calls intake or trusted storage. It creates no account do
 
 Hardening 2 remains partial: live ClamAV scanning is unverified. The existing production intake still requires operational scanning, private quarantine, isolated validation, exclusive promotion and accepted-hash evidence. Ownership/session checks, preview/download denial for quarantined/legacy objects, immutable versions and recovery remain untouched. There is no save-to-library control or development scanner bypass. See [Documents](DOCUMENTS.md) and [Hardening 2 verification](PRIVATE_BETA_HARDENING_2_VERIFICATION.md).
 
-## Future Career Vault integration points
+## Career Vault integration and future file handoff
 
-Career Vault is not implemented. A later authorized milestone could offer an explicit **Open accepted version locally** action through the existing live-owner, exact-hash accepted download boundary. Keep source version provenance immutable. An explicit **Save completed copy** would submit new bytes through the existing secure intake pipeline and create a new version only after successful scanning/validation; never overwrite or automatically change a submitted version. Keep this action unavailable until required live scanning has been verified. Any future draft/signature reuse, storage retention or cross-device behavior needs separate product and privacy requirements.
+[Career Vault](CAREER_VAULT.md) now provides personal employment metadata, a document register and a link to this local editor. The user still explicitly chooses a local file; completed copies download locally and are not saved to Career Vault. There is no direct library-version import. A later authorized milestone could add **Open accepted version locally** through the existing live-owner, exact-hash accepted download boundary. An explicit **Save completed copy** would create a new version through secure intake only after successful scanning/validation; never overwrite or automatically change a submitted version. Keep saving unavailable until required live scanning is verified. Draft/signature reuse or cross-device storage needs separate requirements.
 
 Executed evidence and gaps: [PDF Tools verification](PDF_TOOLS_VERIFICATION.md).

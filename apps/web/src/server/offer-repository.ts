@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+import { recordMomentum } from './momentum';
 import { requireAcceptedDocument } from './document-acceptance';
 import { assertActiveAccount } from './account-lifecycle';
 import { createHash } from 'node:crypto';
@@ -141,6 +143,24 @@ export class PostgresOfferRepository {
             409,
           );
       }
+      // Compare substantive values, independent of request IDs or user-entered dates.
+      const prior = (
+        await client.query(
+          'SELECT * FROM offer_events WHERE user_id=$1 AND application_id=$2 AND kind=$3 ORDER BY sequence DESC LIMIT 1',
+          [this.owner, applicationId, command.kind],
+        )
+      ).rows[0];
+      const meaningful =
+        command.kind === 'review'
+          ? !isDeepStrictEqual(existing?.checklist, command.checklist) ||
+            existing?.questions !== command.questions
+          : command.kind === 'decision'
+            ? existing?.state !== command.decision ||
+              prior?.notes !== command.notes
+            : command.kind === 'terms'
+              ? !isDeepStrictEqual(prior?.terms, command.terms) ||
+                prior?.notes !== command.notes
+              : prior?.notes !== command.notes;
       const version = baseVersion + 1;
       if (!existing)
         await client.query(
@@ -193,6 +213,7 @@ export class PostgresOfferRepository {
             : null,
         ],
       );
+      if (meaningful) await recordMomentum(client, this.owner);
       await client.query(
         'UPDATE workspaces SET revision=revision+1 WHERE user_id=$1',
         [this.owner],

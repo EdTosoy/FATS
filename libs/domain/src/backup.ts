@@ -14,6 +14,10 @@ import {
   type PortableWorkspaceData,
   type PortableRestoreSummary,
 } from './offer-backup';
+import {
+  validatePortableEmployments,
+  type CareerWorkspaceData,
+} from './career-backup';
 
 export const BACKUP_FORMAT = 'fats-backup';
 export const BACKUP_VERSION = 1;
@@ -35,7 +39,14 @@ export interface PortableWorkspaceBackup {
   exportedAt: string;
   data: PortableWorkspaceData;
 }
-export type AnyWorkspaceBackup = WorkspaceBackup | PortableWorkspaceBackup;
+export interface CareerWorkspaceBackup {
+  format: typeof BACKUP_FORMAT;
+  version: 3;
+  exportedAt: string;
+  data: CareerWorkspaceData;
+}
+export type AnyWorkspaceBackup =
+  WorkspaceBackup | PortableWorkspaceBackup | CareerWorkspaceBackup;
 export interface WorkspaceCounts {
   applications: number;
   interviews: number;
@@ -204,14 +215,53 @@ export function createPortableBackup(
 }
 export function serializeBackup(backup: AnyWorkspaceBackup): string {
   const text = JSON.stringify(
-    backup.version === 2
-      ? createPortableBackup(backup.data, backup.exportedAt)
-      : createBackup(backup.data, backup.exportedAt),
+    backup.version === 3
+      ? createCareerBackup(backup.data, backup.exportedAt)
+      : backup.version === 2
+        ? createPortableBackup(backup.data, backup.exportedAt)
+        : createBackup(backup.data, backup.exportedAt),
     null,
     2,
   );
   checkSize(text);
   return text;
+}
+export function createCareerBackup(
+  data: unknown,
+  exportedAt: string,
+): CareerWorkspaceBackup {
+  const raw = record(data);
+  if (
+    Object.keys(raw).some(
+      (key) =>
+        !['applications', 'interviews', 'offers', 'employments'].includes(key),
+    )
+  )
+    throw new BackupValidationError(
+      'Unsupported version 3 backup fields or ownership information.',
+    );
+  const base = createPortableBackup(
+    {
+      applications: raw.applications,
+      interviews: raw.interviews,
+      offers: raw.offers,
+    },
+    exportedAt,
+  );
+  try {
+    return {
+      ...base,
+      version: 3,
+      data: {
+        ...base.data,
+        employments: validatePortableEmployments(raw.employments, base.data),
+      },
+    };
+  } catch (error) {
+    throw new BackupValidationError(
+      error instanceof Error ? error.message : 'Invalid Career Vault history.',
+    );
+  }
 }
 function checkSize(text: string) {
   if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES)
@@ -231,7 +281,7 @@ export function parseBackup(text: string): AnyWorkspaceBackup {
   if (row.format !== BACKUP_FORMAT)
     throw new BackupValidationError('This is not a FATS backup file.');
   if (
-    row.version === 2 &&
+    (row.version === 2 || row.version === 3) &&
     Object.keys(row).some(
       (key) => !['format', 'version', 'exportedAt', 'data'].includes(key),
     )
@@ -240,11 +290,13 @@ export function parseBackup(text: string): AnyWorkspaceBackup {
       'Unsupported version 2 backup fields or ownership information.',
     );
   // Future migrations belong at this version boundary, before domain validation.
-  if (row.version !== BACKUP_VERSION && row.version !== 2)
+  if (row.version !== BACKUP_VERSION && row.version !== 2 && row.version !== 3)
     throw new BackupValidationError(
-      'This backup version is not supported. Use a version 1 or 2 FATS backup.',
+      'This backup version is not supported. Use a version 1, 2 or 3 FATS backup.',
     );
-  return row.version === 2
-    ? createPortableBackup(row.data, stringField(row, 'exportedAt'))
-    : createBackup(row.data, stringField(row, 'exportedAt'));
+  return row.version === 3
+    ? createCareerBackup(row.data, stringField(row, 'exportedAt'))
+    : row.version === 2
+      ? createPortableBackup(row.data, stringField(row, 'exportedAt'))
+      : createBackup(row.data, stringField(row, 'exportedAt'));
 }

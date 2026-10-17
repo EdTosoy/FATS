@@ -1,7 +1,11 @@
+import { recordMomentum } from './momentum';
 import { assertActiveAccount } from './account-lifecycle';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
+  hasMeaningfulChange,
+  workspaceActivityDays,
+  type WorkspaceSnapshot,
   createApplication,
   updateApplication,
   createInterview,
@@ -9,6 +13,8 @@ import {
   upcomingInterviews,
   createBackup,
   createPortableBackup,
+  createCareerBackup,
+  planCareerRestore,
   planPortableRestore,
   serializeBackup,
   parseBackup,
@@ -31,6 +37,10 @@ import {
   type LocalMigrationPreview,
 } from '@fats/domain';
 import { readPortableOffers, insertPortableOffer } from './portable-offers';
+import {
+  readPortableEmployments,
+  insertPortableEmployment,
+} from './career-repository';
 
 export { WorkspaceError } from './workspace-error.ts';
 import { WorkspaceError } from './workspace-error.ts';
@@ -144,14 +154,24 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       interviews: interviews.rows.map(dates),
     });
   }
-  async getWorkspace(): Promise<WorkspaceData> {
+  async getWorkspace(): Promise<WorkspaceSnapshot> {
     await assertActiveAccount(this.pool, this.owner);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
       const data = await this.read(client);
+      const { rows } = await client.query(
+        'SELECT active_on::text AS day FROM momentum_days WHERE user_id=$1 ORDER BY active_on',
+        [this.owner],
+      );
       await client.query('COMMIT');
-      return data;
+      return {
+        ...data,
+        activityDays: workspaceActivityDays({
+          ...data,
+          activityDays: rows.map((row) => row.day as string),
+        }),
+      };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -209,6 +229,7 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       );
       if (existing) return existing;
       await this.insert(client, 'applications', row);
+      await recordMomentum(client, this.owner, row.updatedAt);
       return row;
     });
   }
@@ -233,6 +254,7 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         new Date().toISOString(),
       );
       await this.insert(client, 'applications', row);
+      await recordMomentum(client, this.owner, row.updatedAt);
       return row;
     });
   }
@@ -246,12 +268,26 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       );
       if (!existing) throw new WorkspaceError('Application not found.', 404);
       const row = updateApplication(existing, input, new Date().toISOString());
+      if (!hasMeaningfulChange(existing, row)) return existing;
       await this.replace(client, 'applications', row);
+      await recordMomentum(client, this.owner, row.updatedAt);
       return row;
     });
   }
   async deleteApplication(id: string) {
     return this.transaction(true, async (client) => {
+      if (
+        (
+          await client.query(
+            'SELECT 1 FROM career_events WHERE user_id=$1 AND application_id=$2 LIMIT 1',
+            [this.owner, id],
+          )
+        ).rowCount
+      )
+        throw new WorkspaceError(
+          'Keep this application to preserve its Career Vault history.',
+          409,
+        );
       if (
         (
           await client.query(
@@ -311,6 +347,7 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       if (!data.applications.some((app) => app.id === row.applicationId))
         throw new WorkspaceError('Choose an application in your account.', 404);
       await this.insert(client, 'interviews', row);
+      await recordMomentum(client, this.owner, row.updatedAt);
       return row;
     });
   }
@@ -325,7 +362,9 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       if (!data.applications.some((app) => app.id === input.applicationId))
         throw new WorkspaceError('Choose an application in your account.', 404);
       const row = updateInterview(existing, input, new Date().toISOString());
+      if (!hasMeaningfulChange(existing, row)) return existing;
       await this.replace(client, 'interviews', row);
+      await recordMomentum(client, this.owner, row.updatedAt);
       return row;
     });
   }
@@ -343,11 +382,14 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     return this.transaction(false, async (client) => {
       const data = await this.read(client),
         offers = await readPortableOffers(client, this.owner),
+        employments = await readPortableEmployments(client, this.owner),
         now = new Date().toISOString();
       return serializeBackup(
-        offers.length
-          ? createPortableBackup({ ...data, offers }, now)
-          : createBackup(data, now),
+        employments.length
+          ? createCareerBackup({ ...data, offers, employments }, now)
+          : offers.length
+            ? createPortableBackup({ ...data, offers }, now)
+            : createBackup(data, now),
       );
     });
   }
@@ -356,18 +398,22 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     kind: 'restore' | 'migration',
   ): Promise<LocalMigrationPreview> {
     const backup = parseBackup(text);
-    if (backup.version === 2) {
+    if (backup.version !== 1) {
       if (kind !== 'restore')
         throw new WorkspaceError(
-          'Use Data management to preview a version 2 backup. Browser transfer only accepts version 1.',
+          'Use Data management to preview a version 2 or 3 backup. Browser transfer only accepts version 1.',
         );
       databaseData(backup.data);
       return this.transaction(false, async (client, revision) => {
         const current = {
           ...(await this.read(client)),
           offers: await readPortableOffers(client, this.owner),
+          employments: await readPortableEmployments(client, this.owner),
         };
-        const { summary } = planPortableRestore(backup.data, current);
+        const { summary } =
+          backup.version === 3
+            ? planCareerRestore(backup.data, current)
+            : planPortableRestore(backup.data, current);
         const token = randomUUID();
         await client.query(
           'DELETE FROM workspace_stages WHERE user_id=$1 AND "expiresAt" < now()',
@@ -450,6 +496,18 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
   private async requireNoDocumentLinks(client: PoolClient) {
     if (
       (
+        await client.query(
+          'SELECT 1 FROM career_employments WHERE user_id=$1 LIMIT 1',
+          [this.owner],
+        )
+      ).rowCount
+    )
+      throw new WorkspaceError(
+        'Version 1 replacement excludes Career Vault history and is blocked to preserve it. Use a version 3 backup to add supported records, or a complete operator archive.',
+        409,
+      );
+    if (
+      (
         await client.query('SELECT 1 FROM offers WHERE user_id=$1 LIMIT 1', [
           this.owner,
         ])
@@ -516,14 +574,20 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       const incoming = databaseData(validateWorkspaceData(stage.data));
       const current = await this.read(client);
       if (kind === 'restore' && 'offers' in stage.data) {
-        const data = createPortableBackup(
-          stage.data,
-          new Date(stage.exportedAt).toISOString(),
-        ).data;
-        const { data: additions, summary } = planPortableRestore(data, {
+        const data = (
+          'employments' in stage.data
+            ? createCareerBackup
+            : createPortableBackup
+        )(stage.data, new Date(stage.exportedAt).toISOString()).data;
+        const saved = {
           ...current,
           offers: await readPortableOffers(client, this.owner),
-        });
+          employments: await readPortableEmployments(client, this.owner),
+        };
+        const careerPlan =
+          'employments' in data ? planCareerRestore(data, saved) : null;
+        const plan = careerPlan ?? planPortableRestore(data, saved);
+        const { data: additions, summary } = plan;
         if (summary.conflicts.length)
           throw new WorkspaceError(
             'This backup conflicts with saved records. Nothing was imported. Keep both backups and resolve the differences before retrying.',
@@ -535,6 +599,8 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
           await this.insert(client, 'interviews', row);
         for (const row of additions.offers)
           await insertPortableOffer(client, this.owner, row);
+        for (const row of careerPlan?.data.employments ?? [])
+          await insertPortableEmployment(client, this.owner, row);
       } else if (kind === 'restore') {
         await this.requireNoDocumentLinks(client);
         await client.query('DELETE FROM interviews WHERE user_id=$1', [

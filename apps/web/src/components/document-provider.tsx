@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { DocumentLibrary } from '@fats/domain';
+import { useApplications } from './application-provider';
 import { useAccount } from './account-provider';
 import {
   ACCOUNT_CHANGED_EVENT,
@@ -24,6 +25,7 @@ interface DocumentsState {
 }
 const Context = createContext<DocumentsState | null>(null);
 export function DocumentProvider({ children }: { children: ReactNode }) {
+  const { refreshWorkspace } = useApplications();
   const account = useAccount();
   const id = account.user?.id;
   const [library, setLibrary] = useState<DocumentLibrary | null>(null),
@@ -97,6 +99,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
             body: JSON.stringify(body),
           });
           await refresh();
+          await refreshWorkspace();
         },
         upload: async (file, metadata) => {
           await request({
@@ -110,6 +113,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
             body: file,
           });
           await refresh();
+          await refreshWorkspace();
         },
       }}
     >

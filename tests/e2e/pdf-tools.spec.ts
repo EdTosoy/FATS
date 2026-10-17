@@ -1,3 +1,4 @@
+import { browserTestOrigin } from '../helpers/browser-origin';
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -295,7 +296,7 @@ test('complete a local employment form, signatures and multi-page export without
   expect(
     requests.every(
       (url) =>
-        url.startsWith('http://127.0.0.1:3000/') ||
+        url.startsWith(browserTestOrigin + '/') ||
         url.startsWith('blob:') ||
         url.startsWith('data:'),
     ),

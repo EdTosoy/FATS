@@ -1,5 +1,219 @@
 @import 'tailwindcss';
 
+.career-guidance {
+  max-width: 800px;
+  color: var(--muted);
+  margin: 0 0 24px;
+}
+.career-jobs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.career-job,
+.career-document {
+  padding: 24px;
+  margin-bottom: 20px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.career-job-heading,
+.career-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.career-job h2,
+.career-document h3,
+.career-section-heading h2 {
+  margin: 4px 0 6px;
+}
+.career-employer {
+  font-size: 18px;
+  margin: 0;
+}
+.career-record-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--action);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+.career-record-link:hover {
+  text-decoration: underline;
+}
+.career-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 22px 0;
+}
+.career-facts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.career-facts dd {
+  margin: 4px 0 0;
+}
+.career-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.career-status {
+  display: inline-block;
+  background: #eaf5f1;
+  color: #315c52;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.career-section-heading {
+  margin: 26px 0 18px;
+}
+.career-register {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.career-document .career-job-heading {
+  flex-wrap: wrap;
+}
+.career-document p {
+  margin: 9px 0;
+}
+.career-history {
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 12px;
+}
+.career-history summary,
+.career-dialog summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 8px 0;
+}
+.career-history ol {
+  padding-left: 20px;
+}
+.career-history li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.career-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0;
+  font-weight: 500;
+}
+.career-field input,
+.career-field select,
+.career-field textarea,
+.career-filters input,
+.career-filters select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.career-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.career-dialog details {
+  margin: 18px 0;
+}
+.career-dialog .form-grid {
+  margin: 0;
+}
+.career-checkbox {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 18px 0;
+}
+.career-checkbox input {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+}
+.career-prefill {
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--canvas);
+}
+.career-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.career-filters label {
+  display: block;
+  font-weight: 500;
+}
+.career-filters input,
+.career-filters select {
+  margin-top: 6px;
+}
+.career-filters svg {
+  display: inline;
+  margin-right: 5px;
+}
+.career-file-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px;
+  margin-top: 28px;
+}
+.career-file-boundary h2 {
+  font-size: 17px;
+  margin-top: 0;
+}
+.career-file-boundary p {
+  max-width: 720px;
+}
+@media (max-width: 900px) {
+  .career-register,
+  .career-jobs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .career-file-boundary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 600px) {
+  .career-job-heading,
+  .career-section-heading {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .career-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .career-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .career-job,
+  .career-document {
+    padding: 20px;
+  }
+}
+
 .pdf-tools-entry,
 .pdf-file-bar {
   display: flex;
@@ -611,6 +825,7 @@ hr {
 .sidebar {
   width: 235px;
   height: 100vh;
+  overflow-y: auto;
   position: fixed;
   padding: 34px 18px 18px;
   background: #fff;
@@ -683,24 +898,28 @@ hr {
 }
 .sidebar-bottom {
   margin-top: auto;
-  padding-top: 25px;
+  padding-top: 18px;
 }
 .sidebar-note {
-  padding: 18px 14px;
-  margin: 0 0 27px;
+  position: relative;
+  padding: 14px;
+  margin: 0 0 12px;
   border-radius: 10px;
   background: linear-gradient(130deg, #f1f8f7, #f8fbff);
 }
 .note-sprout {
+  position: absolute;
+  top: 10px;
+  right: 12px;
   display: block;
-  width: 40px;
-  height: 40px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 }
 .sidebar-note p {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.5;
-  margin: 8px 0;
+  margin: 0 0 7px;
 }
 .sidebar-note strong {
   font-weight: 600;
@@ -709,6 +928,128 @@ hr {
   font-size: 10px;
   color: var(--muted);
 }
+/* A quiet continuation of the sidebar's small-steps message. */
+.momentum {
+  --momentum-green: #35695d;
+  --momentum-soft: #e9f3ef;
+  --momentum-track: #eef1f3;
+  --momentum-ink: var(--ink);
+  --momentum-muted: var(--muted);
+  color: var(--momentum-ink);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(150deg, #fff, #f7faf9);
+}
+.momentum-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--momentum-green);
+}
+.momentum-heading h2 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.1px;
+  color: var(--momentum-ink);
+}
+.momentum-streak {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 8px 0 10px;
+}
+.momentum-streak strong {
+  font-size: 25px;
+  line-height: 1;
+  letter-spacing: -1px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.momentum-streak > span,
+.momentum-count {
+  font-size: 10px;
+  color: var(--momentum-muted);
+}
+.momentum-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+.momentum-week li {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+}
+.momentum-day {
+  color: var(--momentum-muted);
+  font-size: 9px;
+  line-height: 1;
+}
+.momentum-mark {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--momentum-track);
+  color: var(--momentum-green);
+}
+.momentum-mark > span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--momentum-muted);
+}
+.is-active .momentum-mark {
+  background: var(--momentum-soft);
+}
+.is-today .momentum-mark {
+  outline: 1px solid var(--momentum-green);
+  outline-offset: 2px;
+}
+.is-today .momentum-day {
+  color: var(--momentum-green);
+  font-weight: 700;
+}
+.momentum-count {
+  margin: 0;
+}
+.momentum-count strong {
+  color: var(--momentum-ink);
+  font-weight: 650;
+}
+.momentum-message {
+  margin: 8px 0 0;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--momentum-muted);
+}
+.momentum-calendar {
+  margin: 6px 0 0;
+  color: var(--momentum-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+@media (prefers-color-scheme: dark) {
+  .momentum {
+    --momentum-green: #a5d6c3;
+    --momentum-soft: #294a40;
+    --momentum-track: #29333a;
+    --momentum-ink: #e9f0ed;
+    --momentum-muted: #b3c3c3;
+    --border: #3a4b4a;
+    background: linear-gradient(150deg, #1f2e2c, #202a30);
+  }
+}
+
 .profile {
   display: flex;
   align-items: center;

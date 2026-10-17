@@ -1,5 +1,9 @@
 # Architecture
 
+## Career Vault
+
+[Career Vault](CAREER_VAULT.md) adds account-only employment metadata and a document register. Migration 0010 stores current employment headers and immutable ordered employment/document snapshots, composite owner-scoped application/offer/version relationships, aggregate versions and idempotent request fingerprints. Writes follow existing live-owner/user/workspace/maintenance locks and increment workspace revisions transactionally. Accepted, integrity-checked private versions can be referenced without copying bytes; new-file saving stays unavailable while required scanning is paused. Erasure removes career history before protected parents. Version 3 JSON extends additive import with metadata/history and unlinked provenance, preserving versions 1/2. Operator archives recognize both new tables. PDF Tools remains local selection/download only. No dependency, provider, notification or alternative upload/storage service is added.
+
 ## Local PDF Tools
 
 The separately authorized [PDF Tools MVP](PDF_TOOLS.md) adds `/resumes/pdf-tools` with browser-only file selection, bounded pdf-lib worker processing and PDF.js canvas preview. Editing state, form values and personal signature marks are in memory; downloads use local Blob URLs. It has no server persistence or account-library import path. Existing document authorization, quarantine/acceptance and immutable-version rules are unchanged. No dependencies, migrations, AI features or external services are added.

@@ -16,16 +16,19 @@ import {
   X,
   LockKeyhole,
   ArrowUpRight,
+  FolderOpen,
 } from 'lucide-react';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { Brand } from './brand';
+import { Momentum } from './momentum';
 import { Button } from './ui';
 
 const navigation = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/applications', label: 'Applications', icon: BriefcaseBusiness },
   { href: '/resumes', label: 'Resumes', icon: FileText },
+  { href: '/career-vault', label: 'Career Vault', icon: FolderOpen },
   { href: '/interviews', label: 'Interviews', icon: CalendarDays },
 ];
 const secondaryNavigation = [
@@ -86,6 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </p>
             <span>One application at a time.</span>
           </div>
+          <Momentum />
           <nav aria-label="Support navigation">
             {navLinks(secondaryNavigation)}
           </nav>
@@ -158,6 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {navLinks(navigation)}
             <hr />
             {navLinks(secondaryNavigation)}
+            <Momentum />
           </nav>
         )}
         <main id="main-content" className="main-content" tabIndex={-1}>

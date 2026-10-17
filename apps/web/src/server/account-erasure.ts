@@ -55,6 +55,8 @@ async function eraseOwner(
     for (const table of [
       'matching_previews',
       'matching_reports',
+      'career_events',
+      'career_employments',
       'offer_events',
       'offers',
       'application_document_versions',

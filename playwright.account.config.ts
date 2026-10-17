@@ -1,5 +1,9 @@
 import { defineConfig } from '@playwright/test';
 import web from './playwright.config';
+import {
+  browserTestOrigin,
+  browserTestPort,
+} from './tests/helpers/browser-origin';
 const database = process.env.FATS_TEST_DATABASE_URL;
 if (
   !database ||
@@ -21,14 +25,14 @@ export default defineConfig({
     ...web.webServer,
     command:
       process.env.FATS_TEST_PRODUCTION === '1'
-        ? 'pnpm --filter @fats/web start --hostname 127.0.0.1 --port 3000'
-        : 'pnpm --filter @fats/web dev --hostname 127.0.0.1 --port 3000',
-    url: 'http://127.0.0.1:3000',
+        ? `pnpm --filter @fats/web start --hostname 127.0.0.1 --port ${browserTestPort}`
+        : `pnpm --filter @fats/web dev --hostname 127.0.0.1 --port ${browserTestPort}`,
+    url: browserTestOrigin,
     reuseExistingServer: false,
     timeout: 120000,
     env: {
       DATABASE_URL: database,
-      BETTER_AUTH_URL: 'http://127.0.0.1:3000',
+      BETTER_AUTH_URL: browserTestOrigin,
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
       FATS_MAIL_PORT: '11025',
       FATS_AI_PROVIDER: '',

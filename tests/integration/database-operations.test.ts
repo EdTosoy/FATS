@@ -27,6 +27,8 @@ import {
 import { PostgresWorkspaceRepository } from '../../apps/web/src/server/workspace-repository';
 import { PostgresOfferRepository } from '../../apps/web/src/server/offer-repository';
 import { serializeBackup } from '@fats/domain';
+import { emptyEmployment, emptyEmploymentDocument } from '@fats/domain';
+import { PostgresCareerRepository } from '../../apps/web/src/server/career-repository';
 import { portableOfferFixture } from '../helpers/portable-offer-fixture';
 
 const base = process.env.FATS_TEST_DATABASE_URL;
@@ -123,6 +125,43 @@ beforeAll(async () => {
     reflections: '',
   });
   await auth('request-password-reset', { email });
+  const career = new PostgresCareerRepository(services.pool, ownerId),
+    employmentId = randomUUID(),
+    documentId = randomUUID();
+  await career.command(employmentId, randomUUID(), 0, {
+    kind: 'employment',
+    documentId: null,
+    details: {
+      ...emptyEmployment(),
+      employer: 'Synthetic Recovery Employer',
+      title: 'Recovered assistant',
+      status: 'Current',
+      startOn: '2025-01-01',
+      applicationId: app.id,
+    },
+  });
+  await career.command(employmentId, randomUUID(), 1, {
+    kind: 'document',
+    documentId,
+    details: {
+      ...emptyEmploymentDocument(),
+      category: 'Certificate of Employment (COE)',
+      status: 'Requested',
+      followUpOn: '2026-10-20',
+      notes: 'Synthetic recovery request',
+    },
+  });
+  await career.command(employmentId, randomUUID(), 2, {
+    kind: 'document',
+    documentId,
+    details: {
+      ...emptyEmploymentDocument(),
+      category: 'Certificate of Employment (COE)',
+      status: 'Received',
+      issuedOn: '2026-10-16',
+      notes: 'Paper record only; no file',
+    },
+  });
   const backup = await repository.exportBackup();
   await repository.previewRestore(backup);
   directory = await mkdtemp(tmpdir() + '/fats-backup-test-');
@@ -208,6 +247,10 @@ it('previews without writes, requires the exact target confirmation, and rejects
   }
 });
 it('performs a real confirmed restore and verifies records, relationships, credentials, schema and revoked recovery/session state', async () => {
+  const careerBefore = await new PostgresCareerRepository(
+    services.pool,
+    ownerId,
+  ).list();
   const before = await new PostgresWorkspaceRepository(
     services.pool,
     ownerId,
@@ -220,6 +263,9 @@ it('performs a real confirmed restore and verifies records, relationships, crede
     async () => {},
   );
   try {
+    expect(
+      await new PostgresCareerRepository(recovered.pool, ownerId).list(),
+    ).toEqual(careerBefore);
     expect(
       await new PostgresWorkspaceRepository(
         recovered.pool,
@@ -251,7 +297,15 @@ it('performs a real confirmed restore and verifies records, relationships, crede
           'SELECT count(*)::int AS count FROM fats_schema_migrations',
         )
       ).rows[0].count,
-    ).toBe(9);
+    ).toBe(11);
+    expect(
+      (
+        await recovered.pool.query(
+          'SELECT count(*)::int AS count FROM momentum_days WHERE user_id=$1',
+          [ownerId],
+        )
+      ).rows[0].count,
+    ).toBeGreaterThan(0);
     await expect(
       recovered.pool.query('DELETE FROM applications WHERE user_id=$1', [
         ownerId,

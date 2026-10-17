@@ -1,4 +1,9 @@
 import {
+  activityDate,
+  workspaceActivityDays,
+  hasMeaningfulChange,
+  validateActivityDays,
+  type WorkspaceSnapshot,
   createApplication,
   createBackup,
   serializeBackup,
@@ -51,9 +56,10 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     private readonly now: () => string = () => new Date().toISOString(),
   ) {}
 
-  async getWorkspace(): Promise<WorkspaceData> {
+  async getWorkspace(): Promise<WorkspaceSnapshot> {
     const data = this.read();
     return {
+      activityDays: workspaceActivityDays(data),
       applications: data.applications.sort((a, b) =>
         b.updatedAt.localeCompare(a.updatedAt),
       ),
@@ -73,7 +79,12 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     const data = this.read();
     const rows = data.applications;
     const application = createApplication(input, this.id(), this.now());
-    this.write({ ...data, applications: [...rows, application] });
+    this.write(
+      this.withActivity(
+        { ...data, applications: [...rows, application] },
+        application.createdAt,
+      ),
+    );
     return application;
   }
 
@@ -93,7 +104,12 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     );
     if (existing) return existing; // Retry or already-saved posting; never overwrite it.
     const application = createApplication(normalized, valid.id, now);
-    this.write({ ...data, applications: [...data.applications, application] });
+    this.write(
+      this.withActivity(
+        { ...data, applications: [...data.applications, application] },
+        now,
+      ),
+    );
     return application;
   }
 
@@ -109,10 +125,16 @@ export class LocalApplicationRepository implements WorkspaceRepository {
         'This application could not be found. Refresh and try again.',
       );
     const application = updateApplication(current, input, this.now());
-    this.write({
-      ...data,
-      applications: rows.map((row) => (row.id === id ? application : row)),
-    });
+    if (!hasMeaningfulChange(current, application)) return current;
+    this.write(
+      this.withActivity(
+        {
+          ...data,
+          applications: rows.map((row) => (row.id === id ? application : row)),
+        },
+        application.updatedAt,
+      ),
+    );
     return application;
   }
 
@@ -134,7 +156,12 @@ export class LocalApplicationRepository implements WorkspaceRepository {
       throw new ApplicationStorageError(
         'An interview with this identifier already exists. Try again.',
       );
-    this.write({ ...data, interviews: [...data.interviews, interview] });
+    this.write(
+      this.withActivity(
+        { ...data, interviews: [...data.interviews, interview] },
+        interview.createdAt,
+      ),
+    );
     return interview;
   }
   async updateInterview(
@@ -149,12 +176,18 @@ export class LocalApplicationRepository implements WorkspaceRepository {
         'This interview could not be found. Refresh and try again.',
       );
     const interview = updateInterview(current, input, this.now());
-    this.write({
-      ...data,
-      interviews: data.interviews.map((row) =>
-        row.id === id ? interview : row,
+    if (!hasMeaningfulChange(current, interview)) return current;
+    this.write(
+      this.withActivity(
+        {
+          ...data,
+          interviews: data.interviews.map((row) =>
+            row.id === id ? interview : row,
+          ),
+        },
+        interview.updatedAt,
       ),
-    });
+    );
     return interview;
   }
   async deleteApplication(id: string): Promise<void> {
@@ -166,6 +199,7 @@ export class LocalApplicationRepository implements WorkspaceRepository {
       );
     this.write({
       ...data,
+      activityDays: workspaceActivityDays(data),
       applications: data.applications.filter((row) => row.id !== id),
     });
   }
@@ -184,9 +218,9 @@ export class LocalApplicationRepository implements WorkspaceRepository {
   async previewRestore(text: string): Promise<RestorePreview> {
     this.pendingRestore = null;
     const backup = parseBackup(text);
-    if (backup.version === 2)
+    if (backup.version !== 1)
       throw new ApplicationStorageError(
-        'Sign in to a verified account to import version 2 backups with offer history. Nothing was changed in this browser.',
+        `Sign in to a verified account to import version ${backup.version} backups with ${backup.version === 3 ? 'Career Vault and offer history' : 'offer history'}. Nothing was changed in this browser.`,
       );
     const raw = this.readRaw();
     let current = null;
@@ -224,7 +258,13 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     }
     const data = validateWorkspaceData(staged.data);
     // A single setItem atomically replaces both collections. Never clear first.
-    this.write(data);
+    let activityDays: string[] = [];
+    try {
+      activityDays = workspaceActivityDays(this.decode(staged.raw));
+    } catch {
+      /* Confirmed recovery. */
+    }
+    this.write({ ...data, activityDays });
     this.pendingRestore = null;
     return data;
   }
@@ -239,11 +279,11 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     }
   }
 
-  private read(): WorkspaceData {
+  private read(): WorkspaceSnapshot {
     return this.decode(this.readRaw());
   }
 
-  private decode(raw: string | null): WorkspaceData {
+  private decode(raw: string | null): WorkspaceSnapshot {
     if (raw === null) return { applications: [], interviews: [] };
     try {
       const data: unknown = JSON.parse(raw);
@@ -255,10 +295,15 @@ export class LocalApplicationRepository implements WorkspaceRepository {
         !('applications' in data)
       )
         throw new Error('Invalid storage');
-      return validateWorkspaceData({
-        applications: data.applications,
-        interviews: 'interviews' in data ? data.interviews : [],
-      });
+      return {
+        ...validateWorkspaceData({
+          applications: data.applications,
+          interviews: 'interviews' in data ? data.interviews : [],
+        }),
+        activityDays: validateActivityDays(
+          'activityDays' in data ? data.activityDays : undefined,
+        ),
+      };
     } catch {
       throw new ApplicationStorageError(
         'Your saved data could not be read. It has been left untouched. See Help for recovery guidance.',
@@ -266,7 +311,19 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     }
   }
 
-  private write(data: WorkspaceData): void {
+  private withActivity(
+    data: WorkspaceSnapshot,
+    instant: string,
+  ): WorkspaceSnapshot {
+    return {
+      ...data,
+      activityDays: [
+        ...new Set([...workspaceActivityDays(data), activityDate(instant)]),
+      ].sort(),
+    };
+  }
+
+  private write(data: WorkspaceSnapshot): void {
     try {
       this.storage.setItem(
         APPLICATION_STORAGE_KEY,
