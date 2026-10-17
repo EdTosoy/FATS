@@ -105,11 +105,8 @@ test('meaningful guest activity persists without counting browsing, unchanged ed
     path: testInfo.outputPath('momentum-dark.png'),
     fullPage: true,
   });
-  expect(
-    await widget.evaluate((el) =>
-      getComputedStyle(el).getPropertyValue('--momentum-ink').trim(),
-    ),
-  ).toBe('#e9f0ed');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(widget.locator('.momentum-week .is-active svg')).toHaveCount(2);
   if (testInfo.project.name === 'desktop') {
     for (const viewport of [
       { width: 1024, height: 768 },

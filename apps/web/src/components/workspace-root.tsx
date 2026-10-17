@@ -9,6 +9,7 @@ import { OfferProvider } from './offer-provider';
 import { HttpWorkspaceRepository } from '@/lib/http-workspace-repository';
 import { ActionLink, Button, Card } from './ui';
 import Link from 'next/link';
+import { AppearanceSelect } from './appearance-settings';
 import { Brand } from './brand';
 import { AppShell } from './app-shell';
 function VerificationGate() {
@@ -86,6 +87,7 @@ export function WorkspaceRoot({ children }: { children: ReactNode }) {
           <Link href="/" aria-label="FATS dashboard">
             <Brand />
           </Link>
+          <AppearanceSelect />
           <Link className="text-link" href="/">
             Back to your workspace
           </Link>

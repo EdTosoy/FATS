@@ -6,12 +6,8 @@ import {
   BookmarkPlus,
   BriefcaseBusiness,
   CalendarDays,
-  Check,
   CheckCircle2,
-  Compass,
   FileCheck2,
-  Sparkles,
-  Sprout,
 } from 'lucide-react';
 import { InterviewDate, ScheduleInterviewButton } from './interview-list';
 import { applicationStatistics, upcomingInterviews } from '@fats/domain';
@@ -19,14 +15,7 @@ import { DocumentNextStep } from './application-documents';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { ApplicationTable } from './application-table';
-import {
-  ActionLink,
-  Button,
-  Card,
-  EmptyState,
-  PageHeading,
-  TextLink,
-} from './ui';
+import { ActionLink, Button, Card, PageHeading, TextLink } from './ui';
 
 export function Dashboard() {
   const account = useAccount();
@@ -63,70 +52,68 @@ export function Dashboard() {
   return (
     <>
       <PageHeading
-        eyebrow="A little progress, every day"
+        eyebrow="Your workspace"
         title={`Hello, ${name}.`}
-        description="Your job search, a little more organized. You’ve got this."
-        action={
-          <span className="greeting-note">
-            <span className="avatar">{name.slice(0, 1).toUpperCase()}</span>
-            <span>
-              Your next chapter
-              <br />
-              <strong>starts with a small step.</strong>
-            </span>
-          </span>
-        }
+        description="Your saved jobs, conversations, and next steps."
       />
-      {applications.length === 0 && (
-        <Card className="welcome-card">
-          <div className="welcome-copy">
-            <span className="pill">
-              <Sparkles size={14} aria-hidden="true" />A fresh start
-            </span>
-            <h2>
-              Your first opportunity
-              <br />
-              starts here.
-            </h2>
-            <p>
-              You don’t need to have it all figured out. Save one job that
-              interests you, and we’ll help you keep track of what comes next.
-            </p>
-            <Button onClick={() => openForm()}>
-              <BookmarkPlus size={17} aria-hidden="true" />
-              Save your first job
+      <Card className="welcome-card" aria-label="Your next step">
+        <div className="welcome-content">
+          <p className="eyebrow">
+            {applications.length === 0
+              ? 'Start with an opportunity'
+              : 'Pick up where you left off'}
+          </p>
+          <h2>
+            {applications.length === 0
+              ? 'Keep the right opportunities close.'
+              : nearest
+                ? 'A conversation worth preparing for.'
+                : saved
+                  ? 'A good place to pick up.'
+                  : 'Your search, in perspective.'}
+          </h2>
+          <p className="welcome-description">
+            {applications.length === 0
+              ? 'Save a job you’re interested in. Keep its details and your next steps in one place.'
+              : nearest
+                ? `${nearestApplication?.company} · ${nearest.title}. Review your notes and the details before your conversation.`
+                : saved
+                  ? `Take another look at ${saved.title} at ${saved.company}, then decide on your next step.`
+                  : stats.active > 0
+                    ? `${stats.active} ${stats.active === 1 ? 'application is' : 'applications are'} in progress. Review what has changed and keep your records up to date.`
+                    : 'Your saved applications are ready to review. Keep the details up to date as your plans take shape.'}
+          </p>
+        </div>
+        <div className="welcome-action">
+          {applications.length === 0 ? (
+            <>
+              <Button onClick={() => openForm()}>
+                <BookmarkPlus size={17} aria-hidden="true" />
+                Save your first job
+                <ArrowRight size={16} aria-hidden="true" />
+              </Button>
+              <span>Saving a job doesn’t apply for it.</span>
+            </>
+          ) : (
+            <ActionLink
+              href={
+                nearest
+                  ? `/interviews/${nearest.id}`
+                  : saved
+                    ? `/applications/${saved.id}`
+                    : '/applications'
+              }
+            >
+              {nearest
+                ? 'Open interview preparation'
+                : saved
+                  ? 'Review saved job'
+                  : 'Review applications'}
               <ArrowRight size={16} aria-hidden="true" />
-            </Button>
-            <span className="welcome-footnote">
-              No lengthy setup. Just your next step.
-            </span>
-          </div>
-          <div className="welcome-art" aria-hidden="true">
-            <div className="art-sun" />
-            <div className="art-cloud cloud-one" />
-            <div className="art-cloud cloud-two" />
-            <div className="art-building building-one" />
-            <div className="art-building building-two" />
-            <div className="art-building building-three" />
-            <div className="art-ground" />
-            <div className="art-path" />
-            <div className="art-plant">
-              <Sprout size={112} strokeWidth={1.3} />
-            </div>
-            <span className="art-caption">Room to grow.</span>
-            <div className="floating-note">
-              <span className="icon-tile mint">
-                <Check size={19} />
-              </span>
-              <span>
-                One small step.
-                <br />
-                <strong>A new beginning.</strong>
-              </span>
-            </div>
-          </div>
-        </Card>
-      )}
+            </ActionLink>
+          )}
+        </div>
+      </Card>
       <div className="stats-grid" aria-label="Application statistics">
         {[
           {
@@ -173,100 +160,44 @@ export function Dashboard() {
         ))}
       </div>
       <OfferNextSteps />
-      <div className="dashboard-middle">
-        <Card className="next-step-card">
-          <div className="section-heading">
-            <h2>
-              <Compass size={18} aria-hidden="true" />
-              Your next step
-            </h2>
-            <span className="pill mint-pill">At your own pace</span>
-          </div>
-          <div className="next-step-body">
-            <span className="icon-tile mint large">
-              <Sprout size={30} aria-hidden="true" />
-            </span>
-            <div>
+      <Card className="interview-card dashboard-interviews">
+        <div className="section-heading">
+          <h2>
+            <CalendarDays size={18} aria-hidden="true" />
+            Upcoming interviews
+          </h2>
+          <TextLink href="/interviews">View</TextLink>
+        </div>
+        <div className="compact-empty">
+          <span className="count-pill" aria-label="Upcoming interview count">
+            {upcoming.length} upcoming
+          </span>
+          {nearest ? (
+            <>
               <h3>
-                {nearest
-                  ? `Prepare for your conversation at ${nearestApplication?.company}.`
-                  : saved
-                    ? `Take another look at ${saved.company}.`
-                    : applications.length === 0
-                      ? 'Find a role that feels like you.'
-                      : inInterview
-                        ? 'Make a little room to prepare.'
-                        : 'Keep your progress up to date.'}
+                {nearestApplication?.company} · {nearestApplication?.title}
               </h3>
+              <p>{nearest.title}</p>
               <p>
-                {nearest
-                  ? 'Review your preparation notes, practice your introduction, and write down a few questions to ask.'
-                  : saved
-                    ? 'Review the requirements, tailor your resume, and apply on the original website when you’re ready.'
-                    : applications.length === 0
-                      ? 'Look on a job website or company careers page. Save the link here so you can come back to it.'
-                      : inInterview
-                        ? 'Review the job description and practice introducing yourself. Add the interview time and your preparation notes when you receive an invitation.'
-                        : 'Applied on the company’s website? Update your status here so your workspace stays in sync.'}
+                <InterviewDate interview={nearest} />
               </p>
-              {nearest ? (
-                <TextLink href={`/interviews/${nearest.id}`}>
-                  Open interview preparation
-                </TextLink>
-              ) : saved ? (
-                <TextLink href={`/applications/${saved.id}`}>
-                  Review saved job
-                </TextLink>
-              ) : applications.length === 0 ? (
-                <Button variant="ghost" onClick={() => openForm()}>
-                  Save a job
-                  <ArrowRight size={15} aria-hidden="true" />
-                </Button>
-              ) : (
-                <TextLink href="/applications">Review applications</TextLink>
-              )}
-            </div>
-          </div>
-        </Card>
-        <Card className="interview-card">
-          <div className="section-heading">
-            <h2>
-              <CalendarDays size={18} aria-hidden="true" />
-              Upcoming interviews
-            </h2>
-            <TextLink href="/interviews">View</TextLink>
-          </div>
-          <div className="compact-empty">
-            <span className="count-pill" aria-label="Upcoming interview count">
-              {upcoming.length} upcoming
-            </span>
-            {nearest ? (
-              <>
-                <h3>
-                  {nearestApplication?.company} · {nearestApplication?.title}
-                </h3>
-                <p>{nearest.title}</p>
-                <p>
-                  <InterviewDate interview={nearest} />
-                </p>
-                <TextLink href={`/interviews/${nearest.id}`}>
-                  View interview details
-                </TextLink>
-              </>
-            ) : (
-              <>
-                <h3>No scheduled interviews</h3>
-                <p>
-                  {inInterview
-                    ? 'An Interview application status does not add a date. Save the details from your invitation here.'
-                    : 'A little breathing room. Add an interview when your next invitation arrives.'}
-                </p>
-                {applications.length > 0 && <ScheduleInterviewButton />}
-              </>
-            )}
-          </div>
-        </Card>
-      </div>
+              <TextLink href={`/interviews/${nearest.id}`}>
+                View interview details
+              </TextLink>
+            </>
+          ) : (
+            <>
+              <h3>No scheduled interviews</h3>
+              <p>
+                {inInterview
+                  ? 'An Interview application status does not add a date. Save the details from your invitation here.'
+                  : 'A little breathing room. Add an interview when your next invitation arrives.'}
+              </p>
+              {applications.length > 0 && <ScheduleInterviewButton />}
+            </>
+          )}
+        </div>
+      </Card>
       <DocumentNextStep />
       <Card className="recent-card">
         <div className="section-heading">
@@ -276,59 +207,12 @@ export function Dashboard() {
         {applications.length > 0 ? (
           <ApplicationTable applications={applications.slice(0, 5)} />
         ) : (
-          <EmptyState
-            icon={BriefcaseBusiness}
-            title="Your story starts with one application."
-            action={
-              <Button variant="secondary" onClick={() => openForm()}>
-                <BookmarkPlus size={16} aria-hidden="true" />
-                Save a job
-              </Button>
-            }
-          >
-            <p>
-              When you save a job, it’ll appear here.
-              <br />A small step today is still a step forward.
-            </p>
-          </EmptyState>
+          <div className="recent-empty">
+            <BriefcaseBusiness size={20} aria-hidden="true" />
+            <p>Your saved jobs will appear here.</p>
+          </div>
         )}
       </Card>
-      {applications.length === 0 && (
-        <div className="first-steps">
-          <div>
-            <span>01</span>
-            <div>
-              <strong>Find an opportunity</strong>
-              <p>Use your favorite job site.</p>
-            </div>
-          </div>
-          <div>
-            <span>02</span>
-            <div>
-              <strong>Save it here</strong>
-              <p>Keep the link and details together.</p>
-            </div>
-          </div>
-          <div>
-            <span>03</span>
-            <div>
-              <strong>Track your progress</strong>
-              <p>Update your status as you go.</p>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="dashboard-tip">
-        <Sparkles size={17} aria-hidden="true" />
-        <p>
-          A friendly reminder: you don’t need to match every requirement to give
-          yourself a chance.
-        </p>
-        <ActionLink href="/help" variant="ghost">
-          A little guidance
-          <ArrowRight size={14} aria-hidden="true" />
-        </ActionLink>
-      </div>
     </>
   );
 }

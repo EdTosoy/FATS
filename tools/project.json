@@ -12,7 +12,8 @@
       "{workspaceRoot}/apps/extension/src/**/*",
       "{workspaceRoot}/apps/web/src/server/**/*",
       "{workspaceRoot}/apps/web/migrations/**/*",
-      "{workspaceRoot}/apps/web/scripts/**/*"
+      "{workspaceRoot}/apps/web/scripts/**/*",
+      "{workspaceRoot}/apps/web/src/app/**/*.css"
     ]
   },
   "targets": {

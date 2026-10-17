@@ -17,6 +17,7 @@ import {
   LockKeyhole,
   ArrowUpRight,
   FolderOpen,
+  SunMoon,
 } from 'lucide-react';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
@@ -128,6 +129,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Brand />
           </Link>
           <div className="topbar-actions">
+            <Link
+              href="/settings#appearance"
+              className="button button-ghost icon-button appearance-shortcut"
+              aria-label="Appearance settings"
+            >
+              <SunMoon size={18} aria-hidden="true" />
+            </Link>
             <span className="local-label">
               <LockKeyhole size={13} aria-hidden="true" />
               {account.user ? 'Account workspace' : 'Local workspace'}

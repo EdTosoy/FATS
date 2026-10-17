@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Sprout } from 'lucide-react';
+import { Check, Flame } from 'lucide-react';
 import { getMomentum } from '@fats/domain';
 import { useApplications } from './application-provider';
 import { useAccount } from './account-provider';
@@ -24,7 +24,7 @@ export function Momentum() {
       </p>
       <div className="momentum-heading">
         <h2>Your momentum</h2>
-        <Sprout size={16} aria-hidden="true" />
+        <Flame size={16} aria-hidden="true" />
       </div>
       {ready ? (
         <>
