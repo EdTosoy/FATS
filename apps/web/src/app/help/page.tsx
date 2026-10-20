@@ -28,6 +28,24 @@ export default function HelpPage() {
           </ActionLink>
         </div>
       </Card>
+      <Card className="content-card guidance-card" id="sidekick-guidance">
+        <div>
+          <h2>Save a listing with Sidekick</h2>
+          <p>
+            On desktop Chrome, open the installed FATS Sidekick extension on a
+            job listing. Choose Capture Job, check the details, then open FATS
+            and confirm the save. You can correct anything before saving.
+            Capturing never applies for a job.
+          </p>
+          <p>
+            Keep the same FATS site address and sign in before confirming if you
+            want account storage. A handoff expires after 15 minutes; capture
+            again if it expires. Without the extension, use Save a job and paste
+            the details. Ask the person maintaining your local setup to install
+            Sidekick; mobile capture is not supported.
+          </p>
+        </div>
+      </Card>
       <div className="settings-grid">
         <Card className="content-card">
           <span className="icon-tile blue">
@@ -78,21 +96,21 @@ export default function HelpPage() {
           <h3>Keep a backup and recover it</h3>
           <p>
             Open Settings → Data management to export your applications,
-            interviews, notes, and recorded offer history as JSON. The file is
-            private and unencrypted; keep it somewhere safe. To recover it,
-            choose the file, review the preview, and explicitly confirm. Backups
-            with offers add missing records and skip identical ones; conflicts
-            stop the import. Older backups without offers replace applications
-            and interviews after confirmation. Replacement is blocked while
-            protected history or submitted links exist. Cancel leaves your data
-            unchanged.
+            interviews, notes, offer history, and Career Vault records as JSON.
+            The file is private and unencrypted; keep it somewhere safe. To
+            recover it, choose the file, review the preview, and explicitly
+            confirm. Backups with offer or Career Vault history add missing
+            records and skip identical ones; conflicts stop the import. Version
+            1 backups replace applications and interviews after confirmation.
+            Replacement is blocked while protected history or submitted links
+            exist. Cancel leaves your data unchanged.
           </p>
           <p>
             JSON does not contain document files or submitted resume links.
-            Imported offer letters are historical references, not downloadable
-            documents. Review unavailable letters in the preview. Recovering
-            files and their links requires a complete operator archive with
-            matching private files.
+            Imported offer letters and Career Vault attachments are historical
+            references, not downloadable documents. Review unavailable files in
+            the preview. Recovering files and their links requires a complete
+            operator archive with matching private files.
           </p>
           <p>
             For unreadable browser data, sign out to open local recovery. A
@@ -134,10 +152,34 @@ export default function HelpPage() {
           </ActionLink>
         </div>
       </Card>
+      <Card className="content-card guidance-card">
+        <div>
+          <h2>From an offer to your first job</h2>
+          <p>
+            Move an application to Offer, then open its Offer Desk to record
+            terms, compare revisions, and keep questions for HR. Recording
+            acceptance keeps your history; communicate your decision directly
+            with the employer.
+          </p>
+          <p>
+            When you’re ready, add employment in Career Vault and use the
+            accepted offer to fill available details. It starts as Not started.
+            Confirm Current and your actual start date yourself. Track only the
+            document requirements your employer gives you; Received can mean a
+            paper copy, without a file stored in FATS.
+          </p>
+          <ActionLink href="/career-vault" variant="secondary">
+            Open Career Vault
+          </ActionLink>
+        </div>
+      </Card>
       <p className="page-footnote">
         Verify your email or recover your password from the sign-in screen.
-        Verified accounts can manage private PDF/DOCX files in Resumes.
-        Uploading a new version keeps earlier submitted versions unchanged.
+        Verified accounts can manage private PDF/DOCX files in Resumes. New
+        uploads require operational safety scanning; unavailable checks block
+        uploads. Accepted versions keep earlier submitted versions unchanged.
+        PDF Tools opens a local copy in your browser and downloads your edits
+        without saving it to your library or Career Vault.
       </p>
     </>
   );

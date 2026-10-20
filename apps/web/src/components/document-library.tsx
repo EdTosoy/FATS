@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, type FormEvent } from 'react';
+import { useEffect, useState, useRef, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
   FileText,
@@ -131,12 +131,16 @@ function UploadForm({
   onSaved: () => void;
 }) {
   const { upload } = useDocuments();
+  const errorMessage = useRef<HTMLParagraphElement>(null);
   const [name, setName] = useState(''),
     [category, setCategory] = useState<DocumentCategory>('Resumes'),
     [file, setFile] = useState<File | null>(null),
     [requestId, setRequestId] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  useEffect(() => {
+    if (error) errorMessage.current?.focus();
+  }, [error]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -216,7 +220,12 @@ function UploadForm({
         are unsupported. Earlier versions stay unchanged.
       </p>
       {error && (
-        <p className="error-message" role="alert">
+        <p
+          ref={errorMessage}
+          className="error-message"
+          role="alert"
+          tabIndex={-1}
+        >
           {error}
         </p>
       )}
@@ -515,6 +524,13 @@ export function DocumentLibraryView() {
           Open PDF Tools
         </ActionLink>
       </Card>
+      {account.user && (
+        <p className="backup-warning">
+          New files become available only after required safety checks pass. If
+          scanning is unavailable, uploads stay blocked and your draft stays
+          open. Local PDF Tools works without uploading a file.
+        </p>
+      )}
       {!account.user ? (
         <Card>
           <EmptyState
@@ -689,9 +705,9 @@ export function DocumentLibraryView() {
             Saving a resume here does not send it to an employer.
           </p>
           <p className="field-hint">
-            Settings JSON exports contain applications and interviews. They
-            exclude document files and submitted resume links. A complete local
-            operator archive is needed to recover your library.
+            Settings JSON exports contain supported personal records and their
+            history. They exclude document files and submitted resume links. A
+            complete local operator archive is needed to recover your library.
           </p>
         </div>
       </Card>

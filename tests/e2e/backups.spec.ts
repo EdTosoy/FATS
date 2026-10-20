@@ -144,7 +144,11 @@ test('exports the exact workspace and restores multiple interviews, notes, and s
   await expect(page.getByRole('main').getByRole('status')).toContainText(
     'Restore completed. 1 application and 3 interviews',
   );
-  expect(JSON.parse((await saved(page))!)).toEqual({ version: 1, ...data });
+  expect(JSON.parse((await saved(page))!)).toEqual({
+    version: 1,
+    ...data,
+    activityDays: ['2026-10-15'],
+  });
   await page.reload();
   expect(JSON.parse(await exportText(page)).data).toEqual(data);
   await page.goto('/');
@@ -297,6 +301,7 @@ test('failed persistence keeps the saved workspace and preview available for ret
     version: 1,
     applications: [],
     interviews: [],
+    activityDays: ['2026-10-15'],
   });
 });
 
@@ -321,7 +326,11 @@ test('recovers unreadable storage only after confirmation and rejects stale prev
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
   await page.reload();
-  expect(JSON.parse((await saved(page))!)).toEqual({ version: 1, ...data });
+  expect(JSON.parse((await saved(page))!)).toEqual({
+    version: 1,
+    ...data,
+    activityDays: [],
+  });
   await choose(page, emptyBackup);
   const otherTab = await context.newPage();
   try {

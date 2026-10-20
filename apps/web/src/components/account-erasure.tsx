@@ -54,8 +54,8 @@ export function AccountErasure() {
       <h2>Delete your account</h2>
       <p>
         Permanently remove your account, saved jobs, interviews and notes,
-        offers and history, document versions and files, and any past comparison
-        reports.
+        offers and history, Career Vault employment and document-register
+        history, document versions and files, and any past comparison reports.
       </p>
       <p>
         All sessions end when deletion starts. File cleanup may need a retry.

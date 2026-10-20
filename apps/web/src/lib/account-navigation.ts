@@ -9,7 +9,7 @@ export function accountReturnPath(value: unknown): string {
     const url = new URL(value, 'https://fats.invalid');
     if (
       url.origin !== 'https://fats.invalid' ||
-      !/^\/(?:$|settings$|sidekick$|applications(?:\/[^/]+)?$|interviews(?:\/[^/]+)?$)/.test(
+      !/^\/(?:$|settings$|sidekick$|help$|career-vault$|resumes(?:\/pdf-tools)?$|applications(?:\/[^/]+)?$|interviews(?:\/[^/]+)?$)/.test(
         url.pathname,
       )
     )

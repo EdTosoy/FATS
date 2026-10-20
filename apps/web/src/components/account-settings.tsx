@@ -37,13 +37,16 @@ export function AccountSettings() {
                   ? 'Email verified'
                   : 'Email verification needed'}
               </p>
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() => void logout()}
-              >
-                {busy ? 'Signing out…' : 'Sign out'}
-              </Button>
+              <div className="document-actions">
+                <ActionLink href="/">Open your dashboard</ActionLink>
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void logout()}
+                >
+                  {busy ? 'Signing out…' : 'Sign out'}
+                </Button>
+              </div>
               <p className="field-hint">
                 Signing out revokes this session. Your account records stay
                 saved and are cleared from this view.
@@ -78,7 +81,7 @@ export function AccountSettings() {
           </h2>
           <p>
             {account.user
-              ? 'Applications, interviews, offers, and notes are saved to your account. Export JSON backups to keep an independent copy. Document files need a complete operator backup.'
+              ? 'Applications, interviews, offers, Career Vault records, and notes are saved to your account. Export JSON backups to keep an independent copy. Document files need a complete operator backup.'
               : 'Your jobs, interviews, and notes stay on this device, in this browser, for this site address. They aren’t synced to an account or another device.'}
           </p>
           <p className="muted">

@@ -9,6 +9,10 @@ describe('account return destinations', () => {
       '/applications/legacy-id',
     );
   });
+  it.each(['/resumes', '/resumes/pdf-tools', '/career-vault', '/help'])(
+    'returns to %s after authentication',
+    (path) => expect(accountReturnPath(path)).toBe(path),
+  );
   it.each([
     'https://evil.test',
     '//evil.test',
@@ -16,6 +20,8 @@ describe('account return destinations', () => {
     '/api/auth/reset-password',
     '/sign-in?next=/sign-in',
     '/%2f%2fevil.test',
+    '/resumes/unrecognized',
+    '/career-vault/unrecognized',
     null,
     [],
   ])('rejects external, looping, and non-workspace destinations', (value) => {

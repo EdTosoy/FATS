@@ -25,12 +25,12 @@ test('backup guidance matches portable imports and the first-job dialog supports
   );
   await expect(
     main.getByText(
-      /Backups with offers add missing records and skip identical ones/,
+      /Backups with offer or Career Vault history add missing records and skip identical ones/,
     ),
   ).toBeVisible();
   await expect(
     main.getByText(
-      /Imported offer letters are historical references, not downloadable documents/,
+      /Imported offer letters and Career Vault attachments are historical references, not downloadable documents/,
     ),
   ).toBeVisible();
   await page.goto('/applications');

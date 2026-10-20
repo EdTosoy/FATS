@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   BookmarkPlus,
   CalendarDays,
@@ -41,7 +41,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const account = useAccount();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuToggle = useRef<HTMLButtonElement>(null);
   const { loading, error, openForm } = useApplications();
+  const currentPage =
+    pathname === '/resumes/pdf-tools'
+      ? 'PDF Tools'
+      : pathname === '/sidekick'
+        ? 'Sidekick'
+        : [...navigation, ...secondaryNavigation].find(({ href }) =>
+            href === '/' ? pathname === '/' : pathname.startsWith(href),
+          )?.label;
 
   function navLinks(items: typeof navigation) {
     return items.map(({ href, label, icon: Icon }) => {
@@ -113,17 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="topbar">
           <div className="desktop-breadcrumb">
             Your workspace <span>/</span>{' '}
-            <strong>
-              {pathname.startsWith('/applications')
-                ? 'Applications'
-                : pathname.startsWith('/interviews')
-                  ? 'Interviews'
-                  : pathname === '/'
-                    ? 'Dashboard'
-                    : pathname
-                        .slice(1)
-                        .replace(/^./, (char) => char.toUpperCase())}
-            </strong>
+            <strong>{currentPage || 'Your workspace'}</strong>
           </div>
           <Link href="/" className="mobile-brand" aria-label="FATS dashboard">
             <Brand />
@@ -150,6 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span>Save a job</span>
             </Button>
             <Button
+              ref={menuToggle}
               variant="ghost"
               className="mobile-menu icon-button"
               aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
@@ -166,6 +166,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             id="mobile-navigation"
             className="mobile-navigation"
             aria-label="Mobile navigation"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setMenuOpen(false);
+                menuToggle.current?.focus();
+              }
+            }}
           >
             {navLinks(navigation)}
             <hr />

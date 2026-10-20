@@ -94,6 +94,7 @@ test('unavailable safety checks preserve file form inputs and never publish a do
   await expect(dialog.getByRole('alert')).toContainText(
     'Document safety checks are unavailable',
   );
+  await expect(dialog.getByRole('alert')).toBeFocused();
   await expect(dialog.getByLabel('Document name', { exact: true })).toHaveValue(
     'Synthetic pending resume',
   );

@@ -50,6 +50,8 @@ Capture supports JobPosting JSON-LD and basic metadata/semantic HTML, with manua
 - [Scope and next steps](docs/ROADMAP.md)
 - [Design system](docs/DESIGN_SYSTEM.md)
 - [Verification evidence](docs/VERIFICATION.md)
+- [Product integration review](docs/PRODUCT_INTEGRATION_VERIFICATION.md)
+- [Local co-founder demo guide](docs/COFOUNDER_DEMO_GUIDE.md)
 - [Phase 2 verification](docs/PHASE_2_VERIFICATION.md)
 - [Local backups and recovery](docs/BACKUPS.md)
 - [Phase 2.1 verification](docs/PHASE_2_1_VERIFICATION.md)

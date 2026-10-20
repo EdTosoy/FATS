@@ -303,6 +303,23 @@ export function OfferDesk({ applicationId }: { applicationId: string }) {
               required channel. Your application stage stays the same; you can
               update it separately.
             </p>
+            {offer.state === 'accepted' && (
+              <div className="offer-review-summary">
+                <h3>Keep your next beginning together</h3>
+                <p>
+                  Add an employment record in Career Vault. Choose this accepted
+                  offer there to reuse its details, then confirm your dates and
+                  employment status yourself.
+                </p>
+                <ActionLink href="/career-vault" variant="secondary">
+                  Plan employment in Career Vault
+                </ActionLink>
+                <p className="field-hint">
+                  Acceptance does not start employment. Offer prefill begins as
+                  Not started, and nothing is created until you save.
+                </p>
+              </div>
+            )}
             <details className="offer-history">
               <summary>Offer history</summary>
               <ol>
