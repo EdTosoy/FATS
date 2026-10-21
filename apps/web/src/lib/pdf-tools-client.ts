@@ -4,6 +4,7 @@ import {
   type PdfInfo,
 } from './pdf-tools-model';
 import type { PdfOverlayImage } from './pdf-tools-engine';
+import type { PdfMergeInput } from './pdf-tools-merge';
 export type PdfWorkerResult = { info: PdfInfo; bytes: Uint8Array };
 export class LocalPdfWorker {
   private worker = new Worker(
@@ -37,10 +38,19 @@ export class LocalPdfWorker {
       );
   }
   request(
-    action: 'open' | 'inspect' | 'export' | 'stamp' | 'preview' | 'complete',
+    action:
+      | 'open'
+      | 'inspect'
+      | 'export'
+      | 'stamp'
+      | 'preview'
+      | 'complete'
+      | 'extract'
+      | 'merge',
     edits: PdfEdits,
     images: PdfOverlayImage[] = [],
     bytes?: Uint8Array,
+    merge?: PdfMergeInput,
   ): Promise<PdfWorkerResult> {
     if (this.stopped)
       return Promise.reject(
@@ -58,7 +68,7 @@ export class LocalPdfWorker {
         PDF_TOOLS_LIMITS.timeout,
       );
       this.pending.set(id, { resolve, reject, timer });
-      this.worker.postMessage({ id, action, edits, images, bytes });
+      this.worker.postMessage({ id, action, edits, images, bytes, merge });
     });
   }
   destroy(message = 'The local file was closed.') {

@@ -12,7 +12,10 @@ import {
   Redo2,
   X,
 } from 'lucide-react';
-import type { PdfInfo, PdfPageEdit } from '@/lib/pdf-tools-model';
+import type { PdfEdits, PdfInfo, PdfPageEdit } from '@/lib/pdf-tools-model';
+import type { LocalPdfDocument } from '@/lib/use-pdf-tools-document';
+import { PageOutputs } from './page-outputs';
+import { MergePdfs } from './merge-pdfs';
 import styles from './workspace.module.css';
 
 export function OrganizePages({
@@ -32,6 +35,8 @@ export function OrganizePages({
   onHistory,
   notice,
   returnFocus,
+  document,
+  edits,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,7 +54,12 @@ export function OrganizePages({
   onHistory: (direction: 'undo' | 'redo') => void;
   notice: string;
   returnFocus: () => void;
+  document: LocalPdfDocument;
+  edits: PdfEdits;
 }) {
+  const [outputMode, setOutputMode] = useState<
+    'extract' | 'split' | 'merge' | null
+  >(null);
   const [removing, setRemoving] = useState<number | null>(null);
   const dragged = useRef<number | null>(null);
   const [drop, setDrop] = useState<number | null>(null);
@@ -65,11 +75,17 @@ export function OrganizePages({
     focusSelected();
   };
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(value) => {
+        if (!value) setOutputMode(null);
+        onOpenChange(value);
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
         <Dialog.Content
-          className={`${styles.modal} ${styles.organizer}`}
+          className={`${styles.modal} ${styles.organizer} ${outputMode === 'merge' ? styles.mergeOrganizer : ''}`}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             returnFocus();
@@ -85,6 +101,7 @@ export function OrganizePages({
             if (['z', 'y'].includes(event.key.toLowerCase())) {
               event.preventDefault();
               event.stopPropagation();
+              if (outputMode) return;
               onHistory(
                 event.shiftKey || event.key.toLowerCase() === 'y'
                   ? 'redo'
@@ -99,174 +116,243 @@ export function OrganizePages({
               <X size={18} />
             </Dialog.Close>
           </div>
-          <Dialog.Description>
-            Select a thumbnail, then move, rotate in 90° steps or remove its
-            page. Drag a handle onto another thumbnail to move to that position.
-            Every change can be undone.
-          </Dialog.Description>
-          {blocked && (
-            <p className={styles.signError} role="note">
-              {blocked}
-            </p>
-          )}
-          <div
-            className={styles.organizeActions}
-            role="group"
-            aria-label="Selected page actions"
+          <Dialog.Description
+            className={
+              outputMode === 'merge' ? styles.mergeDescription : undefined
+            }
           >
-            <strong>
-              Page {position + 1} of {pages.length}
-            </strong>
+            {outputMode === 'merge' ? (
+              'Combine local PDFs in a separate plan. Leaving Merge clears that plan and its prepared copy; your editing session stays here.'
+            ) : outputMode ? (
+              'Create separate PDF copies of the current pages and edits. Your document and undo history stay here.'
+            ) : (
+              <>
+                Select a thumbnail, then move, rotate in 90° steps or remove its
+                page. Drag a handle onto another thumbnail to move to that
+                position. Every change can be undone.
+              </>
+            )}
+          </Dialog.Description>
+          <div
+            className={styles.pageToolModes}
+            role="group"
+            aria-label="Page tools"
+          >
             <button
               type="button"
-              disabled={disabled || position <= 0}
-              onClick={() => act(() => onMove(selected, position - 1))}
+              aria-pressed={!outputMode}
+              onClick={() => setOutputMode(null)}
             >
-              <ArrowUp size={16} /> Move earlier
+              Organize
             </button>
             <button
               type="button"
-              disabled={disabled || position === pages.length - 1}
-              onClick={() => act(() => onMove(selected, position + 1))}
+              aria-pressed={outputMode === 'extract'}
+              onClick={() => setOutputMode('extract')}
             >
-              <ArrowDown size={16} /> Move later
-            </button>
-            <label>
-              Move to position{' '}
-              <select
-                aria-label="Move to position"
-                disabled={disabled || pages.length === 1}
-                value={position}
-                onChange={(event) =>
-                  act(() => onMove(selected, Number(event.target.value)))
-                }
-              >
-                {pages.map((_, index) => (
-                  <option key={index} value={index}>
-                    {index + 1}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => act(() => onRotate(selected, false))}
-            >
-              <RotateCcw size={16} /> Rotate left
+              Extract pages
             </button>
             <button
               type="button"
-              disabled={disabled}
-              onClick={() => act(() => onRotate(selected, true))}
+              aria-pressed={outputMode === 'split'}
+              onClick={() => setOutputMode('split')}
             >
-              <RotateCw size={16} /> Rotate right
+              Split document
             </button>
             <button
               type="button"
-              disabled={busy || !!removalBlocked || pages.length === 1}
-              onClick={() => setRemoving(selected)}
+              aria-pressed={outputMode === 'merge'}
+              onClick={() => setOutputMode('merge')}
             >
-              <Trash2 size={16} /> Remove page
+              Merge PDFs
             </button>
           </div>
-          {removalBlocked && !blocked && (
-            <p className={styles.hint}>{removalBlocked}</p>
-          )}
-          {pages.length === 1 && (
-            <p className={styles.hint}>
-              Keep at least one page in the document.
-            </p>
-          )}
-          <div
-            className={styles.organizeGrid}
-            aria-label="Pages in download order"
-          >
-            {pages.map(({ source, rotation }, index) => (
+          {outputMode === 'merge' ? (
+            <MergePdfs
+              hasEdits={
+                !!(
+                  edits.elements.length ||
+                  Object.keys(edits.fields).length ||
+                  edits.pages
+                )
+              }
+            />
+          ) : outputMode ? (
+            <PageOutputs
+              key={outputMode}
+              mode={outputMode}
+              document={document}
+              edits={edits}
+              pages={pages}
+              thumbnail={thumbnail}
+            />
+          ) : (
+            <>
+              {blocked && (
+                <p className={styles.signError} role="note">
+                  {blocked}
+                </p>
+              )}
               <div
-                key={source}
-                className={styles.organizeCard}
-                data-selected={source === selected}
-                data-drop={drop === source}
-                onDragOver={(event) => {
-                  if (dragged.current === null || disabled) return;
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = 'move';
-                  setDrop(source);
-                }}
-                onDragLeave={(event) => {
-                  if (
-                    !event.currentTarget.contains(
-                      event.relatedTarget as Node | null,
-                    )
-                  )
-                    setDrop(null);
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  const from = dragged.current;
-                  dragged.current = null;
-                  setDrop(null);
-                  if (from !== null && !disabled) {
-                    onSelect(from);
-                    act(() => onMove(from, index));
-                  }
-                }}
+                className={styles.organizeActions}
+                role="group"
+                aria-label="Selected page actions"
               >
+                <strong>
+                  Page {position + 1} of {pages.length}
+                </strong>
                 <button
                   type="button"
-                  className={styles.thumbnail}
-                  ref={source === selected ? selection : undefined}
-                  aria-label={`Select page ${index + 1}, original page ${source + 1}${rotation ? ', rotated' : ''}`}
-                  aria-pressed={source === selected}
-                  onClick={() => onSelect(source)}
+                  disabled={disabled || position <= 0}
+                  onClick={() => act(() => onMove(selected, position - 1))}
                 >
-                  {thumbnail(source, index + 1)}
-                  <span>
-                    <b>{index + 1}</b> Original page {source + 1}
-                  </span>
+                  <ArrowUp size={16} /> Move earlier
                 </button>
                 <button
                   type="button"
-                  className={styles.dragHandle}
-                  disabled={disabled || pages.length === 1}
-                  aria-label={`Drag page ${index + 1}; use Move earlier or Move later for keyboard and touch`}
-                  draggable={!disabled && pages.length > 1}
-                  onDragStart={(event) => {
-                    dragged.current = source;
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', 'page');
-                  }}
-                  onDragEnd={() => {
-                    dragged.current = null;
-                    setDrop(null);
-                  }}
+                  disabled={disabled || position === pages.length - 1}
+                  onClick={() => act(() => onMove(selected, position + 1))}
                 >
-                  <GripVertical size={16} /> Move
+                  <ArrowDown size={16} /> Move later
+                </button>
+                <label>
+                  Move to position{' '}
+                  <select
+                    aria-label="Move to position"
+                    disabled={disabled || pages.length === 1}
+                    value={position}
+                    onChange={(event) =>
+                      act(() => onMove(selected, Number(event.target.value)))
+                    }
+                  >
+                    {pages.map((_, index) => (
+                      <option key={index} value={index}>
+                        {index + 1}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => act(() => onRotate(selected, false))}
+                >
+                  <RotateCcw size={16} /> Rotate left
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => act(() => onRotate(selected, true))}
+                >
+                  <RotateCw size={16} /> Rotate right
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || !!removalBlocked || pages.length === 1}
+                  onClick={() => setRemoving(selected)}
+                >
+                  <Trash2 size={16} /> Remove page
                 </button>
               </div>
-            ))}
-          </div>
-          <div className={styles.organizeFooter}>
-            <p role="status">{notice}</p>
-            <button
-              type="button"
-              aria-label="Undo page or content change"
-              disabled={busy || !undo}
-              onClick={() => onHistory('undo')}
-            >
-              <Undo2 size={16} /> Undo
-            </button>
-            <button
-              type="button"
-              aria-label="Redo page or content change"
-              disabled={busy || !redo}
-              onClick={() => onHistory('redo')}
-            >
-              <Redo2 size={16} /> Redo
-            </button>
-            <Dialog.Close>Done</Dialog.Close>
-          </div>
+              {removalBlocked && !blocked && (
+                <p className={styles.hint}>{removalBlocked}</p>
+              )}
+              {pages.length === 1 && (
+                <p className={styles.hint}>
+                  Keep at least one page in the document.
+                </p>
+              )}
+              <div
+                className={styles.organizeGrid}
+                aria-label="Pages in download order"
+              >
+                {pages.map(({ source, rotation }, index) => (
+                  <div
+                    key={source}
+                    className={styles.organizeCard}
+                    data-selected={source === selected}
+                    data-drop={drop === source}
+                    onDragOver={(event) => {
+                      if (dragged.current === null || disabled) return;
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                      setDrop(source);
+                    }}
+                    onDragLeave={(event) => {
+                      if (
+                        !event.currentTarget.contains(
+                          event.relatedTarget as Node | null,
+                        )
+                      )
+                        setDrop(null);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const from = dragged.current;
+                      dragged.current = null;
+                      setDrop(null);
+                      if (from !== null && !disabled) {
+                        onSelect(from);
+                        act(() => onMove(from, index));
+                      }
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className={styles.thumbnail}
+                      ref={source === selected ? selection : undefined}
+                      aria-label={`Select page ${index + 1}, original page ${source + 1}${rotation ? ', rotated' : ''}`}
+                      aria-pressed={source === selected}
+                      onClick={() => onSelect(source)}
+                    >
+                      {thumbnail(source, index + 1)}
+                      <span>
+                        <b>{index + 1}</b> Original page {source + 1}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.dragHandle}
+                      disabled={disabled || pages.length === 1}
+                      aria-label={`Drag page ${index + 1}; use Move earlier or Move later for keyboard and touch`}
+                      draggable={!disabled && pages.length > 1}
+                      onDragStart={(event) => {
+                        dragged.current = source;
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', 'page');
+                      }}
+                      onDragEnd={() => {
+                        dragged.current = null;
+                        setDrop(null);
+                      }}
+                    >
+                      <GripVertical size={16} /> Move
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.organizeFooter}>
+                <p role="status">{notice}</p>
+                <button
+                  type="button"
+                  aria-label="Undo page or content change"
+                  disabled={busy || !undo}
+                  onClick={() => onHistory('undo')}
+                >
+                  <Undo2 size={16} /> Undo
+                </button>
+                <button
+                  type="button"
+                  aria-label="Redo page or content change"
+                  disabled={busy || !redo}
+                  onClick={() => onHistory('redo')}
+                >
+                  <Redo2 size={16} /> Redo
+                </button>
+                <Dialog.Close>Done</Dialog.Close>
+              </div>
+            </>
+          )}
           <Dialog.Root
             open={removing !== null}
             onOpenChange={(value) => {

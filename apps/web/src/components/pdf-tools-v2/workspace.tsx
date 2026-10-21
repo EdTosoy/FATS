@@ -32,6 +32,7 @@ import type { ThemePreference } from '@/lib/theme';
 import type { PdfPageInfo } from '@/lib/pdf-tools-model';
 import { PageCanvas } from './page-canvas';
 import { OrganizePages } from './organize-pages';
+import { MergePdfsLauncher } from './merge-pdfs';
 import { usePdfToolsQuickSign } from '@/lib/use-pdf-tools-quick-sign';
 import { SignatureDialog } from './signature-dialog';
 import { SignatureProperties } from './signature-properties';
@@ -173,13 +174,16 @@ export function PdfToolsV2Workspace() {
                 : 'Open a local PDF, fill fields or add content, then download a completed copy. Your original stays unchanged.'}
             </p>
             {!loading && (
-              <button
-                type="button"
-                className={styles.primary}
-                onClick={() => input.current?.click()}
-              >
-                <FolderOpen size={18} /> Open a PDF
-              </button>
+              <div className={styles.emptyActions}>
+                <button
+                  type="button"
+                  className={styles.primary}
+                  onClick={() => input.current?.click()}
+                >
+                  <FolderOpen size={18} /> Open a PDF
+                </button>
+                <MergePdfsLauncher />
+              </div>
             )}
             <p className={styles.limits}>
               PDF 1.0–1.7 · Up to 10 MiB and 50 pages
@@ -1332,6 +1336,8 @@ function DocumentWorkspace({
           </Dialog.Portal>
         </Dialog.Root>
         <OrganizePages
+          document={document}
+          edits={sign.history.present}
           open={organizeOpen}
           onOpenChange={(open) => {
             if (open) sign.finishEditing();

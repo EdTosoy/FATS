@@ -34,7 +34,12 @@ export type PdfFieldInfo = {
 export type PdfInfo = {
   pages: PdfPageInfo[];
   fields: PdfFieldInfo[];
-  organization?: { blocked?: string; removalBlocked?: string };
+  organization?: {
+    blocked?: string;
+    removalBlocked?: string;
+    outputBlocked?: string;
+    mergeBlocked?: string;
+  };
   // PDF-space widget rectangles, used when signatures preserve live fields.
   formWidgets?: {
     field?: string;

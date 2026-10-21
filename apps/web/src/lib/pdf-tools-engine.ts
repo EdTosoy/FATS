@@ -9,6 +9,8 @@ import {
   PDFCheckBox,
   PDFDropdown,
   PDFRadioGroup,
+  PDFRef,
+  PDFObjectCopier,
   degrees,
   StandardFonts,
 } from 'pdf-lib';
@@ -29,6 +31,69 @@ import {
   pagePlan,
   pagePlanError,
 } from './pdf-tools-organization';
+import {
+  PDF_FORM_OUTPUT_ERROR,
+  pageOutputError,
+} from './pdf-tools-page-outputs';
+import {
+  mergePlanError,
+  mergeResourceError,
+  mergeSourceError,
+  pdfFingerprint,
+  type PdfMergeInput,
+  type PdfMergeSource,
+} from './pdf-tools-merge';
+
+// These catalog entries can be copied unchanged. Other catalog structures need
+// explicit reconciliation before pages can belong to independent documents.
+const outputCatalogKeys = [
+  'Metadata',
+  'Lang',
+  'ViewerPreferences',
+  'PageLayout',
+  'PageMode',
+  'OutputIntents',
+  'Version',
+];
+function independentCopyError(pdf: PDFDocument): string {
+  const unsupportedCopy =
+    'Extract and Split cannot safely preserve this PDF’s document structures or cross-page references. Use its source application to create separate PDFs. Your document stays editable here.';
+  const allowed = new Set(['Type', 'Pages', 'AcroForm', ...outputCatalogKeys]);
+  if (pdf.catalog.keys().some((key) => !allowed.has(key.decodeText())))
+    return unsupportedCopy;
+  const pending: unknown[] = [pdf.context.trailerInfo.Info];
+  for (const key of outputCatalogKeys)
+    pending.push(pdf.catalog.get(PDFName.of(key)));
+  for (const page of pdf.getPages()) {
+    for (const [key, value] of page.node.entries())
+      if (key !== PDFName.of('Parent')) pending.push(value);
+    for (const key of ['Resources', 'MediaBox', 'CropBox', 'Rotate'])
+      pending.push(page.node.getInheritableAttribute(PDFName.of(key)));
+  }
+  const seen = new Set<unknown>();
+  let visits = 0;
+  while (pending.length) {
+    if (++visits > 100000) return unsupportedCopy;
+    const object = pending.pop();
+    if (!object || seen.has(object)) continue;
+    seen.add(object);
+    if (object instanceof PDFRef) {
+      const target = pdf.context.lookup(object);
+      if (!target) return unsupportedCopy;
+      pending.push(target);
+    } else if (object instanceof PDFDict) {
+      const type = object.lookup(PDFName.of('Type'));
+      if (
+        ['Page', 'Pages', 'Catalog'].some((name) => type === PDFName.of(name))
+      )
+        return unsupportedCopy;
+      pending.push(...object.values());
+    } else if (object instanceof PDFArray) pending.push(...object.asArray());
+    else if (typeof object === 'object' && 'dict' in object)
+      pending.push(object.dict);
+  }
+  return '';
+}
 
 export class PdfToolsError extends Error {}
 const unsupported = () =>
@@ -137,6 +202,7 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
     'A',
   ]);
   let pageDependent = false;
+  let externalMergeReference = false;
   function inspect(object: unknown) {
     if (++visits > 100000)
       throw new PdfToolsError(
@@ -147,6 +213,12 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
     if (object instanceof PDFName && forbidden.has(object.decodeText()))
       throw unsupported();
     if (object instanceof PDFDict) {
+      if (
+        object.get(PDFName.of('Type')) === PDFName.of('Filespec') ||
+        (object.get(PDFName.of('Subtype')) === PDFName.of('Form') &&
+          object.has(PDFName.of('Ref')))
+      )
+        externalMergeReference = true;
       if (object.keys().some((key) => organizationKeys.has(key.decodeText())))
         pageDependent = true;
       if (object.get(PDFName.of('Subtype')) === PDFName.of('Image')) {
@@ -168,7 +240,11 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
     }
     if (object instanceof PDFArray)
       for (const item of object.asArray()) inspect(item);
-    if (typeof object === 'object' && 'dict' in object) inspect(object.dict);
+    if (typeof object === 'object' && 'dict' in object) {
+      if (object.dict instanceof PDFDict && object.dict.has(PDFName.of('F')))
+        externalMergeReference = true;
+      inspect(object.dict);
+    }
   }
   for (const [, object] of pdf.context.enumerateIndirectObjects())
     inspect(object);
@@ -294,12 +370,28 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
   if (usedWidgets.size !== knownWidgets.length)
     blocked =
       'Page organization is unavailable for this PDF because some form widgets cannot be safely associated with one page. Its content is kept; use its source application to organize pages.';
+  const outputBlocked =
+    blocked ||
+    (fields.length ? PDF_FORM_OUTPUT_ERROR : independentCopyError(pdf));
   return {
     pages: pages.map(pageInfo),
     fields: result,
     formWidgets,
     organization: {
       ...(blocked ? { blocked } : {}),
+      ...(outputBlocked ? { outputBlocked } : {}),
+      ...(externalMergeReference
+        ? {
+            mergeBlocked:
+              'This PDF references another file or external page content. Create a self-contained copy in its source application before merging.',
+          }
+        : pdf.catalog.has(PDFName.of('OutputIntents')) ||
+            pdf.catalog.has(PDFName.of('Version'))
+          ? {
+              mergeBlocked:
+                'This PDF has document-wide color settings or a version override that cannot be safely combined. Export a plain PDF 1.7 copy in its source application.',
+            }
+          : {}),
       ...(fields.length
         ? {
             removalBlocked:
@@ -319,11 +411,27 @@ export async function exportLocalPdf(
     preserveFields?: boolean;
     editFields?: boolean;
     requireFields?: boolean;
+    independent?: boolean;
   } = {},
 ): Promise<Uint8Array> {
+  if (options.independent) {
+    const error = pageOutputError(info);
+    if (error) throw new PdfToolsError(error);
+  }
   const arrangementError = pagePlanError(info, edits);
   if (arrangementError) throw new PdfToolsError(arrangementError);
   const geometryInfo = organizedInfo(info, edits);
+  if (
+    options.independent &&
+    (images.length !== edits.elements.length ||
+      images.some(
+        ({ element }, index) =>
+          JSON.stringify(element) !== JSON.stringify(edits.elements[index]),
+      ))
+  )
+    throw new PdfToolsError(
+      'Extract and Split could not preserve every added mark. Retry preparing the copy; your edits are unchanged.',
+    );
   if (
     edits.elements.length > PDF_TOOLS_LIMITS.elements ||
     images.length > PDF_TOOLS_LIMITS.elements
@@ -473,7 +581,24 @@ export async function exportLocalPdf(
       pdf.removePage(index);
     for (const { source } of edits.pages) pdf.addPage(sourcePages[source]);
   }
-  const bytes = await pdf.save({
+  let output = pdf;
+  if (options.independent) {
+    // Extend the existing writer: the reviewed selected pages already contain
+    // the same rotations/marks as a normal export. Copy only their graph into
+    // a fresh context, instead of serializing detached, unselected page objects.
+    output = await PDFDocument.create({ updateMetadata: false });
+    for (const page of await output.copyPages(pdf, pdf.getPageIndices()))
+      output.addPage(page);
+    const copier = PDFObjectCopier.for(pdf.context, output.context);
+    const infoRef = pdf.context.trailerInfo.Info;
+    if (infoRef) output.context.trailerInfo.Info = copier.copy(infoRef);
+    for (const key of outputCatalogKeys) {
+      const name = PDFName.of(key),
+        value = pdf.catalog.get(name);
+      if (value) output.catalog.set(name, copier.copy(value));
+    }
+  }
+  const bytes = await output.save({
     updateFieldAppearances: !options.preserveFields,
   });
   if (bytes.length > PDF_TOOLS_LIMITS.outputBytes)
@@ -481,4 +606,89 @@ export async function exportLocalPdf(
       'The completed PDF exceeds the 30 MiB download limit. Remove some marks or use a smaller original.',
     );
   return bytes;
+}
+
+export async function mergeLocalPdfs(
+  input: PdfMergeInput,
+): Promise<{ bytes: Uint8Array; info: PdfInfo }> {
+  const initialError = mergeResourceError(
+    input.sources.map((source) => ({
+      size: source.bytes.length,
+      info: { pages: [], fields: [] },
+    })),
+  );
+  if (initialError) throw new PdfToolsError(initialError);
+  const sources: PdfMergeSource[] = [];
+  const output = await PDFDocument.create({ updateMetadata: false });
+  const copied = new Map<
+    string,
+    Awaited<ReturnType<PDFDocument['copyPages']>>[number]
+  >();
+  for (const source of input.sources) {
+    try {
+      const info = await inspectLocalPdf(source.bytes);
+      const blocked = mergeSourceError(info);
+      if (blocked) throw new PdfToolsError(blocked);
+      const fingerprint = await pdfFingerprint(source.bytes);
+      if (sources.some((previous) => previous.fingerprint === fingerprint))
+        throw new PdfToolsError(
+          'This exact PDF is already in the merge. Choose a different file.',
+        );
+      sources.push({
+        id: source.id,
+        name: source.name,
+        size: source.bytes.length,
+        fingerprint,
+        info,
+      });
+      const error = mergeResourceError(sources);
+      if (error) throw new PdfToolsError(error);
+    } catch (error) {
+      throw new PdfToolsError(
+        `${source.name.slice(0, 120)}: ${error instanceof PdfToolsError ? error.message : 'This PDF could not be safely inspected. Choose a simpler, complete file.'}`,
+      );
+    }
+  }
+  const planError = mergePlanError(sources, input.plan);
+  if (planError) throw new PdfToolsError(planError);
+  // One copier per donor preserves shared fonts/images within that donor. Never
+  // copy a form/catalog tree or reuse source indices across document identities.
+  for (const source of input.sources) {
+    const chosen = input.plan.pages.filter(
+      (page) => page.document === source.id,
+    );
+    if (!chosen.length) continue;
+    const pdf = await load(source.bytes);
+    const pages = await output.copyPages(
+      pdf,
+      chosen.map((page) => page.page),
+    );
+    chosen.forEach((page, index) =>
+      copied.set(`${page.document}:${page.page}`, pages[index]),
+    );
+  }
+  for (const page of input.plan.pages)
+    output.addPage(copied.get(`${page.document}:${page.page}`)!);
+  // A combined document gets new neutral metadata, rather than falsely claiming
+  // one donor's author, language, title, XMP conformance or print configuration.
+  output.setTitle('Combined PDF');
+  output.setCreator('FATS PDF Tools (local)');
+  const bytes = await output.save({ updateFieldAppearances: false });
+  if (bytes.length > PDF_TOOLS_LIMITS.outputBytes)
+    throw new PdfToolsError(
+      'The combined PDF exceeds the 30 MiB output limit. Remove pages or use smaller files.',
+    );
+  return {
+    bytes,
+    info: {
+      pages: input.plan.pages.map(
+        (page) =>
+          sources.find((source) => source.id === page.document)!.info.pages[
+            page.page
+          ],
+      ),
+      fields: [],
+      formWidgets: [],
+    },
+  };
 }

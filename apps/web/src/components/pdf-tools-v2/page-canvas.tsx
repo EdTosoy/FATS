@@ -260,10 +260,10 @@ function RenderedCanvas({
             key={mark.id}
             className={styles.thumbnailMark}
             style={{
-              left: mark.x * scale,
-              top: mark.y * scale,
-              width: mark.width * scale,
-              height: mark.height * scale,
+              left: `${(mark.x / geometry.viewWidth) * 100}%`,
+              top: `${(mark.y / geometry.viewHeight) * 100}%`,
+              width: `${(mark.width / geometry.viewWidth) * 100}%`,
+              height: `${(mark.height / geometry.viewHeight) * 100}%`,
             }}
           >
             <PdfMark element={mark} />

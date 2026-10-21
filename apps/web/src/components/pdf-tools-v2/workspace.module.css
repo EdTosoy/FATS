@@ -373,7 +373,198 @@
   margin: 0 0 4px;
   font-size: 12px;
 }
+.pageToolModes {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.pageToolModes button {
+  border: 1px solid var(--control-border);
+  padding: 0 12px;
+}
+.pageToolModes button[aria-pressed='true'] {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+.pageOutputs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 160px;
+  overflow: hidden;
+}
+.outputScroll {
+  min-height: 80px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+.outputScroll h2 {
+  font-size: 18px;
+}
+.outputScroll p {
+  margin: 8px 0;
+}
+.outputChoices {
+  border: 0;
+  padding: 0;
+  margin: 16px 0;
+  min-width: 0;
+}
+.outputChoices legend {
+  font-weight: 600;
+}
+.outputRange {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  margin-top: 8px;
+}
+.outputRange label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.outputRange input {
+  min-height: 44px;
+  width: 180px;
+  max-width: 100%;
+  padding: 8px;
+  background: var(--input-bg);
+  color: var(--ink);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  font-size: 16px;
+}
+.outputRange button,
+.outputFile button {
+  border: 1px solid var(--control-border);
+  padding-inline: 12px;
+}
+.outputPageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.pageOutputCard {
+  border: 2px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--pdf-stage);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.pageOutputCard[data-selected='true'] {
+  border-color: var(--focus);
+  background: var(--surface);
+}
+.pageOutputCard:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.pageOutputCard .thumbPaper,
+.outputPreview .thumbPaper {
+  width: 120px;
+  max-width: 100%;
+}
+.outputPageLabel {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  width: 100%;
+}
+.outputPageLabel input,
+.pageBoundary input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--focus);
+}
+.pageBoundary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.outputList {
+  border-top: 1px solid var(--control-border);
+  padding-top: 12px;
+}
+.outputFile {
+  border: 1px solid var(--control-border);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.outputFilename {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.outputPreview summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  text-decoration: underline;
+}
+.outputPreviewPages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 0;
+}
+.outputPreviewPages > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 160px;
+  gap: 8px;
+  font-size: 11px;
+}
+.outputFooter {
+  border-top: 1px solid var(--control-border);
+  padding-top: 8px;
+  flex: none;
+}
+.outputFooter > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.outputFooter > p {
+  margin: 4px 0 8px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  max-height: 60px;
+  overflow: auto;
+}
+.outputError {
+  padding: 8px;
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  overflow-wrap: anywhere;
+}
 @media (max-width: 760px) {
+  .pageToolModes {
+    gap: 4px;
+  }
+  .pageToolModes button {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+  .outputPageGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .modal.organizer {
     padding: 16px;
     max-height: calc(var(--pdf-v2-visible-height, 100dvh) - 24px);
@@ -1261,5 +1452,191 @@
   .propertyBody .inputLabel:has(textarea),
   [aria-label='Selected form field'] .inputLabel {
     width: 100%;
+  }
+}
+
+.mergeSessionNote {
+  border-left: 3px solid var(--info-text);
+  padding: 8px 12px;
+  background: var(--info-bg);
+  font-size: 13px;
+}
+.mergeAdd {
+  border: 1px dashed var(--control-border);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+.mergeAdd button {
+  padding-inline: 12px;
+  border: 1px solid var(--control-border);
+}
+.mergeAdd > span {
+  font-size: 12px;
+  color: var(--secondary);
+}
+.mergeSource {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  border: 2px solid var(--control-border);
+  border-radius: 8px;
+  padding: 8px;
+  margin: 8px 0;
+}
+.mergeSource[data-selected='true'] {
+  border-color: var(--focus);
+}
+.mergeSourceSelect {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 4px;
+}
+.mergeSourceSelect > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.mergeRowActions,
+.mergePageActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.mergeRowActions button,
+.mergePageActions button {
+  border: 1px solid var(--control-border);
+  padding-inline: 8px;
+  font-size: 12px;
+}
+.mergePageSelect {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.mergePageSelect > span:not(.mergeThumb) {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.mergeThumb {
+  display: block;
+  flex: none;
+  max-width: 100%;
+  background: white;
+  box-shadow: 0 1px 5px var(--shadow-dialog);
+  position: relative;
+  overflow: hidden;
+}
+.mergeSource[data-insert='before'],
+.pageOutputCard[data-insert='before'] {
+  box-shadow: 0 -5px 0 var(--focus);
+}
+.mergeSource[data-insert='after'],
+.pageOutputCard[data-insert='after'] {
+  box-shadow: 0 5px 0 var(--focus);
+}
+.mergePreview {
+  border-top: 1px solid var(--control-border);
+  margin-top: 16px;
+  padding: 12px 0;
+}
+.mergePreviewLabel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.mergePreviewLabel select {
+  min-height: 44px;
+  max-width: 100%;
+  background: var(--input-bg);
+  color: var(--ink);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  font-size: 16px;
+}
+.mergePaper {
+  position: relative;
+  width: min(100%, 560px);
+  margin: 12px auto;
+  background: white;
+  box-shadow: 0 1px 6px var(--shadow-dialog);
+}
+.emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+.outputFooter > .outputError {
+  max-height: 96px;
+  overflow: auto;
+  font-size: 12px;
+}
+.outputFooter > .outputError ul {
+  margin: 0;
+  padding-left: 16px;
+}
+@media (max-width: 760px) {
+  .mergeRowActions {
+    width: 100%;
+  }
+  .mergeSessionNote {
+    font-size: 12px;
+  }
+  .mergePreview > p {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 760px) {
+  .mergeOrganizer .mergeDescription {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .mergeOrganizer .modalHeader {
+    margin-bottom: 4px;
+  }
+  .mergeOrganizer .modalHeader h2 {
+    margin: 0;
+  }
+  .mergeOrganizer .pageToolModes {
+    margin-bottom: 4px;
+  }
+  .mergeOrganizer .pageToolModes button:nth-child(2),
+  .mergeOrganizer .pageToolModes button:nth-child(3) {
+    display: none;
+  }
+}
+.mergeWorkflow .primary:hover:enabled {
+  background: var(--button-primary-bg);
+  color: var(--on-primary);
+}
+@media (max-width: 760px) {
+  .mergeWorkflow .outputFooter > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mergeWorkflow .outputFooter .primary {
+    grid-column: 1 / -1;
   }
 }
