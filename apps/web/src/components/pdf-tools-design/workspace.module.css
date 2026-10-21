@@ -32,46 +32,12 @@
 :global(body:has([data-pdf-design-workspace]) .skip-link) {
   visibility: hidden;
 }
-.reviewBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 30px;
-  padding: 3px 24px;
-  background: var(--info-bg);
-  color: var(--info-text);
-  border-bottom: 1px solid var(--border);
-  font-size: 11px;
-}
-.reviewBar b {
-  font-size: 10px;
-  letter-spacing: 1.1px;
-  margin-right: 12px;
-}
-.reviewBar label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-.reviewBar select {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: 11px;
-  max-width: 130px;
-}
-.reviewBar select option {
-  background: var(--surface);
-  color: var(--ink);
-}
 .header {
-  min-height: 74px;
+  min-height: 60px;
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 12px 24px;
+  gap: 16px;
+  padding: 8px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -82,17 +48,17 @@
   color: var(--muted);
   border-right: 1px solid var(--border);
   padding-right: 20px;
-  min-height: 44px;
+  min-height: 36px;
 }
 .back :global(.brand-mark) {
-  width: 29px;
-  height: 32px;
+  width: 25px;
+  height: 28px;
 }
 .titleGroup {
   min-width: 0;
 }
 .titleGroup h1 {
-  font-size: 16px;
+  font-size: 15px;
   letter-spacing: -0.4px;
   line-height: 1.3;
 }
@@ -214,11 +180,11 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 8px 24px;
+  gap: 20px;
+  padding: 5px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  min-height: 58px;
+  min-height: 52px;
 }
 .modes {
   display: flex;
@@ -251,13 +217,6 @@
 .toolGroup .control {
   padding: 8px 11px;
 }
-.toolGroup .suggestedTool {
-  color: var(--on-primary);
-  background: var(--button-primary-bg);
-}
-.toolGroup .suggestedTool:hover:not(:disabled) {
-  background: var(--button-primary-hover);
-}
 .historyGroup {
   display: flex;
   gap: 2px;
@@ -265,45 +224,20 @@
   padding-left: 12px;
   margin-left: auto;
 }
-.contextBar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-height: 43px;
-  padding: 4px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-muted);
-}
-.contextHint {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  color: var(--secondary);
-}
-.contextDetail {
-  font-size: 11px;
-  color: var(--muted);
-  margin-left: auto;
-}
-.contextBar > .control {
-  margin-left: auto;
-  min-height: 30px;
-}
 .body {
   display: flex;
   min-height: 0;
   flex: 1;
 }
 .pageRail {
-  width: 160px;
+  width: 124px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: var(--surface);
+  background: var(--surface-muted);
   border-right: 1px solid var(--border);
-  padding: 16px 16px 12px;
+  padding: 18px 10px 12px;
 }
 .hiddenRail {
   display: none;
@@ -331,7 +265,7 @@
 .thumbnails {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 .thumbnail {
   display: block;
@@ -347,7 +281,8 @@
 }
 .thumbnail > span {
   display: block;
-  font-size: 10px;
+  font-size: 9px;
+  white-space: nowrap;
   margin-top: 7px;
   line-height: 1.6;
 }
@@ -363,7 +298,7 @@
 }
 .currentThumbnail {
   background: var(--info-bg);
-  border-color: var(--action);
+  border-color: var(--border);
   color: var(--info-text);
 }
 .currentThumbnail > span b {
@@ -372,15 +307,16 @@
 }
 .miniPaper {
   position: relative;
-  width: 110px;
-  height: 143px;
+  width: 84px;
+  height: 109px;
+  margin-inline: auto;
   background: var(--document-paper);
   box-shadow: 0 1px 4px var(--shadow-document);
   overflow: hidden;
   color: var(--document-ink);
 }
 .miniPaper .documentContent {
-  transform: scale(0.18);
+  transform: scale(0.1372549);
   transform-origin: top left;
   width: 612px;
   height: 792px;
@@ -390,19 +326,20 @@
   position: absolute;
   color: #1d4b76;
 }
-.organizeButton {
+.pageRail .organizeButton {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   color: var(--action);
   background: transparent;
-  font-size: 11px;
+  font-size: 10px;
   border-top: 1px solid var(--border);
   border-radius: 0;
   margin-top: 20px;
   padding: 14px 0;
   min-height: 44px;
+  white-space: nowrap;
 }
 .pageActions {
   display: flex;
@@ -418,16 +355,6 @@
   font-size: 11px;
   padding: 5px;
 }
-.railFoot {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.6;
-  padding-top: 22px;
-  margin-top: auto;
-}
 .documentArea {
   display: flex;
   flex-direction: column;
@@ -441,13 +368,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 49px;
-  padding: 5px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  min-height: 42px;
+  padding: 2px 20px;
+  background: var(--pdf-stage);
 }
 .showPages {
   font-size: 11px;
+}
+.mobilePages {
+  display: none;
 }
 .pageStepper,
 .zoomControls {
@@ -477,7 +406,8 @@
   min-width: 88px;
   padding: 6px 4px;
   border: 1px solid transparent;
-  background: var(--surface);
+  background: transparent;
+  color: var(--secondary);
   font-size: 12px;
   border-radius: 4px;
 }
@@ -485,15 +415,24 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 20px 24px 12px;
+  padding: 18px 40px 16px;
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
+}
+.pageSurface {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+  min-width: 100%;
+  width: max-content;
 }
 .pageCaption {
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  max-width: 612px;
-  margin: 0 auto 12px;
+  margin: 0 auto 10px;
+  flex-shrink: 0;
   font-size: 10px;
   color: var(--muted);
 }
@@ -510,7 +449,8 @@
   color: var(--document-ink);
   transform-origin: top left;
   box-shadow:
-    0 2px 10px var(--shadow-document),
+    0 12px 32px var(--shadow-document),
+    0 2px 5px var(--shadow-card),
     0 0 0 1px var(--shadow-card);
 }
 .placing {
@@ -523,7 +463,7 @@
   gap: 7px;
   color: var(--muted);
   font-size: 10px;
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   white-space: nowrap;
 }
 .documentContent {
@@ -722,7 +662,8 @@
   width: 512px;
   height: 38px;
 }
-.supportedField input {
+.fieldArtwork {
+  display: block;
   width: 100%;
   height: 100%;
   border: 1px solid #7a9ebd;
@@ -731,11 +672,37 @@
   border-radius: 3px;
   padding: 8px 10px;
   font-size: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.supportedField input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  min-height: calc(44px / var(--page-scale));
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  padding: 0;
   color-scheme: light;
 }
-.supportedField input::placeholder {
-  color: #51677d;
-  font-size: 12px;
+.fieldGroupTarget {
+  position: absolute;
+  left: 50px;
+  top: 297px;
+  width: 512px;
+  height: 218px;
+  min-height: calc(44px / var(--page-scale));
+  background: #eaf2fae8;
+  color: #2d6089;
+  border: 1px solid #7a9ebd;
+  border-radius: 4px;
+}
+.fieldGroupTarget span {
+  font-size: calc(12px / var(--page-scale));
 }
 .signatureTarget {
   position: absolute;
@@ -756,6 +723,12 @@
   user-select: none;
 }
 .markContent {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: calc(44px / var(--page-scale));
+  min-height: calc(44px / var(--page-scale));
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -770,14 +743,31 @@
   white-space: pre;
   line-height: 1.1;
 }
-.markContent > span {
-  overflow: hidden;
-  text-overflow: clip;
-  width: 100%;
+.markContent > .markArtwork {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: var(--mark-width);
+  height: var(--mark-height);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
-.markContent > svg {
+.markArtwork > span {
+  overflow: hidden;
+  white-space: pre;
+}
+.markArtwork > svg {
   width: 100%;
   height: 100%;
+}
+.markOverflow {
+  font:
+    12px Arial,
+    sans-serif;
+  color: #a03143;
 }
 .markContent:active {
   cursor: grabbing;
@@ -786,6 +776,7 @@
   border-color: #427dab;
 }
 .selectedMark {
+  z-index: 2;
   outline: 1.5px solid #356b96;
   background: #427dab08;
 }
@@ -793,16 +784,14 @@
   border-color: transparent;
 }
 .signatureText {
-  font-family:
-    'Segoe Script', 'URW Chancery L', 'Apple Chancery', 'Brush Script MT',
-    Georgia, serif;
+  font-family: Georgia, serif;
   font-style: italic;
-  letter-spacing: -0.9px;
+  letter-spacing: 0;
 }
 .simpleSignature {
   font-family: Georgia, serif;
   font-style: normal;
-  letter-spacing: -0.8px;
+  letter-spacing: 0;
 }
 .selectionLabel {
   position: absolute;
@@ -816,35 +805,12 @@
   line-height: 17px;
   pointer-events: none;
 }
-.cornerTL,
-.cornerTR,
-.cornerBL {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  background: #fff;
-  border: 1.5px solid #356b96;
-  border-radius: 1px;
-  pointer-events: none;
-}
-.cornerTL {
-  top: -4px;
-  left: -4px;
-}
-.cornerTR {
-  top: -4px;
-  right: -4px;
-}
-.cornerBL {
-  bottom: -4px;
-  left: -4px;
-}
 .resizeHandle {
   position: absolute;
-  bottom: -14px;
-  right: -14px;
-  width: 28px;
-  height: 28px;
+  bottom: calc(-22px / var(--page-scale, 1));
+  right: calc(-66px / var(--page-scale, 1));
+  width: calc(44px / var(--page-scale, 1));
+  height: calc(44px / var(--page-scale, 1));
   background: transparent;
   display: flex;
   align-items: center;
@@ -853,16 +819,24 @@
   touch-action: none;
   cursor: nwse-resize;
 }
+.resizeHandle::before {
+  content: '';
+  position: absolute;
+  right: 50%;
+  width: calc(44px / var(--page-scale));
+  border-top: 1px solid #356b96;
+  pointer-events: none;
+}
 .resizeHandle span {
   display: block;
-  width: 9px;
-  height: 9px;
+  width: calc(10px / var(--page-scale, 1));
+  height: calc(10px / var(--page-scale, 1));
   background: #fff;
   border: 1.5px solid #356b96;
   border-radius: 2px;
 }
 .inspector {
-  width: 236px;
+  width: 248px;
   flex-shrink: 0;
   padding: 20px;
   border-left: 1px solid var(--border);
@@ -873,7 +847,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 .inspectorTitle > div > span {
   font-size: 9px;
@@ -963,9 +937,112 @@
 .blackInk {
   background: #172c45;
 }
-.propertyDivider {
+.advanced {
   border-top: 1px solid var(--border);
-  margin: 20px 0;
+  border-bottom: 1px solid var(--border);
+  margin: 16px 0;
+}
+.advanced summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--secondary);
+  font-size: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.advanced summary::-webkit-details-marker {
+  display: none;
+}
+.advanced summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.advanced[open] summary svg {
+  transform: rotate(180deg);
+}
+.editProperties {
+  display: none;
+}
+.signatureSize > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--secondary);
+}
+.signatureSize .secondary {
+  flex: 1;
+  padding: 8px;
+  font-size: 11px;
+}
+.signGuide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 16px;
+  max-width: 760px;
+  width: calc(100% - 48px);
+  margin: 0 auto 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px var(--shadow-card);
+}
+.guideCopy {
+  min-width: 0;
+}
+.guideCopy p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.signSteps {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.signSteps li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.signSteps b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 10px;
+}
+.signSteps [aria-current='step'] {
+  color: var(--action);
+  font-weight: 600;
+}
+.signSteps [aria-current='step'] b {
+  background: var(--button-primary-bg);
+  color: var(--on-primary);
+  border-color: transparent;
+}
+.signSteps [data-complete='true'] b {
+  color: var(--success-text);
+  background: var(--success-bg);
+  border-color: transparent;
+}
+.signGuide > .control {
+  flex-shrink: 0;
+}
+.signGuide:has(> .control) {
+  gap: 8px;
 }
 .inspector h3 {
   font-size: 12px;
@@ -991,7 +1068,7 @@
   padding: 8px;
   min-height: 38px;
   color: var(--danger-text);
-  background: var(--danger-bg);
+  background: transparent;
   border: 1px solid transparent;
   font-size: 11px;
 }
@@ -1098,8 +1175,34 @@
   padding: 5px 20px;
   font-size: 10px;
 }
-.statusBar > span:first-child {
+.statusBar > [role='status'] {
   flex: 1;
+}
+.reviewControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--info-text);
+  font-size: 10px;
+}
+.reviewControl > span {
+  padding: 2px 5px;
+  background: var(--info-bg);
+  border-radius: 3px;
+  font-weight: 600;
+}
+.reviewControl select {
+  max-width: 130px;
+  border: 0;
+  border-radius: 3px;
+  padding: 4px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+}
+.workspace select option {
+  color: var(--ink);
+  background: var(--surface);
 }
 .statusBar button {
   display: flex;
@@ -1208,6 +1311,8 @@
   color: var(--ink);
 }
 .signaturePreview {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
   height: 195px;
   margin: 18px 0 14px;
   position: relative;
@@ -1215,7 +1320,6 @@
   border: 1px solid var(--control-border);
   border-radius: 7px;
   color: #1d4b76;
-  overflow: hidden;
 }
 .signaturePreview > span {
   position: absolute;
@@ -1231,9 +1335,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  font-size: 44px;
   padding: 15px 24px 0;
-  overflow: hidden;
   white-space: nowrap;
 }
 .signatureBaseline {
@@ -1318,6 +1420,31 @@
   color: var(--action);
   border-radius: 10px;
   margin-bottom: 12px;
+}
+.completedIcon {
+  color: var(--success-text);
+  background: var(--success-bg);
+}
+.exportNotice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.exportNotice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.exportNotice strong {
+  font-weight: 500;
+  color: var(--secondary);
+}
+.exportNotice p {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.7;
 }
 .exportSummary {
   display: flex;
@@ -1424,15 +1551,8 @@
     display: inline;
   }
   .inspector {
-    width: 210px;
+    width: 228px;
     padding: 16px;
-  }
-  .pageRail {
-    width: 136px;
-    padding: 12px 10px;
-  }
-  .pageCaption {
-    max-width: 100%;
   }
   .header {
     padding-inline: 16px;
@@ -1441,51 +1561,53 @@
     padding-inline: 12px;
     gap: 6px;
   }
+  .stage {
+    padding-inline: 24px;
+  }
+  .signGuide {
+    width: calc(100% - 32px);
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .signGuide .guideCopy p {
+    max-width: 240px;
+  }
+  .signSteps {
+    gap: 10px;
+  }
 }
 @media (max-width: 759px) {
-  .reviewBar {
-    padding-inline: 12px;
-    min-height: 28px;
-    font-size: 10px;
-  }
-  .reviewDetail {
-    display: none;
-  }
-  .reviewBar b {
-    font-size: 9px;
-    margin: 0;
-    letter-spacing: 0.8px;
-  }
-  .reviewBar label {
-    font-size: 9px;
-    gap: 4px;
-  }
-  .reviewBar select {
-    font-size: 10px;
-    max-width: 105px;
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: 'header header' 'modes history' 'body body' 'tools tools' 'footer footer';
   }
   .header {
-    gap: 10px;
-    min-height: 67px;
-    padding: 9px 12px;
+    grid-area: header;
+    gap: 8px;
+    min-height: 60px;
+    padding: 6px 12px;
   }
   .back {
     border: 0;
     padding: 0;
-    gap: 5px;
-  }
-  .back > svg {
-    width: 16px;
+    min-height: 44px;
+    min-width: 28px;
   }
   .back :global(.brand-mark) {
-    width: 24px;
-    height: 28px;
+    display: none;
   }
   .titleGroup {
     flex: 1;
   }
   .titleGroup h1 {
-    font-size: 14px;
+    font-size: 13px;
+  }
+  .titleGroup h1 span {
+    font-size: 8px;
+    padding: 1px 3px;
+    margin-left: 2px;
   }
   .titleGroup input {
     width: 100%;
@@ -1493,7 +1615,7 @@
     text-overflow: ellipsis;
   }
   .headerActions {
-    gap: 6px;
+    gap: 4px;
   }
   .headerActions > .control {
     display: none;
@@ -1502,53 +1624,58 @@
     display: none;
   }
   .headerActions :global(.appearance-select select) {
-    max-width: 65px;
+    width: 63px;
+    min-height: 44px;
     font-size: 10px;
-    padding: 2px;
+    padding: 4px;
   }
-  .headerActions .primary {
-    min-width: 40px;
-    min-height: 40px;
-    padding: 9px;
+  .headerActions > .primary,
+  .headerActions > .secondary {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
   }
-  .headerActions .primary span {
+  .headerActions > .primary span,
+  .headerActions > .secondary span {
     display: none;
   }
   .toolbar {
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 7px 10px;
-    min-height: 0;
+    display: contents;
   }
   .modes {
-    order: 0;
+    grid-area: modes;
+    width: fit-content;
+    margin: 4px 0 6px 12px;
+    padding: 2px;
   }
   .modes button {
-    min-height: 34px;
+    min-height: 40px;
     padding: 6px 12px;
   }
   .historyGroup {
-    order: 1;
-    margin-left: auto;
+    grid-area: history;
     border: 0;
-    padding: 0;
+    padding: 4px 8px 6px 0;
+  }
+  .historyGroup .control {
+    min-width: 40px;
+    min-height: 44px;
   }
   .toolGroup {
-    order: 2;
-    width: 100%;
-    justify-content: space-between;
-    border-top: 1px solid var(--border);
-    padding-top: 6px;
-    margin-top: 1px;
+    grid-area: tools;
+    justify-content: space-around;
     gap: 2px;
+    padding: 6px 10px max(6px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--surface);
   }
   .toolGroup .control {
     flex-direction: column;
     gap: 3px;
     flex: 1;
-    padding: 6px 3px;
+    padding: 5px 2px;
     min-width: 44px;
-    min-height: 49px;
+    min-height: 48px;
     font-size: 10px;
   }
   .toolGroup .control span,
@@ -1556,67 +1683,59 @@
   .toolGroup .control:nth-child(3) span {
     display: inline;
   }
-  .contextBar {
-    min-height: 43px;
-    padding: 5px 12px;
-    gap: 6px;
-  }
-  .contextHint {
-    font-size: 10px;
-    gap: 5px;
-    flex: 1;
-  }
-  .contextHint svg {
-    width: 13px;
-  }
-  .contextDetail {
+  .workspace[data-properties-open='true'] .toolGroup {
     display: none;
   }
-  .contextBar .smallAction {
-    font-size: 10px;
-    padding: 6px;
-    white-space: normal;
-    text-align: center;
-    max-width: 130px;
-  }
-  .contextBar > .control {
-    min-width: 32px;
+  .body {
+    grid-area: body;
+    position: relative;
+    flex-direction: column;
   }
   .pageRail {
     display: none;
   }
   .viewControls {
     min-height: 44px;
-    padding: 4px 8px;
-    gap: 2px;
+    padding: 0 8px;
+    gap: 0;
   }
   .viewControls .control {
-    min-height: 36px;
-    min-width: 32px;
+    min-height: 44px;
+    min-width: 36px;
   }
   .showPages span {
     display: none;
   }
+  .desktopPages {
+    display: none;
+  }
+  .mobilePages {
+    display: inline-flex;
+  }
   .pageStepper {
-    gap: 2px;
+    gap: 0;
   }
   .pageStepper select {
     width: 36px;
+    min-height: 44px;
     font-size: 11px;
+    border-color: transparent;
   }
   .zoomControls {
     gap: 0;
   }
   .zoomControls select {
-    min-width: 72px;
-    max-width: 80px;
+    min-width: 70px;
+    max-width: 76px;
+    min-height: 44px;
     font-size: 10px;
   }
   .fitButton {
     display: none;
   }
   .stage {
-    padding: 14px 12px;
+    padding: 12px 20px 16px;
+    scrollbar-gutter: auto;
   }
   .pageCaption {
     font-size: 9px;
@@ -1627,68 +1746,163 @@
     white-space: normal;
     text-align: center;
   }
-  .body {
-    position: relative;
-    flex-direction: column;
+  .signGuide {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 10px 16px;
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .guideCopy {
+    grid-column: 1 / -1;
+  }
+  .guideCopy p {
+    display: none;
+  }
+  .signSteps {
+    justify-content: center;
+    gap: 26px;
+  }
+  .signGuide > .primary {
+    grid-column: 1 / -1;
+    min-height: 44px;
+  }
+  .signGuide:has(> .control) > .primary {
+    grid-column: 1;
+  }
+  .signGuide:has(> .control) > .control {
+    min-height: 44px;
+    min-width: 44px;
   }
   .inspector {
-    position: relative;
     width: auto;
-    max-height: 38%;
-    min-height: 120px;
+    max-height: min(42dvh, 360px);
     z-index: 5;
-    border: 1px solid var(--border);
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 -4px 15px var(--shadow-card);
-    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+    background: var(--surface);
+    padding: 0 16px;
   }
   .inspectorTitle {
-    margin-bottom: 10px;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    min-height: 56px;
+    margin: 0;
+    z-index: 1;
+    gap: 8px;
   }
   .inspectorTitle > div {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    flex: 1;
+  }
+  .inspectorTitle > div > span {
+    font-size: 8px;
   }
   .inspectorTitle h2 {
-    font-size: 14px;
+    font-size: 13px;
     margin: 0;
   }
   .inspectorTitle .control {
-    min-height: 28px;
+    min-height: 44px;
+    min-width: 36px;
+  }
+  .editProperties {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    min-height: 44px;
+    color: var(--action);
+    font-size: 12px;
+    background: transparent;
+  }
+  .editProperties[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+  }
+  .propertyBody {
+    display: none;
+    padding-bottom: 12px;
+  }
+  .expandedInspector .propertyBody {
+    display: block;
+  }
+  .workspace[data-properties-open='true'] .signGuide {
+    display: none;
   }
   .inspector .propertyField {
-    margin-bottom: 8px;
+    margin-bottom: 12px;
   }
-  .inkChoices {
-    margin-block: 8px;
-  }
-  .inspector:has(.propertyRow) {
-    max-height: 43%;
+  .inspector input,
+  .inspector select {
+    min-height: 44px;
+    font-size: 16px;
   }
   .propertyRow .propertyField {
     margin: 0;
   }
+  .propertyRow > .control {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .inkChoices {
+    margin-block: 10px;
+  }
+  .inkChoices label {
+    min-height: 44px;
+    padding-right: 12px;
+    font-size: 12px;
+  }
+  .inkChoices input {
+    min-height: 0;
+  }
+  .signatureSize .secondary {
+    min-height: 44px;
+  }
   .statusBar {
-    min-height: 35px;
-    padding: 5px 10px;
-    gap: 10px;
+    grid-area: footer;
+    min-height: 36px;
+    padding: 0 12px;
+    gap: 6px;
     font-size: 9px;
   }
-  .statusBar > span:first-child {
-    max-height: 28px;
-    overflow-y: auto;
-    line-height: 1.5;
+  .statusBar > [role='status'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
-  .tabOnly {
-    display: none;
+  .reviewControl {
+    gap: 4px;
+    font-size: 9px;
+  }
+  .reviewControl select {
+    max-width: 110px;
+    min-height: 36px;
+    font-size: 9px;
   }
   .statusBar button {
-    min-width: 28px;
-    min-height: 28px;
+    margin-left: auto;
+    min-width: 36px;
+    min-height: 36px;
   }
   .statusBar button span {
     display: none;
+  }
+  .tabOnly {
+    font-size: 8px;
+    white-space: normal;
+    text-align: right;
+    max-width: 90px;
   }
   .emptyWorkspace {
     padding: 24px 16px;
@@ -1767,4 +1981,163 @@
   .spinner {
     animation: none;
   }
+}
+
+.skipEditor {
+  position: fixed;
+  top: 4px;
+  left: 8px;
+  z-index: 90;
+  transform: translateY(-150%);
+  padding: 10px;
+  background: var(--surface);
+  color: var(--action);
+}
+.skipEditor:focus {
+  transform: none;
+}
+.contentsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px;
+  border-radius: 5px;
+  color: var(--secondary);
+  background: transparent;
+}
+.contentsList {
+  margin-top: 20px;
+}
+.contentsList h3 {
+  font-size: 12px;
+  margin-block: 16px 8px;
+}
+.contentsList > button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  margin-block: 6px;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+.contentsList button span {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.contentsList p {
+  font-size: 12px;
+  color: var(--muted);
+}
+.moveControls {
+  display: flex;
+  gap: 6px;
+  margin-block: 12px;
+}
+.moveControls button {
+  flex: 1;
+  min-width: 44px;
+  min-height: 44px;
+  background: var(--surface-muted);
+  color: var(--action);
+  border: 1px solid var(--border);
+}
+.fitWarning {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  padding: 10px;
+  margin-block: 12px;
+}
+.signatureFitCopy {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.pageStepper .control {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (max-width: 759px) {
+  .workspace {
+    top: var(--editing-top, 0px);
+    bottom: auto;
+    height: var(--editing-height, 100dvh);
+  }
+  .viewControls > .mobilePages {
+    display: none;
+  }
+  .contentsButton span {
+    display: none;
+  }
+  .viewControls .control {
+    min-width: 44px;
+  }
+  .pageStepper select {
+    width: 44px;
+  }
+  .workspace[data-keyboard-open='true'] .header {
+    min-height: 44px;
+    padding-block: 0;
+  }
+  .workspace[data-keyboard-open='true'] .titleGroup input,
+  .workspace[data-keyboard-open='true'] .titleGroup h1 span,
+  .workspace[data-keyboard-open='true'] .modes,
+  .workspace[data-keyboard-open='true'] .historyGroup,
+  .workspace[data-keyboard-open='true'] .toolGroup,
+  .workspace[data-keyboard-open='true'] .statusBar > :not([role='status']) {
+    display: none;
+  }
+  .workspace[data-keyboard-open='true'] .statusBar {
+    min-height: 0;
+    height: 0;
+    padding: 0;
+    border: 0;
+  }
+  .workspace[data-keyboard-open='true'] .inspector {
+    max-height: 156px;
+  }
+  .workspace[data-keyboard-open='true']
+    .propertyBody
+    > :not(.propertyField:first-child):not(:focus-within) {
+    display: none;
+  }
+  .workspace[data-keyboard-open='true'] .inspectorTitle {
+    min-height: 44px;
+  }
+  .workspace[data-keyboard-open='true'] .stage {
+    padding-block: 8px;
+  }
+  .workspace[data-keyboard-open='true'] .pageCaption,
+  .workspace[data-keyboard-open='true'] .paperHint {
+    display: none;
+  }
+  .signatureName input {
+    font-size: 16px;
+  }
+}
+@media (max-width: 359px) {
+  .zoomControls > .control {
+    display: none;
+  }
+  .zoomControls select {
+    min-width: 70px;
+  }
+}
+
+.viewControls > .showPages,
+.viewControls select {
+  min-height: 44px;
+}
+.inspector input {
+  scroll-margin-block: 56px 12px;
 }

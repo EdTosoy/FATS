@@ -13,7 +13,8 @@
       "{workspaceRoot}/apps/web/src/server/**/*",
       "{workspaceRoot}/apps/web/migrations/**/*",
       "{workspaceRoot}/apps/web/scripts/**/*",
-      "{workspaceRoot}/apps/web/src/app/**/*.css"
+      "{workspaceRoot}/apps/web/src/app/**/*.css",
+      "{workspaceRoot}/apps/web/src/components/pdf-tools-design/**/*"
     ]
   },
   "targets": {

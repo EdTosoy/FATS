@@ -37,7 +37,7 @@ export class LocalPdfWorker {
       );
   }
   request(
-    action: 'open' | 'export',
+    action: 'open' | 'inspect' | 'export' | 'stamp' | 'preview' | 'complete',
     edits: PdfEdits,
     images: PdfOverlayImage[] = [],
     bytes?: Uint8Array,

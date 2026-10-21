@@ -1,0 +1,1265 @@
+.workspace {
+  position: fixed;
+  inset: 0;
+  height: var(--pdf-v2-visible-height, 100dvh);
+  top: var(--pdf-v2-visible-top, 0px);
+  bottom: auto;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+  isolation: isolate;
+}
+:global(body:has([data-pdf-v2-workspace]) .sidebar),
+:global(body:has([data-pdf-v2-workspace]) .topbar),
+:global(body:has([data-pdf-v2-workspace]) .workspace-footer),
+:global(body:has([data-pdf-v2-workspace]) .skip-link) {
+  visibility: hidden;
+}
+.workspace button,
+.workspace select,
+.modal button {
+  font: inherit;
+}
+.workspace button,
+.workspace a,
+.workspace select,
+.modal button {
+  -webkit-tap-highlight-color: transparent;
+}
+.workspace button,
+.modal button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--secondary);
+  cursor: pointer;
+  background: transparent;
+}
+.workspace button:hover:enabled,
+.modal button:hover:enabled {
+  background: var(--surface-hover);
+}
+.workspace button:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+.workspace :is(button, a, select, [tabindex]):focus-visible,
+.modal button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.workspace select {
+  min-height: 44px;
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.header {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 6px;
+  color: var(--secondary);
+}
+.title {
+  min-width: 0;
+  flex: 1;
+}
+.title h1 {
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+}
+.title h1 span {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-left: 5px;
+  padding: 2px 4px;
+  white-space: nowrap;
+}
+.title p {
+  font-size: 12px;
+  color: var(--secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 420px;
+}
+.privacy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  margin-right: auto;
+}
+.workspace .openButton {
+  border-color: var(--control-border);
+  padding: 0 12px;
+}
+.phaseNotice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 4px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.phaseNotice strong {
+  font-size: 12px;
+}
+.phaseNotice span {
+  font-size: 12px;
+  color: var(--muted);
+  flex: 1;
+}
+.phaseNotice button {
+  min-height: 36px;
+}
+.footer {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+}
+.footer > span {
+  color: var(--action);
+  font-weight: 600;
+}
+.footer p {
+  flex: 1;
+}
+.footer a {
+  color: var(--action);
+}
+.empty {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px 24px;
+  overflow: auto;
+  text-align: center;
+  background: var(--pdf-stage);
+}
+.empty > div {
+  max-width: 500px;
+}
+.empty svg {
+  margin: 0 auto 16px;
+  color: var(--action);
+}
+.empty h2 {
+  font-size: 26px;
+  letter-spacing: -0.8px;
+  margin-bottom: 12px;
+}
+.empty p {
+  color: var(--secondary);
+  margin: 12px 0 20px;
+}
+.empty .limits {
+  font-size: 11px;
+  color: var(--muted);
+}
+.workspace .primary {
+  background: var(--button-primary-bg);
+  color: var(--on-primary);
+  padding: 0 20px;
+}
+.workspace .primary:hover {
+  background: var(--button-primary-bg);
+  filter: brightness(0.95);
+}
+.primary svg {
+  margin: 0;
+  color: inherit;
+}
+.error {
+  padding: 10px 24px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-bottom: 1px solid var(--danger-border);
+}
+.document {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.rail {
+  flex: 0 0 124px;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface-muted);
+  border-right: 1px solid var(--border);
+  padding: 16px 10px;
+}
+.railTitle {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.railTitle span {
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 6px;
+}
+.thumbnails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.workspace .thumbnail,
+.modal .thumbnail {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px 6px;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.workspace .thumbnail[aria-current],
+.modal .thumbnail[aria-current] {
+  border-color: var(--control-border);
+  background: var(--surface-hover);
+}
+.thumbnail > span:last-child {
+  font-size: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--secondary);
+}
+.thumbnail b {
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.thumbnail[aria-current] b {
+  background: var(--button-primary-bg);
+  color: var(--on-primary);
+}
+.thumbPaper {
+  display: block;
+  width: 84px;
+  position: relative;
+  background: #fff;
+  box-shadow: 0 1px 4px #172c451f;
+}
+.thumbnailMark {
+  position: absolute;
+  pointer-events: none;
+}
+.canvasWrap .thumbnailMark canvas {
+  width: 100%;
+  height: 100%;
+}
+.workspace .organizeEntry,
+.modal .organizeEntry {
+  margin: 4px 8px 8px;
+  font-size: 12px;
+  border: 1px solid var(--control-border);
+}
+.modal.organizer {
+  width: min(940px, calc(100vw - 24px));
+  max-width: 940px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.organizeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 0;
+  border-block: 1px solid var(--control-border);
+}
+.organizeActions strong {
+  width: 100%;
+}
+.organizeActions label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.organizeActions select {
+  min-height: 44px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+}
+.organizeGrid {
+  overflow: auto;
+  min-height: 120px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  align-items: start;
+  gap: 12px;
+  padding: 16px 4px;
+}
+.organizeCard {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--pdf-stage);
+}
+.organizeCard[data-selected='true'] {
+  border-color: var(--focus);
+  background: var(--surface);
+}
+.organizeCard[data-drop='true'] {
+  outline: 3px dashed var(--focus);
+  outline-offset: 2px;
+}
+.organizeCard .thumbnail {
+  width: 100%;
+}
+.organizeCard .thumbPaper {
+  width: 120px;
+  max-width: 100%;
+}
+.organizeCard .thumbnail > span:last-child {
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 11px;
+}
+.organizeCard .dragHandle {
+  margin: 4px auto 0;
+  cursor: grab;
+}
+.organizeFooter {
+  border-top: 1px solid var(--control-border);
+  padding-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.organizeFooter p {
+  width: 100%;
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .modal.organizer {
+    padding: 16px;
+    max-height: calc(var(--pdf-v2-visible-height, 100dvh) - 24px);
+  }
+  .organizeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .organizeActions {
+    gap: 4px;
+  }
+  .organizeActions button {
+    font-size: 12px;
+    padding-inline: 8px;
+  }
+}
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--pdf-stage);
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 20px;
+}
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.controls select {
+  background: transparent;
+  border-color: transparent;
+  max-width: 126px;
+}
+.pageCount {
+  color: var(--muted);
+  font-size: 12px;
+}
+.stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
+}
+.pageStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  padding: 16px 24px 36px;
+  gap: 28px;
+}
+.figure {
+  margin: 0;
+  flex: none;
+}
+.figure figcaption {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  gap: 16px;
+}
+.paper {
+  position: relative;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px #172c451a,
+    0 12px 32px #0d1c3220,
+    0 2px 4px #0d1c320d;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+.canvasWrap {
+  position: absolute;
+  inset: 0;
+}
+.canvasWrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.canvasWrap[data-page-status='error'] canvas {
+  visibility: hidden;
+}
+.pageMessage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 12px;
+  color: #52637a;
+  font-size: 12px;
+  overflow: hidden;
+}
+.pageMessage button {
+  color: #224f7a;
+  background: #eaf2f9;
+}
+.pageMessage p {
+  max-width: 360px;
+}
+.documentStatus {
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.workspace .mobileInfo {
+  display: none;
+}
+.workspace .downloadButton {
+  background: var(--button-primary-bg);
+  color: var(--on-primary);
+  padding: 0 14px;
+}
+.workspace .downloadButton:hover:enabled {
+  background: var(--button-primary-hover);
+}
+.signToolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 24px;
+  min-height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.signToolbar > strong {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--surface-hover);
+  white-space: nowrap;
+}
+.editUnavailable {
+  color: var(--muted);
+  font-size: 11px;
+}
+.signTools,
+.historyButtons {
+  display: flex;
+  gap: 4px;
+}
+.historyButtons {
+  margin-left: auto;
+}
+.signTools button {
+  padding: 0 12px;
+}
+.signTools button[aria-pressed='true'] {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+.signGuide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  margin: 8px 24px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 18px var(--shadow-card);
+}
+.signGuide ol {
+  display: flex;
+  gap: 18px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.signGuide li[aria-current] {
+  color: var(--action);
+  font-weight: 700;
+}
+.signGuide p {
+  font-size: 11px;
+  color: var(--secondary);
+}
+.guideActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.signGuide .primary {
+  padding: 0 16px;
+  white-space: nowrap;
+}
+.signStatus,
+.signError {
+  flex: none;
+  padding: 6px 20px;
+  font-size: 11px;
+  color: var(--secondary);
+}
+.signError {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+.workspace [data-placing='true'] .paper canvas {
+  cursor: crosshair;
+}
+.signatureLayer {
+  z-index: 3;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.markBox {
+  position: absolute;
+}
+.markBox canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.selectedMark {
+  outline: 1px solid var(--focus);
+  outline-offset: 2px;
+}
+.selectedMark :is(.moveTarget, .resizeTarget, .resizeConnector) {
+  z-index: 4;
+}
+.workspace .moveTarget {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  touch-action: none;
+  cursor: move;
+}
+.workspace .moveTarget:hover:enabled {
+  background: var(--pdf-selection);
+}
+.workspace .moveTarget:disabled {
+  pointer-events: none;
+  opacity: 1;
+}
+.workspace .resizeTarget {
+  pointer-events: auto;
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  background: var(--surface);
+  color: var(--action);
+  border: 1px solid var(--control-border);
+  border-radius: 50%;
+  touch-action: none;
+  cursor: nwse-resize;
+  font-size: 21px;
+  box-shadow: 0 2px 4px var(--shadow-card);
+}
+.resizeConnector {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  stroke: var(--focus);
+  stroke-width: 1;
+}
+.inspector {
+  flex: 0 0 248px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+.inspector:not(.inspectorExpanded) {
+  display: none;
+}
+.selectionSummary {
+  display: none;
+}
+.propertyBody h2 {
+  font-size: 13px;
+}
+.signatureName {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.hint {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 10px 0;
+}
+.inspector fieldset {
+  border: 0;
+  padding: 0;
+  margin-top: 16px;
+}
+.inspector legend {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.propertyRow {
+  display: flex;
+  gap: 6px;
+}
+.propertyRow button {
+  flex: 1;
+  border-color: var(--control-border);
+}
+.moveButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 12px 0;
+}
+.inspector details {
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+.inspector summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 600;
+}
+.inputLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.inputLabel input,
+.inputLabel select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+.workspace .deleteButton {
+  color: var(--danger-text);
+  margin-top: 16px;
+}
+.signatureModes {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+.signatureModes button {
+  border-color: var(--control-border);
+  padding: 0 20px;
+}
+.signatureModes button[aria-pressed='true'] {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+.signaturePreview {
+  display: flex;
+  justify-content: safe center;
+  align-items: center;
+  min-height: 100px;
+  padding: 16px;
+  overflow-x: auto;
+  background: var(--document-paper);
+  color: var(--document-ink);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+}
+.signaturePreview canvas {
+  width: 100%;
+  height: 100%;
+}
+.signatureModal {
+  width: min(640px, calc(100% - 32px));
+}
+.drawArea {
+  background: var(--document-paper);
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--control-border);
+}
+.drawArea canvas {
+  width: 100%;
+  height: 150px;
+  touch-action: none;
+}
+.dialogActions {
+  position: sticky;
+  bottom: -20px;
+  background: var(--surface);
+  padding: 12px 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+.modal .primary {
+  padding: 0 20px;
+  background: var(--button-primary-bg);
+  color: var(--on-primary);
+}
+.modal button:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--overlay);
+}
+.modal {
+  position: fixed;
+  z-index: 61;
+  left: 50%;
+  top: calc(
+    var(--pdf-v2-visible-top, 0px) + var(--pdf-v2-visible-height, 100dvh) / 2
+  );
+  transform: translate(-50%, -50%);
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(var(--pdf-v2-visible-height, 100dvh) - 32px);
+  overflow: auto;
+  padding: 20px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 13px;
+  box-shadow: 0 16px 48px var(--shadow-dialog);
+}
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.modalHeader h2 {
+  font-size: 18px;
+}
+.modal > p {
+  color: var(--secondary);
+  margin: 12px 0;
+}
+.modal .thumbnails {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 20px;
+}
+.info {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  margin: 20px 0;
+}
+.info dt {
+  color: var(--muted);
+}
+.info dd {
+  overflow-wrap: anywhere;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skip {
+  position: fixed;
+  top: -100px;
+  left: 12px;
+  z-index: 50;
+  background: var(--surface);
+  padding: 12px;
+  color: var(--ink);
+}
+.skip:focus {
+  top: 8px;
+}
+@media (max-width: 760px) {
+  .workspace[data-keyboard='true']
+    :is(.signGuide, .signStatus, .signToolbar, .footer, .documentStatus) {
+    display: none;
+  }
+  .workspace[data-keyboard='true'] .inspector {
+    max-height: 45%;
+  }
+  .selectionSummary {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+  }
+  .downloadButton span {
+    display: none;
+  }
+  .workspace .downloadButton {
+    min-width: 44px;
+    padding: 0;
+  }
+  .header .appearance select {
+    width: 74px;
+  }
+  .signToolbar {
+    padding: 3px 8px;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 50px;
+  }
+  .signToolbar > strong {
+    font-size: 11px;
+    padding: 6px;
+  }
+  .editUnavailable {
+    display: none;
+  }
+  .signTools button {
+    padding: 0 6px;
+    font-size: 11px;
+    gap: 4px;
+  }
+  .signToolbar .historyButtons button {
+    min-width: 44px;
+  }
+  .document {
+    flex-direction: column;
+  }
+  .main {
+    min-height: 0;
+  }
+  .signGuide {
+    padding: 8px 12px;
+    margin: 4px 8px;
+    gap: 8px;
+    border-radius: 8px;
+  }
+  .signGuide ol {
+    gap: 12px;
+    font-size: 10px;
+  }
+  .signGuide p {
+    font-size: 10px;
+  }
+  .signGuide .primary {
+    padding: 0 10px;
+    font-size: 11px;
+    white-space: normal;
+  }
+  .guideActions {
+    flex-direction: column;
+    gap: 0;
+  }
+  .guideActions button {
+    font-size: 11px;
+  }
+  .signStatus,
+  .signError {
+    padding: 4px 12px;
+    font-size: 10px;
+    max-height: 60px;
+    overflow: auto;
+  }
+  .inspector,
+  .inspector:not(.inspectorExpanded) {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    max-height: min(42dvh, 45%);
+    padding: 0 12px;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .selectionSummary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 52px;
+  }
+  .selectionSummary p {
+    max-width: 230px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    color: var(--secondary);
+  }
+  .propertyBody {
+    display: none;
+    padding-bottom: 12px;
+  }
+  .inspectorExpanded .propertyBody {
+    display: block;
+  }
+  .propertyBody > .modalHeader {
+    display: none;
+  }
+  .propertyBody .moveButtons {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .propertyBody .inputLabel {
+    display: inline-flex;
+    width: calc(50% - 8px);
+    margin: 8px 8px 8px 0;
+  }
+  .header {
+    min-height: 60px;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+  .title h1 {
+    font-size: 13px;
+  }
+  .title h1 span {
+    display: block;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    font-size: 9px;
+  }
+  .title p {
+    font-size: 10px;
+    max-width: 150px;
+  }
+  .privacy,
+  .openButton span {
+    display: none;
+  }
+  .workspace .openButton {
+    padding: 0;
+    min-width: 44px;
+  }
+  .appearance select {
+    padding: 0 4px;
+    width: 74px;
+    font-size: 12px;
+  }
+  .phaseNotice {
+    padding: 6px 12px;
+    gap: 6px;
+    min-height: 48px;
+  }
+  .phaseNotice strong {
+    display: none;
+  }
+  .phaseNotice span {
+    font-size: 10px;
+    max-width: 240px;
+  }
+  .phaseNotice button {
+    font-size: 10px;
+    min-width: 80px;
+  }
+  .rail,
+  .controls .desktopRail,
+  .pagesLabel {
+    display: none;
+  }
+  .controls {
+    padding: 2px 6px;
+    gap: 0;
+  }
+  .controlGroup {
+    gap: 0;
+  }
+  .controls button {
+    min-width: 44px;
+  }
+  .controls select {
+    padding: 0 3px;
+    min-width: 44px;
+    max-width: 88px;
+    font-size: 12px;
+  }
+  .controls .controlGroup:last-child select {
+    max-width: 68px;
+  }
+  .pageCount {
+    display: none;
+  }
+  .controls .controlGroup:first-child button {
+    min-width: 44px;
+  }
+  .controls .desktopInfo {
+    display: none;
+  }
+  .documentStatus {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 0 8px;
+  }
+  .workspace .mobileInfo {
+    display: inline-flex;
+  }
+  .footer {
+    padding: 6px 12px;
+    gap: 8px;
+    font-size: 9px;
+  }
+  .footer > span {
+    display: none;
+  }
+  .footer a {
+    max-width: 100px;
+    text-align: right;
+  }
+  .figure figcaption {
+    font-size: 9px;
+  }
+  .documentStatus {
+    font-size: 9px;
+  }
+  .empty h2 {
+    font-size: 23px;
+  }
+  .error {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+@media (max-width: 359px) {
+  .controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .controls .controlGroup:first-child {
+    margin-right: auto;
+  }
+  .controls .controlGroup:last-child {
+    flex: 0 0 100%;
+    justify-content: center;
+  }
+}
+
+.modeButtons {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  padding: 2px;
+}
+.modeButtons button {
+  padding: 0 10px;
+  font-size: 12px;
+}
+.modeButtons button[aria-pressed='true'] {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+.editHint {
+  padding: 6px 16px;
+  color: var(--secondary);
+  font-size: 11px;
+}
+.fieldLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.fieldOutline {
+  position: absolute;
+  border: 1px solid #447daa;
+  background: rgb(68 125 170 / 6%);
+}
+.fieldTarget {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  border-radius: 3px;
+}
+.fieldTarget:hover,
+.fieldTarget[data-selected='true'] {
+  background: rgb(68 125 170 / 12%);
+}
+.fieldTarget:disabled {
+  pointer-events: none;
+}
+.overviewFields {
+  pointer-events: auto;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 0 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px var(--shadow-dialog);
+}
+.onPageTextEditor {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: auto;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  resize: none;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.valueTextEditor {
+  display: block;
+  width: 100%;
+  min-height: 100px;
+  max-height: 180px;
+  padding: 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--ink);
+  font:
+    16px/1.35 Arial,
+    sans-serif;
+  resize: vertical;
+}
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 13px;
+}
+.checkLabel input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--info-text);
+}
+@media (max-width: 1100px) {
+  .signToolbar {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  .signTools {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 760px) {
+  .signToolbar .modeButtons {
+    order: 0;
+  }
+  .signToolbar .historyButtons {
+    order: 1;
+  }
+  .signToolbar .signTools {
+    order: 2;
+    flex: 1 0 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .signTools button {
+    flex-shrink: 0;
+  }
+  .propertyBody .inputLabel:has(textarea),
+  [aria-label='Selected form field'] .inputLabel {
+    width: 100%;
+  }
+}

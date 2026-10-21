@@ -34,8 +34,20 @@ export const initialSnapshot = (): Snapshot => ({
 export const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 export function boundMark(mark: Mark): Mark {
-  const width = clamp(mark.width, 24, 560);
-  const height = clamp(mark.height, 20, 740);
+  const locked = mark.kind === 'signature' || mark.kind === 'initials';
+  const factor = locked
+    ? Math.min(
+        Math.max(
+          1,
+          24 / Math.max(1, mark.width),
+          20 / Math.max(1, mark.height),
+        ),
+        560 / Math.max(1, mark.width),
+        740 / Math.max(1, mark.height),
+      )
+    : 1;
+  const width = locked ? mark.width * factor : clamp(mark.width, 24, 560);
+  const height = locked ? mark.height * factor : clamp(mark.height, 20, 740);
   return {
     ...mark,
     width,

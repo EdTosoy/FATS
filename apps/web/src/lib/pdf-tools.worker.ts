@@ -19,12 +19,21 @@ self.onmessage = async (
 ) => {
   const { id, action, bytes, edits, images } = event.data;
   try {
-    if (action === 'open' && bytes) {
+    if ((action === 'open' || action === 'inspect') && bytes) {
       original = bytes.slice();
       info = await inspectLocalPdf(original);
     }
     if (!original || !info) throw new PdfToolsError('Choose a PDF to begin.');
-    const output = await exportLocalPdf(original, info, edits, images);
+    // The read-only V2 foundation renders the validated original, without
+    // flattening fields, changing metadata, or invoking the export pipeline.
+    const output =
+      action === 'inspect'
+        ? original.slice()
+        : await exportLocalPdf(original, info, edits, images, {
+            preserveFields: ['stamp', 'preview', 'complete'].includes(action),
+            editFields: action === 'preview' || action === 'complete',
+            requireFields: action === 'complete' || action === 'stamp',
+          });
     self.postMessage(
       { id, info, bytes: output },
       { transfer: [output.buffer] },
