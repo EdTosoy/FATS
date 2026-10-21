@@ -27,23 +27,53 @@ export type PdfFieldInfo = {
   options?: string[];
   maxLength?: number;
   readOnly: boolean;
+  required?: boolean;
+  control?: 'text' | 'checkbox' | 'radio' | 'dropdown';
   pages: number[];
 };
-export type PdfInfo = { pages: PdfPageInfo[]; fields: PdfFieldInfo[] };
+export type PdfInfo = {
+  pages: PdfPageInfo[];
+  fields: PdfFieldInfo[];
+  organization?: { blocked?: string; removalBlocked?: string };
+  // PDF-space widget rectangles, used when signatures preserve live fields.
+  formWidgets?: {
+    field?: string;
+    option?: string;
+    page: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[];
+};
 export type PdfElement = {
   id: string;
   page: number;
-  kind: 'text' | 'date' | 'check' | 'signature';
+  kind: 'text' | 'date' | 'check' | 'signature' | 'initials';
   x: number;
   y: number;
   width: number;
   height: number;
   text: string;
   strokes?: Point[][];
+  // Optional V2 typography; legacy editor marks retain their existing painter.
+  signatureStyle?: 'classic' | 'simple';
+  signatureFontSize?: number;
+  fontSize?: number;
+  fontWeight?: 400 | 700;
+  ink?: '#172c45' | '#111111' | '#244e80';
+  dateValue?: string;
+  dateFormat?: 'long' | 'iso';
+  checkStyle?: 'check' | 'cross';
+  // Clockwise artwork orientation inside the visible bounding box (V2 only).
+  contentRotation?: number;
 };
+// source is the immutable, zero-based identity in the original local PDF.
+export type PdfPageEdit = { source: number; rotation: number };
 export type PdfEdits = {
   elements: PdfElement[];
   fields: Record<string, string | boolean>;
+  pages?: PdfPageEdit[];
 };
 export const emptyPdfEdits = (): PdfEdits => ({ elements: [], fields: {} });
 export type PdfHistory = {
@@ -98,6 +128,32 @@ export function viewToPdf(page: PdfPageInfo, point: Point): Point {
       return { x: page.x + point.x, y: page.y + page.height - point.y };
   }
 }
+export const PDF_FORM_OVERLAP_ERROR =
+  'Added content cannot cover an existing form field. Fill the field itself, or choose a blank area of the page.';
+export function overlapsPdfFormField(
+  element: PdfElement,
+  info: PdfInfo,
+): boolean {
+  const page = info.pages[element.page];
+  if (!page) return false;
+  const a = viewToPdf(page, element);
+  const b = viewToPdf(page, {
+    x: element.x + element.width,
+    y: element.y + element.height,
+  });
+  return (
+    info.formWidgets?.some((widget) => {
+      if (widget.page !== element.page || !widget.width || !widget.height)
+        return false;
+      return (
+        Math.min(a.x, b.x) < Math.max(widget.x, widget.x + widget.width) &&
+        Math.max(a.x, b.x) > Math.min(widget.x, widget.x + widget.width) &&
+        Math.min(a.y, b.y) < Math.max(widget.y, widget.y + widget.height) &&
+        Math.max(a.y, b.y) > Math.min(widget.y, widget.y + widget.height)
+      );
+    }) ?? false
+  );
+}
 export function fitElement(element: PdfElement, page: PdfPageInfo): PdfElement {
   const width = Math.max(12, Math.min(element.width, page.viewWidth));
   const height = Math.max(12, Math.min(element.height, page.viewHeight));
@@ -116,4 +172,60 @@ export function validateLocalPdfFile(file: { name: string; size: number }) {
     );
   if (!file.size || file.size > PDF_TOOLS_LIMITS.bytes)
     throw new Error('Choose a nonempty PDF no larger than 10 MiB.');
+}
+
+export function pdfFieldError(
+  spec: PdfFieldInfo,
+  value: string | boolean,
+  required = false,
+): string {
+  if (
+    required &&
+    spec.required &&
+    (value === false || (typeof value === 'string' && !value.trim()))
+  )
+    return 'Complete all required form fields before downloading.';
+  if (spec.kind === 'checkbox')
+    return typeof value === 'boolean' ? '' : 'Choose a valid checkbox value.';
+  if (typeof value !== 'string') return 'Choose a valid form value.';
+  if (spec.kind === 'choice')
+    return !value || spec.options?.includes(value)
+      ? ''
+      : 'Choose an available form option.';
+  if (value.length > (spec.maxLength ?? 500))
+    return 'This form value is too long. Shorten it to the stated field limit.';
+  if (
+    !/^[\u0020-\u007e\u00a0-\u00ff\u0152\u0153\u0160\u0161\u0178\u017d\u017e\u0192\u02c6\u02dc\u2013-\u2014\u2018-\u201a\u201c-\u201e\u2020-\u2022\u2026\u2030\u2039\u203a\u20ac\u2122]*$/u.test(
+      value,
+    )
+  )
+    return 'Standard PDF fields support Western European text. Use supported added text for other characters; your input has been kept.';
+  return '';
+}
+export function pdfFieldsError(
+  info: PdfInfo,
+  values: PdfEdits['fields'],
+  required = false,
+): string {
+  if (
+    Object.keys(values).some(
+      (name) => !info.fields.some((field) => field.name === name),
+    )
+  )
+    return 'This PDF has an unknown form field. Choose the original PDF again.';
+  for (const field of info.fields) {
+    const changed = Object.hasOwn(values, field.name);
+    if (changed && field.readOnly && values[field.name] !== field.value)
+      return 'This form field is read-only.';
+    const value = changed ? values[field.name] : field.value;
+    if (
+      required &&
+      field.required &&
+      (value === false || (typeof value === 'string' && !value.trim()))
+    )
+      return 'Complete all required form fields before downloading.';
+    const error = changed ? pdfFieldError(field, value) : '';
+    if (error) return error;
+  }
+  return '';
 }

@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
   type PointerEvent,
+  type CSSProperties,
 } from 'react';
 import Link from 'next/link';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -16,11 +17,10 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Download,
   FileCheck2,
   FileText,
-  Grip,
-  Hand,
   LayoutGrid,
   LoaderCircle,
   LockKeyhole,
@@ -35,7 +35,6 @@ import {
   Undo2,
   X,
   CalendarDays,
-  PanelLeftClose,
   Trash2,
   CircleHelp,
   CheckCheck,
@@ -53,9 +52,16 @@ import {
 } from './model';
 import { SyntheticPage } from './synthetic-page';
 import s from './workspace.module.css';
+import {
+  measureSignature,
+  signatureBox,
+  signatureFit,
+} from './signature-layout';
+import { useEditingViewport } from './use-editing-viewport';
 
 type ModalName =
   | 'signature'
+  | 'contents'
   | 'export'
   | 'leave'
   | 'replace'
@@ -74,6 +80,11 @@ const toolNames: Record<Tool, string> = {
   date: 'Date',
   check: 'Checkmark',
 };
+const fields = [
+  { id: 'fullName', label: 'Full name' },
+  { id: 'preferredName', label: 'Preferred name' },
+  { id: 'emergencyContact', label: 'Emergency contact' },
+];
 const icons = {
   select: MousePointer2,
   signature: PenLine,
@@ -96,6 +107,7 @@ function Control({
   onClick,
   disabled,
   active,
+  expanded,
   className = '',
 }: {
   label: string;
@@ -103,6 +115,7 @@ function Control({
   onClick: () => void;
   disabled?: boolean;
   active?: boolean;
+  expanded?: boolean;
   className?: string;
 }) {
   return (
@@ -111,6 +124,7 @@ function Control({
       title={label}
       aria-label={label}
       aria-pressed={active}
+      aria-expanded={expanded}
       disabled={disabled}
       onClick={onClick}
       className={`${s.control} ${className}`}
@@ -131,6 +145,13 @@ export function PdfDesignWorkspace() {
     : snapshot.pages[0];
   const [tool, setTool] = useState<Tool>('select');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedField, setSelectedField] = useState<string | null>(null);
+  const [markDraft, setMarkDraft] = useState<{
+    id: string;
+    text: string;
+  } | null>(null);
+  const [fontsReady, setFontsReady] = useState(false);
+  const editingViewport = useEditingViewport();
   const [previewMark, setPreviewMark] = useState<Mark | null>(null);
   const [pending, setPending] = useState<Partial<Mark> | null>(null);
   const [modal, setModal] = useState<ModalName>(null);
@@ -144,6 +165,7 @@ export function PdfDesignWorkspace() {
   );
   const [organizing, setOrganizing] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [zoom, setZoom] = useState('page');
   const [stageSize, setStageSize] = useState({ width: 900, height: 800 });
   const [demoState, setDemoState] = useState<DemoState>('ready');
@@ -158,6 +180,10 @@ export function PdfDesignWorkspace() {
   const modalOpener = useRef<HTMLElement | null>(null);
   const selectedControl = useRef<HTMLButtonElement>(null);
   const textInput = useRef<HTMLInputElement>(null);
+  const fieldInput = useRef<HTMLInputElement>(null);
+  const contentsButton = useRef<HTMLButtonElement>(null);
+  const inspector = useRef<HTMLElement>(null);
+  const modalDestination = useRef<(() => void) | null>(null);
   const sequence = useRef(0);
   const requestedSample = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -174,21 +200,53 @@ export function PdfDesignWorkspace() {
   const dirty =
     !same(snapshot, initialSnapshot()) ||
     title !== 'Harborlight · Employment offer';
+  const hasSignature = snapshot.marks.some((mark) => mark.kind === 'signature');
+  const signingStep = pending?.kind === 'signature' ? 2 : hasSignature ? 3 : 1;
+
+  const selectedFieldLabel = fields.find(
+    (field) => field.id === selectedField,
+  )?.label;
+  function signatureWidth(text: string, style?: string) {
+    return fontsReady ? measureSignature(text, style) : null;
+  }
+  const draftWidth = signatureWidth(signatureName.trim(), signatureStyle);
+  const draftSignature = signatureBox(draftWidth ?? 0, tool === 'initials');
+  function markFit(mark: Mark) {
+    const width = signatureWidth(mark.text, mark.signatureStyle);
+    return signatureFit(
+      width ?? Number.POSITIVE_INFINITY,
+      mark.width,
+      mark.height,
+    );
+  }
+  const invalidSignatures = snapshot.marks.filter(
+    (mark) =>
+      (mark.kind === 'signature' || mark.kind === 'initials') &&
+      !mark.strokes &&
+      !markFit(mark).fits,
+  );
+  const selectedText =
+    selected && markDraft?.id === selected.id ? markDraft.text : selected?.text;
 
   const scale =
     zoom === 'page'
       ? Math.max(
           0.2,
-          Math.min(
-            (stageSize.width - 48) / 612,
-            (stageSize.height - 64) / 792,
-            1.4,
-          ),
+          Math.min(stageSize.width / 612, (stageSize.height - 48) / 792, 1),
         )
       : zoom === 'width'
-        ? Math.max(0.2, (stageSize.width - 40) / 612)
+        ? Math.max(0.2, stageSize.width / 612)
         : Number(zoom);
 
+  useEffect(() => {
+    let mounted = true;
+    void document.fonts.ready.then(() => {
+      if (mounted) setFontsReady(true);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
   useEffect(() => {
     const element = stage.current;
     if (!element) return;
@@ -219,12 +277,38 @@ export function PdfDesignWorkspace() {
   useEffect(() => {
     if (selectedId) {
       selectedControl.current?.focus({ preventScroll: true });
-      selectedControl.current?.scrollIntoView({
-        block: 'center',
-        inline: 'nearest',
-      });
+      if (!gesture.current)
+        selectedControl.current?.scrollIntoView({
+          block: 'center',
+          inline: 'nearest',
+        });
     }
   }, [selectedId]);
+  useEffect(() => {
+    // A touch tray changes the canvas after layout. Reveal the object without
+    // taking focus away from the properties being edited.
+    const frame = requestAnimationFrame(() => {
+      const target = selectedField
+        ? paper.current?.querySelector<HTMLElement>(
+            `[data-field="${selectedField}"]`,
+          )
+        : selectedControl.current;
+      target?.scrollIntoView({ block: 'center', inline: 'nearest' });
+      if (
+        editingViewport.keyboard &&
+        inspector.current?.contains(document.activeElement)
+      )
+        (document.activeElement as HTMLElement).scrollIntoView({
+          block: 'nearest',
+        });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [
+    propertiesOpen,
+    editingViewport.height,
+    editingViewport.keyboard,
+    selectedField,
+  ]);
 
   function commit(next: Snapshot) {
     if (same(snapshot, next)) return;
@@ -235,6 +319,19 @@ export function PdfDesignWorkspace() {
     }));
   }
   function updateMark(mark: Mark) {
+    const original = snapshot.marks.find((item) => item.id === mark.id);
+    if (
+      (mark.kind === 'signature' || mark.kind === 'initials') &&
+      !mark.strokes &&
+      original?.text === mark.text &&
+      (original.width !== mark.width || original.height !== mark.height) &&
+      !markFit(mark).fits
+    ) {
+      setNotice(
+        'That size would make the signature unreadable. Keep it larger, or edit the name/style.',
+      );
+      return false;
+    }
     const next =
       mark.kind === 'text' || mark.kind === 'date'
         ? {
@@ -252,8 +349,12 @@ export function PdfDesignWorkspace() {
         item.id === mark.id ? boundMark(next) : item,
       ),
     });
+    return true;
   }
   function undo(redo = false) {
+    setSelectedField(null);
+    if (document.activeElement?.closest('[data-design-mark]'))
+      requestAnimationFrame(() => contentsButton.current?.focus());
     setHistory((current) => {
       if (redo) {
         const [next, ...rest] = current.future;
@@ -282,7 +383,28 @@ export function PdfDesignWorkspace() {
     modalOpener.current = document.activeElement as HTMLElement;
     setModal(value);
   }
+  function reviewExport() {
+    setExportState('review');
+    openModal('export');
+  }
+  function placePending() {
+    place(
+      pending?.kind === 'date' ? 435 : pageId === 'checklist' ? 71 : 158,
+      pageId === 'details' && pending?.kind === 'text'
+        ? 606
+        : pageId === 'details' && pending?.kind === 'initials'
+          ? 676
+          : pending?.kind === 'date' ||
+              pending?.kind === 'signature' ||
+              pending?.kind === 'initials'
+            ? 625
+            : 566,
+    );
+  }
   function changePage(value: string) {
+    setSelectedField(null);
+    setMarkDraft(null);
+    setPropertiesOpen(false);
     setPageId(value);
     setSelectedId(null);
     setPreviewMark(null);
@@ -293,11 +415,14 @@ export function PdfDesignWorkspace() {
     stage.current?.scrollTo({ top: 0, left: 0 });
   }
   function loadSample(form = false) {
+    setSelectedField(null);
+    setMarkDraft(null);
     setHistory(newHistory());
     setMode(form ? 'edit' : 'sign');
     setPageId(form ? 'details' : 'offer');
     setSelectedId(null);
     setPending(null);
+    setPropertiesOpen(false);
     setTool('select');
     setFieldDrafts({});
     setLoaded(true);
@@ -312,6 +437,9 @@ export function PdfDesignWorkspace() {
     setModal(null);
   }
   function chooseTool(value: Tool) {
+    setSelectedField(null);
+    setMarkDraft(null);
+    setPropertiesOpen(false);
     setSelectedId(null);
     setPending(null);
     setTool(value);
@@ -345,15 +473,24 @@ export function PdfDesignWorkspace() {
   function place(x = 132, y = 625) {
     if (!pending) return;
     const kind = pending.kind ?? 'signature';
+    const typed =
+      (kind === 'signature' || kind === 'initials') && !pending.strokes
+        ? signatureBox(
+            signatureWidth(pending.text ?? '', pending.signatureStyle) ?? 0,
+            kind === 'initials',
+          )
+        : null;
     const width =
-      kind === 'signature'
+      typed?.width ??
+      (kind === 'signature'
         ? 190
         : kind === 'initials'
           ? 80
           : kind === 'check'
             ? 26
-            : 160;
-    const height = kind === 'signature' || kind === 'initials' ? 58 : 32;
+            : 160);
+    const height =
+      typed?.height ?? (kind === 'signature' || kind === 'initials' ? 58 : 32);
     const mark = boundMark({
       id: `sample-mark-${++sequence.current}`,
       page: pageId,
@@ -370,9 +507,13 @@ export function PdfDesignWorkspace() {
       signatureStyle: pending.signatureStyle,
     });
     commit({ ...snapshot, marks: [...snapshot.marks, mark] });
+    setSelectedField(null);
     setSelectedId(mark.id);
+    setPropertiesOpen(kind === 'text' || kind === 'date');
     setPending(null);
     setTool('select');
+    if (kind === 'text' || kind === 'date')
+      requestAnimationFrame(() => textInput.current?.focus());
     setNotice(
       `${toolNames[kind]} placed. Drag to move, use the corner to resize, or adjust with arrow keys.`,
     );
@@ -384,6 +525,8 @@ export function PdfDesignWorkspace() {
   ) {
     if (event.button !== 0) return;
     event.stopPropagation();
+    setSelectedField(null);
+    setMarkDraft(null);
     setSelectedId(mark.id);
     setTool('select');
     setPending(null);
@@ -405,14 +548,17 @@ export function PdfDesignWorkspace() {
     if (!current.moved) return;
     const mark = current.mark;
     if (current.resize) {
-      const width = clamp(mark.width + dx, 40, 612 - mark.x);
-      const height =
+      let width = clamp(mark.width + dx, 40, 612 - mark.x);
+      let height =
         mark.kind === 'signature' || mark.kind === 'initials'
           ? (width * mark.height) / mark.width
           : clamp(mark.height + dy, 24, 792 - mark.y);
-      setPreviewMark(
-        boundMark({ ...mark, width, height: Math.min(height, 792 - mark.y) }),
-      );
+      if (mark.kind === 'signature' || mark.kind === 'initials') {
+        const factor = Math.min(1, (792 - mark.y) / height);
+        width *= factor;
+        height *= factor;
+      }
+      setPreviewMark(boundMark({ ...mark, width, height }));
     } else
       setPreviewMark(boundMark({ ...mark, x: mark.x + dx, y: mark.y + dy }));
   }
@@ -435,6 +581,39 @@ export function PdfDesignWorkspace() {
     });
     setSelectedId(null);
     setNotice('Mark deleted. Undo restores it.');
+    requestAnimationFrame(() => contentsButton.current?.focus());
+  }
+  function selectField(id: string) {
+    setSelectedField(id);
+    setSelectedId(null);
+    setPending(null);
+    setTool('select');
+    setPropertiesOpen(true);
+    setNotice(
+      `${fields.find((field) => field.id === id)?.label} selected. Edit its value in properties.`,
+    );
+    requestAnimationFrame(() =>
+      fieldInput.current?.focus({ preventScroll: true }),
+    );
+  }
+  function selectMark(mark: Mark, edit = false) {
+    setSelectedField(null);
+    setMarkDraft(null);
+    setSelectedId(mark.id);
+    setPropertiesOpen(edit);
+    setNotice(
+      `${toolNames[mark.kind]} selected: ${mark.text}. Enter edits; arrow keys move; Delete removes.`,
+    );
+    if (edit)
+      requestAnimationFrame(() =>
+        (textInput.current ?? selectedControl.current)?.focus({
+          preventScroll: true,
+        }),
+      );
+  }
+  function saveField(id: string, value: string) {
+    if (value !== (snapshot.fields[id] ?? ''))
+      commit({ ...snapshot, fields: { ...snapshot.fields, [id]: value } });
   }
   function movePage(direction: number) {
     const pages = [...snapshot.pages];
@@ -532,6 +711,16 @@ export function PdfDesignWorkspace() {
   return (
     <section
       data-pdf-design-workspace="true"
+      data-properties-open={propertiesOpen && !!(selected || selectedField)}
+      data-keyboard-open={editingViewport.keyboard}
+      style={
+        {
+          '--editing-height': editingViewport.height
+            ? `${editingViewport.height}px`
+            : undefined,
+          '--editing-top': `${editingViewport.top}px`,
+        } as CSSProperties
+      }
       className={s.workspace}
       aria-label="PDF Tools 2 design prototype"
       onKeyDown={(event) => {
@@ -563,32 +752,19 @@ export function PdfDesignWorkspace() {
         }
       }}
     >
-      <div className={s.reviewBar}>
-        <span>
-          <b>DESIGN PROTOTYPE</b>
-          <span className={s.reviewDetail}>
-            {' '}
-            Synthetic pages · Simulated PDF output
-          </span>
-        </span>
-        <label>
-          Review state{' '}
-          <select
-            aria-label="Review state"
-            value={demoState}
-            onChange={(event) =>
-              setReviewState(event.target.value as DemoState)
-            }
-          >
-            <option value="ready">Workspace</option>
-            <option value="empty">Empty</option>
-            <option value="loading">Loading</option>
-            <option value="unsupported">Unsupported</option>
-            <option value="password">Password protected</option>
-            <option value="error">Render error</option>
-          </select>
-        </label>
-      </div>
+      <a className={s.skipEditor} href="#design-view-controls">
+        Skip to document controls
+      </a>
+      <p id="design-editor-help" className="sr-only">
+        Editor controls expose supported fields and added marks. Printed sample
+        artwork is not an accessible PDF reading view. No PDF reading or tagging
+        is provided. Use Page contents to select objects without coordinates.
+      </p>
+      <p id="design-selection-help" className="sr-only">
+        Enter opens properties. Arrows move one point; Shift plus arrows moves
+        ten. Delete removes; Undo restores. Use Advanced for precise position
+        and size.
+      </p>
       <header className={s.header}>
         <Link
           href="/resumes/pdf-tools"
@@ -606,7 +782,7 @@ export function PdfDesignWorkspace() {
         </Link>
         <div className={s.titleGroup}>
           <h1>
-            PDF Tools <span>2.0</span>
+            PDF Tools <span>2.0 · Prototype</span>
           </h1>
           <label>
             <span className="sr-only">Document title</span>
@@ -619,7 +795,7 @@ export function PdfDesignWorkspace() {
           </label>
         </div>
         <span className={s.localBadge}>
-          <LockKeyhole size={13} /> In this tab only
+          <LockKeyhole size={13} /> Synthetic sample · In this tab only
         </span>
         <div className={s.headerActions}>
           <AppearanceSelect />
@@ -628,13 +804,12 @@ export function PdfDesignWorkspace() {
           </Control>
           <button
             type="button"
-            className={s.primary}
+            className={
+              hasSignature || mode === 'edit' ? s.primary : s.secondary
+            }
             aria-label="Download"
             disabled={!loaded || demoState !== 'ready'}
-            onClick={() => {
-              setExportState('review');
-              openModal('export');
-            }}
+            onClick={reviewExport}
           >
             <Download size={16} />
             <span>Download</span>
@@ -683,13 +858,6 @@ export function PdfDesignWorkspace() {
               <Control
                 key={value}
                 label={toolNames[value]}
-                className={
-                  value === 'signature' &&
-                  mode === 'sign' &&
-                  !snapshot.marks.some((mark) => mark.kind === 'signature')
-                    ? s.suggestedTool
-                    : ''
-                }
                 active={
                   tool === value ||
                   (value === 'select' && !pending && tool === 'select')
@@ -720,76 +888,6 @@ export function PdfDesignWorkspace() {
           </Control>
         </div>
       </div>
-      <div className={s.contextBar}>
-        {pending ? (
-          <>
-            <span className={s.contextHint}>
-              <PenLine size={15} />
-              {(pending.kind === 'signature' || pending.kind === 'initials') &&
-              pageId === 'offer'
-                ? 'Click where your signature belongs'
-                : `Click to place ${toolNames[pending.kind ?? 'text'].toLowerCase()}`}
-            </span>
-            <button
-              ref={placementButton}
-              type="button"
-              className={s.smallAction}
-              onClick={() =>
-                place(
-                  pending.kind === 'date'
-                    ? 435
-                    : pageId === 'checklist'
-                      ? 71
-                      : 158,
-                  pending.kind === 'date' ||
-                    pending.kind === 'signature' ||
-                    pending.kind === 'initials'
-                    ? 625
-                    : 566,
-                )
-              }
-            >
-              {(pending.kind === 'signature' || pending.kind === 'initials') &&
-              pageId === 'offer'
-                ? 'Place on signature line'
-                : 'Place on page'}
-            </button>
-            <Control
-              label="Cancel placement"
-              onClick={() => {
-                setPending(null);
-                setTool('select');
-              }}
-            >
-              <X size={15} />
-            </Control>
-          </>
-        ) : selected ? (
-          <>
-            <span className={s.contextHint}>
-              {toolNames[selected.kind]} selected
-            </span>
-            <span className={s.contextDetail}>
-              Drag to move · Corner to resize · Arrow keys to nudge
-            </span>
-            <Control label="Delete selected mark" onClick={removeMark}>
-              <Trash2 size={16} />
-            </Control>
-          </>
-        ) : (
-          <>
-            <span className={s.contextHint}>
-              <LockKeyhole size={14} />
-              {loaded
-                ? mode === 'sign'
-                  ? 'Your offer. Your signature. One completed copy.'
-                  : 'Click a field, or choose a tool and place it on the page.'
-                : 'A little help with the paperwork.'}
-            </span>
-            <span className={s.contextDetail}>Original stays unchanged</span>
-          </>
-        )}
-      </div>
       <div className={s.body}>
         {loaded && demoState === 'ready' ? (
           <>
@@ -801,12 +899,6 @@ export function PdfDesignWorkspace() {
                 <h2>
                   Pages <span>{snapshot.pages.length}</span>
                 </h2>
-                <Control
-                  label="Hide page thumbnails"
-                  onClick={() => setRailOpen(false)}
-                >
-                  <PanelLeftClose size={15} />
-                </Control>
               </div>
               {thumbnails()}
               <button
@@ -843,24 +935,43 @@ export function PdfDesignWorkspace() {
                   </Control>
                 </div>
               )}
-              <div className={s.railFoot}>
-                <Grip size={14} />
-                <span>Every change can be undone.</span>
-              </div>
             </aside>
             <div className={s.documentArea}>
-              <div className={s.viewControls}>
+              <div
+                className={s.viewControls}
+                id="design-view-controls"
+                tabIndex={-1}
+                role="group"
+                aria-label="Document navigation"
+              >
                 <Control
-                  label="Show page thumbnails"
-                  className={s.showPages}
-                  onClick={() => {
-                    if (window.innerWidth < 760) openModal('pages');
-                    else setRailOpen(!railOpen);
-                  }}
+                  label={
+                    railOpen ? 'Hide page thumbnails' : 'Show page thumbnails'
+                  }
+                  expanded={railOpen}
+                  className={`${s.showPages} ${s.desktopPages}`}
+                  onClick={() => setRailOpen(!railOpen)}
                 >
                   <LayoutGrid size={16} />
-                  <span>Pages</span>
+                  <span>{railOpen ? 'Pages' : 'Show pages'}</span>
                 </Control>
+                <Control
+                  label="Show page thumbnails"
+                  className={`${s.showPages} ${s.mobilePages}`}
+                  onClick={() => openModal('pages')}
+                >
+                  <LayoutGrid size={16} />
+                </Control>
+                <button
+                  ref={contentsButton}
+                  type="button"
+                  className={s.contentsButton}
+                  aria-label="Page contents"
+                  onClick={() => openModal('contents')}
+                >
+                  <FileText size={16} />
+                  <span>Contents</span>
+                </button>
                 <div className={s.pageStepper}>
                   <Control
                     label="Previous page"
@@ -912,6 +1023,7 @@ export function PdfDesignWorkspace() {
                       <option value="width">Fit width</option>
                       {[
                         ...new Set([
+                          0.25,
                           0.5,
                           0.75,
                           1,
@@ -952,417 +1064,739 @@ export function PdfDesignWorkspace() {
                 ref={stage}
                 className={s.stage}
                 aria-label="Document canvas"
+                role="region"
+                aria-describedby="design-editor-help"
                 tabIndex={0}
               >
-                <div className={s.pageCaption}>
-                  <span>{pageNames[pageId]}</span>
-                  <span>{Math.round(scale * 100)}% · A4-style sample</span>
-                </div>
-                <div
-                  className={s.paperSizing}
-                  style={{ width: 612 * scale, height: 792 * scale }}
-                >
+                <div className={s.pageSurface}>
+                  <div className={s.pageCaption} style={{ width: 612 * scale }}>
+                    <span>{pageNames[pageId]}</span>
+                    <span>{Math.round(scale * 100)}% · Synthetic sample</span>
+                  </div>
                   <div
-                    ref={paper}
-                    data-testid="design-paper"
-                    className={`${s.paper} ${pending ? s.placing : ''}`}
-                    style={{ transform: `scale(${scale})` }}
-                    onClick={(event) => {
-                      if (pending && paper.current) {
-                        const rect = paper.current.getBoundingClientRect();
-                        place(
-                          (event.clientX - rect.left) / scale,
-                          (event.clientY - rect.top) / scale,
-                        );
-                      } else if (
-                        event.target === event.currentTarget ||
-                        (event.target as HTMLElement).closest(
-                          `.${s.documentContent}`,
-                        )
-                      )
-                        setSelectedId(null);
-                    }}
+                    className={s.paperSizing}
+                    style={{ width: 612 * scale, height: 792 * scale }}
                   >
-                    <SyntheticPage page={pageId} />
-                    {pageId === 'details' &&
-                      ['fullName', 'preferredName', 'emergencyContact'].map(
-                        (field, index) => (
+                    <div
+                      ref={paper}
+                      data-testid="design-paper"
+                      role="group"
+                      aria-label={`Page ${pageIndex + 1} of ${snapshot.pages.length}: ${pageNames[pageId]}`}
+                      className={`${s.paper} ${pending ? s.placing : ''}`}
+                      style={
+                        {
+                          transform: `scale(${scale})`,
+                          '--page-scale': scale,
+                        } as CSSProperties
+                      }
+                      onClick={(event) => {
+                        if (pending && paper.current) {
+                          const rect = paper.current.getBoundingClientRect();
+                          place(
+                            (event.clientX - rect.left) / scale,
+                            (event.clientY - rect.top) / scale,
+                          );
+                        } else if (
+                          event.target === event.currentTarget ||
+                          (event.target as HTMLElement).closest(
+                            `.${s.documentContent}`,
+                          )
+                        )
+                          setSelectedId(null);
+                      }}
+                    >
+                      <SyntheticPage page={pageId} />
+                      {pageId === 'details' &&
+                        fields.map((field, index) => (
                           <label
                             className={s.supportedField}
-                            key={field}
+                            key={field.id}
+                            data-field={field.id}
                             style={{ top: 297 + index * 90 }}
                           >
-                            <span className="sr-only">
-                              {
-                                [
-                                  'Full name',
-                                  'Preferred name',
-                                  'Emergency contact',
-                                ][index]
-                              }
+                            <span className="sr-only">{field.label}</span>
+                            <span className={s.fieldArtwork} aria-hidden="true">
+                              {fieldDrafts[field.id] ??
+                                snapshot.fields[field.id] ??
+                                'Tap to edit'}
                             </span>
                             <input
-                              aria-label={
-                                [
-                                  'Full name',
-                                  'Preferred name',
-                                  'Emergency contact',
-                                ][index]
-                              }
-                              placeholder={
-                                [
-                                  'Click to enter a name',
-                                  'What should we call you?',
-                                  'Synthetic contact only',
-                                ][index]
-                              }
+                              aria-label={field.label}
+                              aria-describedby="design-editor-help"
                               value={
-                                fieldDrafts[field] ??
-                                snapshot.fields[field] ??
+                                fieldDrafts[field.id] ??
+                                snapshot.fields[field.id] ??
                                 ''
                               }
-                              onFocus={() => {
-                                setSelectedId(null);
-                                setPending(null);
-                                setTool('select');
-                              }}
+                              tabIndex={scale < 0.5 ? -1 : 0}
+                              disabled={scale < 0.5}
+                              onFocus={() => selectField(field.id)}
                               onClick={(event) => event.stopPropagation()}
                               onChange={(event) =>
                                 setFieldDrafts({
                                   ...fieldDrafts,
-                                  [field]: event.target.value,
+                                  [field.id]: event.target.value,
                                 })
                               }
-                              onBlur={(event) => {
-                                if (
-                                  event.target.value !==
-                                  (snapshot.fields[field] ?? '')
-                                )
-                                  commit({
-                                    ...snapshot,
-                                    fields: {
-                                      ...snapshot.fields,
-                                      [field]: event.target.value,
-                                    },
-                                  });
-                              }}
+                              onBlur={(event) =>
+                                saveField(field.id, event.target.value)
+                              }
                               maxLength={80}
                             />
                           </label>
-                        ),
+                        ))}
+                      {pageId === 'details' && scale < 0.5 && (
+                        <button
+                          type="button"
+                          className={s.fieldGroupTarget}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openModal('contents');
+                          }}
+                        >
+                          <span>3 fields · Edit</span>
+                        </button>
                       )}
-                    {pending?.kind === 'signature' && pageId === 'offer' && (
-                      <div
-                        className={s.signatureTarget}
-                        style={{ left: 50, top: 580, width: 265, height: 60 }}
-                      >
-                        <Plus size={18} /> Place signature here
-                      </div>
-                    )}
-                    {snapshot.marks
-                      .filter((mark) => mark.page === pageId)
-                      .map((original) => {
-                        const mark =
-                          previewMark?.id === original.id
-                            ? previewMark
-                            : original;
-                        const isSelected = selectedId === mark.id;
-                        return (
-                          <div
-                            key={mark.id}
-                            className={`${s.mark} ${isSelected ? s.selectedMark : ''}`}
-                            style={{
-                              left: mark.x,
-                              top: mark.y,
-                              width: mark.width,
-                              height: mark.height,
-                            }}
-                          >
-                            <button
-                              ref={isSelected ? selectedControl : undefined}
-                              type="button"
-                              className={s.markContent}
-                              aria-label={`${toolNames[mark.kind]}: ${mark.text || 'Drawn signature'}`}
-                              aria-pressed={isSelected}
-                              style={{
-                                color:
-                                  mark.ink === 'blue' ? '#1d4b76' : '#172c45',
-                                fontSize:
-                                  mark.kind === 'signature' ||
-                                  mark.kind === 'initials'
-                                    ? Math.min(
-                                        mark.height * 0.62,
-                                        mark.width /
-                                          Math.max(1, mark.text.length * 0.55),
-                                      )
-                                    : mark.size,
-                                fontWeight: mark.bold ? 700 : 400,
-                              }}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setSelectedId(mark.id);
-                              }}
-                              onDoubleClick={() => {
-                                if (mark.kind === 'text')
-                                  textInput.current?.focus();
-                              }}
-                              onPointerDown={(event) =>
-                                startGesture(event, mark)
+                      {pending?.kind === 'signature' && pageId === 'offer' && (
+                        <div
+                          className={s.signatureTarget}
+                          style={{ left: 50, top: 580, width: 265, height: 60 }}
+                        >
+                          <Plus size={18} /> Place signature here
+                        </div>
+                      )}
+                      {snapshot.marks
+                        .filter((mark) => mark.page === pageId)
+                        .map((original) => {
+                          const mark =
+                            previewMark?.id === original.id
+                              ? previewMark
+                              : original;
+                          const isSelected = selectedId === mark.id;
+                          const shownText =
+                            isSelected && markDraft?.id === mark.id
+                              ? markDraft.text
+                              : mark.text;
+                          const typedSignature =
+                            (mark.kind === 'signature' ||
+                              mark.kind === 'initials') &&
+                            !mark.strokes;
+                          const fit = typedSignature
+                            ? markFit({ ...mark, text: shownText })
+                            : null;
+                          return (
+                            <div
+                              key={mark.id}
+                              data-design-mark={mark.id}
+                              data-signature-fits={fit?.fits}
+                              className={`${s.mark} ${isSelected ? s.selectedMark : ''}`}
+                              style={
+                                {
+                                  left: mark.x,
+                                  top: mark.y,
+                                  width: mark.width,
+                                  height: mark.height,
+                                  '--page-scale': scale,
+                                  '--mark-width': `${mark.width}px`,
+                                  '--mark-height': `${mark.height}px`,
+                                } as CSSProperties
                               }
-                              onPointerMove={moveGesture}
-                              onPointerUp={() => endGesture()}
-                              onPointerCancel={() => endGesture(true)}
-                              onKeyDown={(event) => {
-                                const delta = event.shiftKey ? 10 : 1;
-                                const moves: Record<string, [number, number]> =
-                                  {
+                            >
+                              <button
+                                ref={isSelected ? selectedControl : undefined}
+                                type="button"
+                                className={s.markContent}
+                                aria-label={`${toolNames[mark.kind]}: ${mark.text || 'Drawn signature'}`}
+                                aria-pressed={isSelected}
+                                style={{
+                                  color:
+                                    mark.ink === 'blue' ? '#1d4b76' : '#172c45',
+                                  fontSize: fit?.size ?? mark.size,
+                                  fontWeight: mark.bold ? 700 : 400,
+                                }}
+                                aria-describedby="design-selection-help"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (selectedId !== mark.id) selectMark(mark);
+                                }}
+                                onDoubleClick={() => selectMark(mark, true)}
+                                onPointerDown={(event) =>
+                                  startGesture(event, mark)
+                                }
+                                onPointerMove={moveGesture}
+                                onPointerUp={() => endGesture()}
+                                onPointerCancel={() => endGesture(true)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    selectMark(mark, true);
+                                    return;
+                                  }
+                                  const delta = event.shiftKey ? 10 : 1;
+                                  const moves: Record<
+                                    string,
+                                    [number, number]
+                                  > = {
                                     ArrowLeft: [-delta, 0],
                                     ArrowRight: [delta, 0],
                                     ArrowUp: [0, -delta],
                                     ArrowDown: [0, delta],
                                   };
-                                if (moves[event.key]) {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  const [dx, dy] = moves[event.key];
-                                  updateMark({
-                                    ...mark,
-                                    x: mark.x + dx,
-                                    y: mark.y + dy,
-                                  });
-                                }
-                              }}
-                            >
-                              {mark.strokes ? (
-                                <svg viewBox="0 0 420 140" aria-hidden="true">
-                                  <path
-                                    d={mark.strokes}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="3"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              ) : (
+                                  if (moves[event.key]) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    const [dx, dy] = moves[event.key];
+                                    updateMark({
+                                      ...mark,
+                                      x: mark.x + dx,
+                                      y: mark.y + dy,
+                                    });
+                                  }
+                                }}
+                              >
                                 <span
-                                  className={
-                                    mark.kind === 'signature' ||
-                                    mark.kind === 'initials'
-                                      ? `${s.signatureText} ${mark.signatureStyle === 'simple' ? s.simpleSignature : ''}`
-                                      : ''
-                                  }
+                                  className={s.markArtwork}
+                                  aria-hidden="true"
                                 >
-                                  {mark.text}
+                                  {fit && !fit.fits ? (
+                                    <span className={s.markOverflow}>
+                                      Needs more space
+                                    </span>
+                                  ) : mark.strokes ? (
+                                    <svg
+                                      viewBox="0 0 420 140"
+                                      aria-hidden="true"
+                                    >
+                                      <path
+                                        d={mark.strokes}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="3"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                  ) : (
+                                    <span
+                                      className={
+                                        mark.kind === 'signature' ||
+                                        mark.kind === 'initials'
+                                          ? `${s.signatureText} ${mark.signatureStyle === 'simple' ? s.simpleSignature : ''}`
+                                          : ''
+                                      }
+                                    >
+                                      {shownText}
+                                    </span>
+                                  )}
                                 </span>
-                              )}
-                            </button>
-                            {isSelected && (
-                              <>
-                                <span className={s.selectionLabel}>
-                                  {toolNames[mark.kind]}
-                                </span>
-                                <i className={s.cornerTL} />
-                                <i className={s.cornerTR} />
-                                <i className={s.cornerBL} />
-                                <button
-                                  type="button"
-                                  className={s.resizeHandle}
-                                  aria-label="Resize selected mark"
-                                  onPointerDown={(event) =>
-                                    startGesture(event, mark, true)
-                                  }
-                                  onPointerMove={moveGesture}
-                                  onPointerUp={() => endGesture()}
-                                  onPointerCancel={() => endGesture(true)}
-                                  onKeyDown={(event) => {
-                                    if (
-                                      event.key === 'ArrowRight' ||
-                                      event.key === 'ArrowLeft'
-                                    ) {
-                                      event.preventDefault();
-                                      event.stopPropagation();
-                                      const width =
-                                        mark.width +
-                                        (event.key === 'ArrowRight' ? 5 : -5);
-                                      updateMark({
-                                        ...mark,
-                                        width,
-                                        height:
-                                          mark.kind === 'signature' ||
-                                          mark.kind === 'initials'
-                                            ? (width * mark.height) / mark.width
-                                            : mark.height,
-                                      });
+                              </button>
+                              {isSelected && (
+                                <>
+                                  <span className={s.selectionLabel}>
+                                    {toolNames[mark.kind]}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className={s.resizeHandle}
+                                    aria-label="Resize selected mark"
+                                    onPointerDown={(event) =>
+                                      startGesture(event, mark, true)
                                     }
-                                  }}
-                                >
-                                  <span />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
+                                    onPointerMove={moveGesture}
+                                    onPointerUp={() => endGesture()}
+                                    onPointerCancel={() => endGesture(true)}
+                                    onKeyDown={(event) => {
+                                      if (
+                                        event.key === 'ArrowRight' ||
+                                        event.key === 'ArrowLeft'
+                                      ) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        const width =
+                                          mark.width +
+                                          (event.key === 'ArrowRight' ? 5 : -5);
+                                        updateMark({
+                                          ...mark,
+                                          width,
+                                          height:
+                                            mark.kind === 'signature' ||
+                                            mark.kind === 'initials'
+                                              ? (width * mark.height) /
+                                                mark.width
+                                              : mark.height,
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <span />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
+                  <p className={s.paperHint}>
+                    {pending
+                      ? 'Tap the page to place · Escape to cancel'
+                      : 'Synthetic document · Original stays unchanged'}
+                  </p>
                 </div>
-                <p className={s.paperHint}>
-                  {pending ? (
-                    'Click to place · Escape to cancel'
-                  ) : (
-                    <>
-                      <Hand size={13} /> Scroll to explore · Your document stays
-                      white in every theme
-                    </>
-                  )}
-                </p>
               </div>
+              {(mode === 'sign' || pending) && (
+                <div
+                  className={s.signGuide}
+                  aria-label={
+                    mode === 'sign' ? 'Quick Sign guide' : 'Placement guide'
+                  }
+                >
+                  <div className={s.guideCopy}>
+                    {mode === 'sign' && (
+                      <ol className={s.signSteps} aria-label="Signing progress">
+                        {['Create', 'Place', 'Download'].map((step, index) => (
+                          <li
+                            key={step}
+                            aria-current={
+                              signingStep === index + 1 ? 'step' : undefined
+                            }
+                            data-complete={signingStep > index + 1}
+                          >
+                            <b>
+                              {signingStep > index + 1 ? (
+                                <Check size={10} />
+                              ) : (
+                                index + 1
+                              )}
+                            </b>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    <p>
+                      {pending
+                        ? 'Ready to place. Tap the page or use the button.'
+                        : hasSignature
+                          ? 'Signature placed. Review every page before sharing.'
+                          : 'Your offer is open. Make it yours.'}
+                    </p>
+                  </div>
+                  {pending ? (
+                    <>
+                      <button
+                        ref={placementButton}
+                        type="button"
+                        className={s.primary}
+                        onClick={placePending}
+                      >
+                        <PenLine size={16} />
+                        {(pending.kind === 'signature' ||
+                          pending.kind === 'initials') &&
+                        pageId === 'offer'
+                          ? 'Place on signature line'
+                          : 'Place on page'}
+                      </button>
+                      <Control
+                        label="Cancel placement"
+                        onClick={() => {
+                          setPending(null);
+                          setTool('select');
+                        }}
+                      >
+                        <X size={16} />
+                      </Control>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className={s.primary}
+                      onClick={
+                        hasSignature
+                          ? reviewExport
+                          : () => chooseTool('signature')
+                      }
+                    >
+                      {hasSignature ? (
+                        <Download size={16} />
+                      ) : (
+                        <PenLine size={16} />
+                      )}
+                      {hasSignature ? 'Review & download' : 'Create signature'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            {selected && (
+            {(selected || selectedField) && (
               <aside
-                className={s.inspector}
+                ref={inspector}
+                className={`${s.inspector} ${propertiesOpen ? s.expandedInspector : ''}`}
                 aria-label="Selected element properties"
               >
                 <div className={s.inspectorTitle}>
                   <div>
-                    <span>PROPERTIES</span>
-                    <h2>{toolNames[selected.kind]}</h2>
+                    <span>SELECTED</span>
+                    <h2>
+                      {selected ? toolNames[selected.kind] : selectedFieldLabel}
+                    </h2>
                   </div>
+                  <button
+                    type="button"
+                    className={s.editProperties}
+                    aria-expanded={propertiesOpen}
+                    aria-controls="design-properties"
+                    onClick={() => {
+                      setPropertiesOpen(!propertiesOpen);
+                      if (propertiesOpen) {
+                        (document.activeElement as HTMLElement)?.blur();
+                        requestAnimationFrame(() =>
+                          (selected
+                            ? selectedControl.current
+                            : contentsButton.current
+                          )?.focus({ preventScroll: true }),
+                        );
+                      }
+                    }}
+                  >
+                    {propertiesOpen ? 'Done' : 'Edit'}
+                    <ChevronDown size={15} />
+                  </button>
                   <Control
-                    label="Deselect mark"
-                    onClick={() => setSelectedId(null)}
+                    label={selected ? 'Deselect mark' : 'Deselect field'}
+                    onClick={() => {
+                      setSelectedId(null);
+                      setSelectedField(null);
+                      contentsButton.current?.focus();
+                    }}
                   >
                     <X size={16} />
                   </Control>
                 </div>
-                {!selected.strokes && (
-                  <label className={s.propertyField}>
-                    {selected.kind === 'date'
-                      ? 'Date text'
-                      : selected.kind === 'signature' ||
-                          selected.kind === 'initials'
-                        ? 'Name on document'
-                        : 'Text'}
-                    <input
-                      ref={textInput}
-                      key={`${selected.id}-${selected.text}`}
-                      aria-label="Selected mark text"
-                      defaultValue={selected.text}
-                      maxLength={160}
-                      onBlur={(event) => {
-                        if (event.target.value !== selected.text)
-                          updateMark({ ...selected, text: event.target.value });
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') event.currentTarget.blur();
-                      }}
-                    />
-                  </label>
-                )}
-                {selected.kind === 'text' || selected.kind === 'date' ? (
-                  <div className={s.propertyRow}>
-                    <label className={s.propertyField}>
-                      Size
-                      <select
-                        aria-label="Text size"
-                        value={selected.size}
-                        onChange={(event) =>
-                          updateMark({
-                            ...selected,
-                            size: Number(event.target.value),
-                          })
-                        }
-                      >
-                        {[12, 15, 18, 24, 32].map((size) => (
-                          <option key={size}>{size}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <Control
-                      label="Bold text"
-                      active={selected.bold}
-                      onClick={() =>
-                        updateMark({ ...selected, bold: !selected.bold })
-                      }
-                    >
-                      <b>B</b>
-                    </Control>
-                  </div>
-                ) : (
-                  <p className={s.propertyHint}>
-                    Proportions stay locked as you resize your signature.
-                  </p>
-                )}
-                <fieldset className={s.inkChoices}>
-                  <legend>Ink color</legend>
-                  {(['blue', 'black'] as const).map((ink) => (
-                    <label key={ink}>
-                      <input
-                        type="radio"
-                        name="mark-ink"
-                        checked={selected.ink === ink}
-                        onChange={() => updateMark({ ...selected, ink })}
-                      />
-                      <span
-                        className={ink === 'blue' ? s.blueInk : s.blackInk}
-                      />
-                      {ink === 'blue' ? 'Blue' : 'Black'}
-                    </label>
-                  ))}
-                </fieldset>
-                <div className={s.propertyDivider} />
-                <h3>Position & size</h3>
-                <div className={s.measurements}>
-                  {(['x', 'y', 'width', 'height'] as const).map((key) => (
-                    <label key={`${selected.id}-${key}-${selected[key]}`}>
-                      {key === 'x'
-                        ? 'Left'
-                        : key === 'y'
-                          ? 'Top'
-                          : key === 'width'
-                            ? 'Width'
-                            : 'Height'}
-                      <input
-                        type="number"
-                        aria-label={`Mark ${key}`}
-                        min={0}
-                        max={key === 'height' || key === 'y' ? 792 : 612}
-                        defaultValue={Math.round(selected[key])}
-                        onBlur={(event) => {
-                          const value = Number(event.target.value);
-                          if (
-                            Number.isFinite(value) &&
-                            value !== Math.round(selected[key])
-                          ) {
-                            const next = { ...selected, [key]: value };
-                            if (
-                              selected.kind === 'signature' ||
-                              selected.kind === 'initials'
-                            ) {
-                              if (key === 'width')
-                                next.height =
-                                  (value * selected.height) / selected.width;
-                              if (key === 'height')
-                                next.width =
-                                  (value * selected.width) / selected.height;
+                <div id="design-properties" className={s.propertyBody}>
+                  {selected ? (
+                    <>
+                      {!selected.strokes && (
+                        <label className={s.propertyField}>
+                          {selected.kind === 'date'
+                            ? 'Date text'
+                            : selected.kind === 'signature' ||
+                                selected.kind === 'initials'
+                              ? 'Name on document'
+                              : 'Text'}
+                          <input
+                            ref={textInput}
+                            key={selected.id}
+                            aria-label="Selected mark text"
+                            value={selectedText ?? ''}
+                            onChange={(event) =>
+                              setMarkDraft({
+                                id: selected.id,
+                                text: event.target.value,
+                              })
                             }
-                            updateMark(next);
+                            maxLength={160}
+                            onBlur={(event) => {
+                              if (event.target.value !== selected.text)
+                                updateMark({
+                                  ...selected,
+                                  text: event.target.value,
+                                });
+                              setMarkDraft(null);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter')
+                                event.currentTarget.blur();
+                            }}
+                          />
+                        </label>
+                      )}
+                      {selected.kind === 'text' || selected.kind === 'date' ? (
+                        <div className={s.propertyRow}>
+                          <label className={s.propertyField}>
+                            Size
+                            <select
+                              aria-label="Text size"
+                              value={selected.size}
+                              onChange={(event) =>
+                                updateMark({
+                                  ...selected,
+                                  size: Number(event.target.value),
+                                })
+                              }
+                            >
+                              {[12, 15, 18, 24, 32].map((size) => (
+                                <option key={size}>{size}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <Control
+                            label="Bold text"
+                            active={selected.bold}
+                            onClick={() =>
+                              updateMark({ ...selected, bold: !selected.bold })
+                            }
+                          >
+                            <b>B</b>
+                          </Control>
+                        </div>
+                      ) : selected.kind === 'signature' ||
+                        selected.kind === 'initials' ? (
+                        <div className={s.signatureSize}>
+                          <span>Signature size</span>
+                          <div className={s.propertyRow}>
+                            {[-1, 1].map((direction) => (
+                              <button
+                                key={direction}
+                                type="button"
+                                className={s.secondary}
+                                aria-label={
+                                  direction < 0
+                                    ? 'Smaller signature'
+                                    : 'Larger signature'
+                                }
+                                onClick={() => {
+                                  const width = clamp(
+                                    selected.width + direction * 12,
+                                    40,
+                                    560,
+                                  );
+                                  updateMark({
+                                    ...selected,
+                                    width,
+                                    height:
+                                      (width * selected.height) /
+                                      selected.width,
+                                  });
+                                }}
+                              >
+                                {direction < 0 ? (
+                                  <Minus size={14} />
+                                ) : (
+                                  <Plus size={14} />
+                                )}
+                                {direction < 0 ? 'Smaller' : 'Larger'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {(selected.kind === 'signature' ||
+                        selected.kind === 'initials') &&
+                        !selected.strokes && (
+                          <>
+                            {!markFit({ ...selected, text: selectedText ?? '' })
+                              .fits && (
+                              <p className={s.fitWarning} role="alert">
+                                This name needs more space at a readable size.
+                                Enlarge the signature or edit its name. The full
+                                name is preserved.
+                              </p>
+                            )}
+                            <label className={s.propertyField}>
+                              Signature style
+                              <select
+                                aria-label="Selected signature style"
+                                value={selected.signatureStyle ?? 'classic'}
+                                onChange={(event) =>
+                                  updateMark({
+                                    ...selected,
+                                    signatureStyle: event.target.value,
+                                  })
+                                }
+                              >
+                                <option value="classic">Classic</option>
+                                <option value="simple">Simple</option>
+                              </select>
+                            </label>
+                            <button
+                              type="button"
+                              className={s.smallAction}
+                              onClick={() => {
+                                const box = signatureBox(
+                                  signatureWidth(
+                                    selected.text,
+                                    selected.signatureStyle,
+                                  ) ?? 0,
+                                  selected.kind === 'initials',
+                                );
+                                if (box.fits)
+                                  updateMark({
+                                    ...selected,
+                                    width: box.width,
+                                    height:
+                                      (box.width * selected.height) /
+                                      selected.width,
+                                  });
+                                else
+                                  setNotice(
+                                    'This name cannot fit on the sample at the minimum readable size. Edit the name or try the other style.',
+                                  );
+                              }}
+                            >
+                              Fit signature to name
+                            </button>
+                          </>
+                        )}
+                      <div
+                        className={s.moveControls}
+                        role="group"
+                        aria-label="Move selected mark"
+                      >
+                        {[
+                          ['left', -5, 0],
+                          ['up', 0, -5],
+                          ['down', 0, 5],
+                          ['right', 5, 0],
+                        ].map(([direction, dx, dy]) => (
+                          <button
+                            type="button"
+                            key={direction}
+                            aria-label={`Move selected mark ${direction}`}
+                            onClick={() => {
+                              updateMark({
+                                ...selected,
+                                x: selected.x + Number(dx),
+                                y: selected.y + Number(dy),
+                              });
+                              setNotice(`Moved ${direction} by 5 page points.`);
+                            }}
+                          >
+                            {direction === 'left'
+                              ? '←'
+                              : direction === 'right'
+                                ? '→'
+                                : direction === 'up'
+                                  ? '↑'
+                                  : '↓'}
+                          </button>
+                        ))}
+                      </div>
+                      <fieldset className={s.inkChoices}>
+                        <legend>Ink color</legend>
+                        {(['blue', 'black'] as const).map((ink) => (
+                          <label key={ink}>
+                            <input
+                              type="radio"
+                              name="mark-ink"
+                              checked={selected.ink === ink}
+                              onChange={() => updateMark({ ...selected, ink })}
+                            />
+                            <span
+                              className={
+                                ink === 'blue' ? s.blueInk : s.blackInk
+                              }
+                            />
+                            {ink === 'blue' ? 'Blue' : 'Black'}
+                          </label>
+                        ))}
+                      </fieldset>
+                      <p className={s.propertyHint}>
+                        Drag to move. Use the corner to resize.
+                      </p>
+                      <details key={selected.id} className={s.advanced}>
+                        <summary>
+                          Advanced <ChevronDown size={15} />
+                        </summary>
+                        <h3>Position & size</h3>
+                        <div className={s.measurements}>
+                          {(['x', 'y', 'width', 'height'] as const).map(
+                            (key) => (
+                              <label
+                                key={`${selected.id}-${key}-${selected[key]}`}
+                              >
+                                {key === 'x'
+                                  ? 'Left'
+                                  : key === 'y'
+                                    ? 'Top'
+                                    : key === 'width'
+                                      ? 'Width'
+                                      : 'Height'}
+                                <input
+                                  type="number"
+                                  aria-label={`Mark ${key}`}
+                                  min={0}
+                                  max={
+                                    key === 'height' || key === 'y' ? 792 : 612
+                                  }
+                                  defaultValue={Math.round(selected[key])}
+                                  onBlur={(event) => {
+                                    const value = Number(event.target.value);
+                                    if (
+                                      Number.isFinite(value) &&
+                                      value !== Math.round(selected[key])
+                                    ) {
+                                      const next = {
+                                        ...selected,
+                                        [key]: value,
+                                      };
+                                      if (
+                                        selected.kind === 'signature' ||
+                                        selected.kind === 'initials'
+                                      ) {
+                                        if (key === 'width')
+                                          next.height =
+                                            (value * selected.height) /
+                                            selected.width;
+                                        if (key === 'height')
+                                          next.width =
+                                            (value * selected.width) /
+                                            selected.height;
+                                      }
+                                      if (!updateMark(next))
+                                        event.currentTarget.value = String(
+                                          Math.round(selected[key]),
+                                        );
+                                    }
+                                  }}
+                                />
+                              </label>
+                            ),
+                          )}
+                        </div>
+                        <p className={s.propertyHint}>
+                          Page points · Arrow keys move 1 point. Shift moves 10.
+                        </p>
+                      </details>
+                      <button
+                        type="button"
+                        className={s.deleteButton}
+                        onClick={removeMark}
+                      >
+                        <Trash2 size={15} /> Delete element
+                      </button>
+                    </>
+                  ) : (
+                    selectedField && (
+                      <label className={s.propertyField}>
+                        Field value
+                        <input
+                          ref={fieldInput}
+                          aria-label="Selected field value"
+                          value={
+                            fieldDrafts[selectedField] ??
+                            snapshot.fields[selectedField] ??
+                            ''
                           }
-                        }}
-                      />
-                    </label>
-                  ))}
+                          maxLength={80}
+                          onChange={(event) =>
+                            setFieldDrafts({
+                              ...fieldDrafts,
+                              [selectedField]: event.target.value,
+                            })
+                          }
+                          onBlur={(event) =>
+                            saveField(selectedField, event.target.value)
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter')
+                              event.currentTarget.blur();
+                          }}
+                        />
+                      </label>
+                    )
+                  )}
                 </div>
-                <p className={s.propertyHint}>
-                  Page points · Arrow keys move 1 point. Shift moves 10.
-                </p>
-                <button
-                  type="button"
-                  className={s.deleteButton}
-                  onClick={removeMark}
-                >
-                  <Trash2 size={15} /> Delete element
-                </button>
               </aside>
             )}
           </>
@@ -1461,10 +1895,31 @@ export function PdfDesignWorkspace() {
         )}
       </div>
       <footer className={s.statusBar}>
+        <label className={s.reviewControl}>
+          <span>Prototype</span>
+          <select
+            aria-label="Review state"
+            value={demoState}
+            onChange={(event) =>
+              setReviewState(event.target.value as DemoState)
+            }
+          >
+            <option value="ready">Workspace</option>
+            <option value="empty">Empty</option>
+            <option value="loading">Loading</option>
+            <option value="unsupported">Unsupported</option>
+            <option value="password">Password protected</option>
+            <option value="error">Render error</option>
+          </select>
+        </label>
         <span role="status" aria-live="polite">
           {notice}
         </span>
-        <button type="button" onClick={() => requestSample()}>
+        <button
+          type="button"
+          aria-label="Restart sample"
+          onClick={() => requestSample()}
+        >
           <RotateCcw size={12} />
           <span>Restart sample</span>
         </button>
@@ -1487,9 +1942,21 @@ export function PdfDesignWorkspace() {
           <Dialog.Overlay className={s.modalOverlay} />
           <Dialog.Content
             className={`${s.modal} ${modal === 'signature' ? s.signatureModal : ''}`}
+            style={
+              editingViewport.height
+                ? {
+                    top: editingViewport.top + editingViewport.height / 2,
+                    maxHeight: editingViewport.height - 24,
+                  }
+                : undefined
+            }
             onCloseAutoFocus={(event) => {
               event.preventDefault();
-              if (pending) placementButton.current?.focus();
+              if (modalDestination.current) {
+                const focus = modalDestination.current;
+                modalDestination.current = null;
+                requestAnimationFrame(focus);
+              } else if (pending) placementButton.current?.focus();
               else if (modalOpener.current?.isConnected)
                 modalOpener.current.focus();
             }}
@@ -1507,14 +1974,82 @@ export function PdfDesignWorkspace() {
             >
               <X size={19} />
             </Dialog.Close>
-            {modal === 'signature' ? (
+            {modal === 'contents' ? (
+              <>
+                <Dialog.Title>Page contents</Dialog.Title>
+                <Dialog.Description>
+                  Page {pageIndex + 1}: {pageNames[pageId]}. Choose a field or
+                  mark to edit. This lists editor objects, not printed PDF
+                  content or reading order.
+                </Dialog.Description>
+                <button
+                  type="button"
+                  className={s.smallAction}
+                  onClick={() => setModal('pages')}
+                >
+                  View page thumbnails
+                </button>
+                <div className={s.contentsList}>
+                  {pageId === 'details' && (
+                    <>
+                      <h3>Supported fields</h3>
+                      {fields.map((field) => (
+                        <button
+                          type="button"
+                          key={field.id}
+                          onClick={() => {
+                            selectField(field.id);
+                            modalDestination.current = () =>
+                              fieldInput.current?.focus();
+                            setModal(null);
+                          }}
+                        >
+                          {field.label}
+                          <span>
+                            {fieldDrafts[field.id] ??
+                              snapshot.fields[field.id] ??
+                              'Empty'}
+                          </span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  <h3>Added marks</h3>
+                  {snapshot.marks
+                    .filter((mark) => mark.page === pageId)
+                    .map((mark, index) => (
+                      <button
+                        type="button"
+                        key={mark.id}
+                        onClick={() => {
+                          selectMark(mark, true);
+                          modalDestination.current = () =>
+                            (
+                              textInput.current ?? selectedControl.current
+                            )?.focus();
+                          setModal(null);
+                        }}
+                      >
+                        {index + 1}. {toolNames[mark.kind]}
+                        <span>{mark.text}</span>
+                      </button>
+                    ))}
+                  {!snapshot.marks.some((mark) => mark.page === pageId) && (
+                    <p>
+                      No added marks on this page. Choose a tool, then use Place
+                      on page.
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : modal === 'signature' ? (
               <>
                 <span className={s.eyebrow}>MAKE IT YOURS</span>
                 <Dialog.Title>
                   Create your {tool === 'initials' ? 'initials' : 'signature'}
                 </Dialog.Title>
                 <Dialog.Description>
-                  A personal mark for this document. Kept in this tab only.
+                  Type your name or draw. Next, place it on the sample.
                 </Dialog.Description>
                 <div
                   className={s.signatureModes}
@@ -1547,7 +2082,7 @@ export function PdfDesignWorkspace() {
                         tool === 'initials' ? 'AR' : 'Alex Rivera (synthetic)'
                       }
                       value={signatureName}
-                      maxLength={60}
+                      maxLength={160}
                       onChange={(event) => setSignatureName(event.target.value)}
                     />
                   </label>
@@ -1557,7 +2092,12 @@ export function PdfDesignWorkspace() {
                     keyboard use.
                   </p>
                 )}
-                <div className={s.signaturePreview}>
+                <div
+                  className={s.signaturePreview}
+                  role="region"
+                  aria-label="Signature preview, scroll horizontally for the full name"
+                  tabIndex={0}
+                >
                   <span>
                     {signatureMode === 'type'
                       ? 'YOUR SIGNATURE PREVIEW'
@@ -1566,6 +2106,15 @@ export function PdfDesignWorkspace() {
                   {signatureMode === 'type' ? (
                     <div
                       className={`${s.signatureText} ${signatureStyle === 'simple' ? s.simpleSignature : ''}`}
+                      style={{
+                        minWidth: signatureName
+                          ? Math.max(
+                              draftSignature.width,
+                              ((draftWidth ?? 0) * draftSignature.size) / 32,
+                            ) + 48
+                          : undefined,
+                        fontSize: draftSignature.size,
+                      }}
                     >
                       {signatureName || 'Your signature'}
                     </div>
@@ -1598,6 +2147,17 @@ export function PdfDesignWorkspace() {
                   )}
                   <div className={s.signatureBaseline} />
                 </div>
+                {signatureMode === 'type' && (
+                  <p className={s.signatureFitCopy} role="status">
+                    {!fontsReady || draftWidth === null
+                      ? fontsReady
+                        ? 'Local font measurement is unavailable. Try Draw.'
+                        : 'Measuring local font…'
+                      : !draftSignature.fits
+                        ? `This name cannot fit at 18 pt or larger. ${signatureStyle === 'classic' ? 'Edit the name or try Simple style.' : 'Edit the name or try Draw.'}`
+                        : `Sample size: ${draftSignature.size} pt. Scroll the preview for the full name when needed.`}
+                  </p>
+                )}
                 {signatureMode === 'type' ? (
                   <fieldset className={s.signatureStyles}>
                     <legend>Signature style</legend>
@@ -1630,9 +2190,9 @@ export function PdfDesignWorkspace() {
                   </button>
                 )}
                 <p className={s.signatureDisclosure}>
-                  <LockKeyhole size={14} />A visual signature mark. No identity
-                  verification, certificate or signing audit trail. Check what
-                  the recipient accepts.
+                  <LockKeyhole size={14} />
+                  Visual preview only; PDF font/export quality is unverified. No
+                  identity verification, certificate or signing audit trail.
                 </p>
                 <div className={s.modalActions}>
                   <Dialog.Close className={s.secondary}>Cancel</Dialog.Close>
@@ -1641,7 +2201,10 @@ export function PdfDesignWorkspace() {
                     className={s.primary}
                     disabled={
                       signatureMode === 'type'
-                        ? !signatureName.trim()
+                        ? !signatureName.trim() ||
+                          !fontsReady ||
+                          draftWidth === null ||
+                          !draftSignature.fits
                         : !strokes.length
                     }
                     onClick={() => {
@@ -1672,7 +2235,10 @@ export function PdfDesignWorkspace() {
               </>
             ) : modal === 'export' ? (
               <>
-                <span className={s.modalIcon}>
+                <span
+                  className={`${s.modalIcon} ${exportState === 'done' ? s.completedIcon : ''}`}
+                  aria-hidden="true"
+                >
                   {exportState === 'done' ? (
                     <CheckCheck size={27} />
                   ) : exportState === 'working' ? (
@@ -1683,19 +2249,19 @@ export function PdfDesignWorkspace() {
                 </span>
                 <Dialog.Title>
                   {exportState === 'done'
-                    ? 'Your copy would be ready'
+                    ? 'Preview complete'
                     : exportState === 'working'
-                      ? 'Preparing your completed copy'
+                      ? 'Previewing the download step'
                       : exportState === 'error'
                         ? 'Your copy could not be prepared'
-                        : 'Review your completed copy'}
+                        : 'Review before downloading'}
                 </Dialog.Title>
                 <Dialog.Description>
                   {exportState === 'done'
-                    ? 'Prototype simulation complete. No PDF was generated or downloaded. Your edits remain unsaved in memory.'
+                    ? 'This was a preview only. No PDF was created or downloaded. Your sample edits are still here, until you close or reload this tab.'
                     : exportState === 'error'
-                      ? 'Simulated export failure. Your edits are intact. Retry without starting over.'
-                      : 'Review every page before sharing. A completed copy would include your fields and marks; the original would stay unchanged.'}
+                      ? 'The preview hit a simulated error. Your sample edits are intact. Try again without starting over.'
+                      : 'Check the pages, fields and marks. This prototype previews the download flow; it does not create a PDF or save your work.'}
                 </Dialog.Description>
                 <div className={s.exportSummary}>
                   <FileCheck2 size={28} />
@@ -1703,18 +2269,34 @@ export function PdfDesignWorkspace() {
                     <strong>{title || 'Completed document'}.pdf</strong>
                     <span>
                       {snapshot.pages.length} pages · {snapshot.marks.length}{' '}
-                      added marks ·{' '}
+                      {snapshot.marks.length === 1 ? 'mark' : 'marks'} ·{' '}
                       {Object.values(snapshot.fields).filter(Boolean).length}{' '}
                       filled fields
                     </span>
                   </div>
                   <span className={s.prototypePill}>SIMULATED</span>
                 </div>
-                <p className={s.propertyHint}>
-                  The real editor will flatten supported fields and marks. This
-                  design prototype does not test PDF fidelity, certificates or
-                  file safety.
-                </p>
+                <div className={s.exportNotice}>
+                  <LockKeyhole size={16} />
+                  <div>
+                    <strong>
+                      {exportState === 'done'
+                        ? 'Your original stays unchanged'
+                        : 'A separate copy, when implemented'}
+                    </strong>
+                    <p>
+                      {exportState === 'done'
+                        ? 'Keep editing to adjust your sample. Nothing was saved or sent.'
+                        : 'The proposed PDF output flattens supported fields and marks. Review it before sharing.'}
+                    </p>
+                  </div>
+                </div>
+                {invalidSignatures.length > 0 && (
+                  <p className={s.fitWarning} role="alert">
+                    Adjust {invalidSignatures.length} signature(s) that need
+                    more space before previewing a download.
+                  </p>
+                )}
                 {exportState === 'review' && (
                   <label className={s.exportErrorToggle}>
                     <input
@@ -1741,22 +2323,29 @@ export function PdfDesignWorkspace() {
                 )}
                 <div className={s.modalActions}>
                   <Dialog.Close
-                    className={s.secondary}
+                    className={exportState === 'done' ? s.primary : s.secondary}
                     disabled={exportState === 'working'}
                   >
-                    Back to document
+                    {exportState === 'done'
+                      ? 'Keep editing'
+                      : 'Back to document'}
                   </Dialog.Close>
                   {exportState !== 'done' && (
                     <button
                       type="button"
                       className={s.primary}
-                      disabled={exportState === 'working'}
+                      disabled={
+                        exportState === 'working' ||
+                        invalidSignatures.length > 0
+                      }
                       onClick={simulateExport}
                     >
                       <Download size={16} />
                       {exportState === 'error'
                         ? 'Retry simulation'
-                        : 'Simulate download'}
+                        : exportState === 'working'
+                          ? 'Previewing…'
+                          : 'Preview download'}
                     </button>
                   )}
                 </div>

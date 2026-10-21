@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentLoadingTask, RenderTask } from 'pdfjs-dist';
+import { createPdfLoadingTask, checkedPdfPage } from '@/lib/pdf-tools-renderer';
 import {
   PDF_TOOLS_LIMITS,
   fitElement,
@@ -58,26 +59,13 @@ export function PdfToolsPage({
     }, PDF_TOOLS_LIMITS.timeout);
     void (async () => {
       try {
-        const renderer = await import('pdfjs-dist');
-        if (stopped) return;
-        renderer.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url,
-        ).toString();
-        task = renderer.getDocument({
-          data: bytes.slice(),
-          enableXfa: false,
-          disableFontFace: true,
-          useSystemFonts: true,
-          useWasm: false,
-          useWorkerFetch: false,
-          maxImageSize: PDF_TOOLS_LIMITS.pixels,
-          canvasMaxAreaInBytes: 16_000_000,
-          stopAtErrors: true,
-          verbosity: 0,
-        });
+        task = await createPdfLoadingTask(bytes);
+        if (stopped) {
+          void task.destroy();
+          return;
+        }
         const pdf = await task.promise;
-        const proxy = await pdf.getPage(page + 1);
+        const proxy = await checkedPdfPage(pdf, page, geometry);
         if (stopped || !canvas.current) return;
         const base = proxy.getViewport({ scale: 1 });
         if (
@@ -99,7 +87,7 @@ export function PdfToolsPage({
           canvas: element,
           canvasContext: context,
           viewport,
-          annotationMode: renderer.AnnotationMode.ENABLE,
+          annotationMode: 1, // PDF.js AnnotationMode.ENABLE: raster appearances only.
         });
         await render.promise;
         const text = await proxy.getTextContent();

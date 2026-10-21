@@ -10,16 +10,25 @@ import {
   PDFDropdown,
   PDFRadioGroup,
   degrees,
+  StandardFonts,
 } from 'pdf-lib';
 import {
   PDF_TOOLS_LIMITS,
   viewToPdf,
+  overlapsPdfFormField,
+  PDF_FORM_OVERLAP_ERROR,
+  pdfFieldsError,
   type PdfInfo,
   type PdfEdits,
   type PdfElement,
   type PdfPageInfo,
   type PdfFieldInfo,
 } from './pdf-tools-model';
+import {
+  organizedInfo,
+  pagePlan,
+  pagePlanError,
+} from './pdf-tools-organization';
 
 export class PdfToolsError extends Error {}
 const unsupported = () =>
@@ -103,7 +112,31 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
       'AA',
       'Sig',
       'Perms',
+      'ByteRange',
+      'DocMDP',
+      'FieldMDP',
+      'DocTimeStamp',
     ]);
+  const organizationKeys = new Set([
+    'StructTreeRoot',
+    'StructParents',
+    'Outlines',
+    'PageLabels',
+    // Positional print presets would target different/missing pages after a
+    // move/removal. Preserve the preset and refuse organization rather than
+    // silently clearing it or guessing which pages should be printed.
+    'PrintPageRange',
+    'Dests',
+    'Names',
+    'Threads',
+    'B',
+    'PieceInfo',
+    'Collection',
+    'CO',
+    'Dest',
+    'A',
+  ]);
+  let pageDependent = false;
   function inspect(object: unknown) {
     if (++visits > 100000)
       throw new PdfToolsError(
@@ -114,6 +147,8 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
     if (object instanceof PDFName && forbidden.has(object.decodeText()))
       throw unsupported();
     if (object instanceof PDFDict) {
+      if (object.keys().some((key) => organizationKeys.has(key.decodeText())))
+        pageDependent = true;
       if (object.get(PDFName.of('Subtype')) === PDFName.of('Image')) {
         const width = object.lookup(PDFName.of('Width'));
         const height = object.lookup(PDFName.of('Height'));
@@ -144,22 +179,45 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
       'This PDF has too many form fields. Use a PDF with at most 150 fields.',
     );
   const names = new Set<string>();
+  const formWidgets: NonNullable<PdfInfo['formWidgets']> = [];
   const result = fields.map((field): PdfFieldInfo => {
     const name = field.getName();
     if (!name || name.length > 200 || names.has(name)) throw unsupported();
     names.add(name);
-    const fieldPages = pages.flatMap((page, i) =>
-      field.acroField.getWidgets().some((widget) =>
+    const allWidgets = field.acroField.getWidgets();
+    const fieldPages = pages.flatMap((page, i) => {
+      const widgets = allWidgets.filter((widget) =>
         page.node
           .Annots()
           ?.asArray()
           .some((ref) => pdf.context.lookup(ref) === widget.dict),
-      )
-        ? [i]
-        : [],
-    );
+      );
+      for (const widget of widgets) {
+        const rect = widget.getRectangle();
+        if (
+          !Object.values(rect).every(Number.isFinite) ||
+          rect.width <= 0 ||
+          rect.height <= 0
+        )
+          throw unsupported();
+        formWidgets.push({
+          page: i,
+          field: name,
+          ...(field instanceof PDFRadioGroup
+            ? { option: field.getOptions()[allWidgets.indexOf(widget)] }
+            : {}),
+          ...rect,
+        });
+      }
+      return widgets.length ? [i] : [];
+    });
     if (!fieldPages.length) throw unsupported();
-    const base = { name, readOnly: field.isReadOnly(), pages: fieldPages };
+    const base = {
+      name,
+      readOnly: field.isReadOnly(),
+      required: field.isRequired(),
+      pages: fieldPages,
+    };
     if (
       field instanceof PDFTextField &&
       !field.isMultiline() &&
@@ -169,11 +227,17 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
       return {
         ...base,
         kind: 'text',
+        control: 'text',
         value: field.getText() ?? '',
         maxLength: Math.min(field.getMaxLength() ?? 500, 500),
       };
     if (field instanceof PDFCheckBox)
-      return { ...base, kind: 'checkbox', value: field.isChecked() };
+      return {
+        ...base,
+        kind: 'checkbox',
+        control: 'checkbox',
+        value: field.isChecked(),
+      };
     if (field instanceof PDFDropdown || field instanceof PDFRadioGroup) {
       if (
         field instanceof PDFDropdown &&
@@ -187,13 +251,63 @@ export async function inspectLocalPdf(bytes: Uint8Array): Promise<PdfInfo> {
       return {
         ...base,
         kind: 'choice',
+        control: field instanceof PDFRadioGroup ? 'radio' : 'dropdown',
         value: Array.isArray(selected) ? (selected[0] ?? '') : (selected ?? ''),
         options,
       };
     }
     throw unsupported();
   });
-  return { pages: pages.map(pageInfo), fields: result };
+  // Organization has a narrower compatibility boundary than additive editing.
+  // Unknown annotations and page-dependent structures stay intact in the source;
+  // we refuse to rearrange them rather than attempting lossy reconstruction.
+  let blocked = pageDependent
+    ? 'Page organization is unavailable for this PDF because it contains bookmarks, links, tags, default print ranges or other page-dependent structures. Its content is kept; use its source application to organize pages.'
+    : '';
+  const knownWidgets = fields.flatMap((field) => field.acroField.getWidgets());
+  const usedWidgets = new Set<PDFDict>();
+  for (const page of pages) {
+    for (const ref of page.node.Annots()?.asArray() ?? []) {
+      const annotation = pdf.context.lookup(ref);
+      const widget = knownWidgets.find((widget) => widget.dict === annotation);
+      if (
+        !(annotation instanceof PDFDict) ||
+        !widget ||
+        usedWidgets.has(annotation) ||
+        annotation.get(PDFName.of('Subtype')) !== PDFName.of('Widget') ||
+        (widget.P() && widget.P() !== page.ref)
+      ) {
+        blocked =
+          'Page organization is unavailable for this PDF because it contains unsupported annotations or widget references. Its content is kept; use its source application to organize pages.';
+        continue;
+      }
+      usedWidgets.add(annotation);
+      const flags = annotation.lookup(PDFName.of('F'));
+      if (
+        (flags && !(flags instanceof PDFNumber)) ||
+        (flags instanceof PDFNumber && flags.asNumber() & 24)
+      )
+        blocked =
+          'Page organization is unavailable for this PDF because an annotation has special rotation or zoom behavior. Its content is kept; use its source application to organize pages.';
+    }
+  }
+  if (usedWidgets.size !== knownWidgets.length)
+    blocked =
+      'Page organization is unavailable for this PDF because some form widgets cannot be safely associated with one page. Its content is kept; use its source application to organize pages.';
+  return {
+    pages: pages.map(pageInfo),
+    fields: result,
+    formWidgets,
+    organization: {
+      ...(blocked ? { blocked } : {}),
+      ...(fields.length
+        ? {
+            removalBlocked:
+              'Pages cannot be removed from a PDF with interactive form fields in this version. Reorder or rotate them, or use the source application to remove pages without losing field data.',
+          }
+        : {}),
+    },
+  };
 }
 export type PdfOverlayImage = { element: PdfElement; png: Uint8Array };
 export async function exportLocalPdf(
@@ -201,7 +315,15 @@ export async function exportLocalPdf(
   info: PdfInfo,
   edits: PdfEdits,
   images: PdfOverlayImage[],
+  options: {
+    preserveFields?: boolean;
+    editFields?: boolean;
+    requireFields?: boolean;
+  } = {},
 ): Promise<Uint8Array> {
+  const arrangementError = pagePlanError(info, edits);
+  if (arrangementError) throw new PdfToolsError(arrangementError);
+  const geometryInfo = organizedInfo(info, edits);
   if (
     edits.elements.length > PDF_TOOLS_LIMITS.elements ||
     images.length > PDF_TOOLS_LIMITS.elements
@@ -209,11 +331,22 @@ export async function exportLocalPdf(
     throw new PdfToolsError('Use at most 100 added elements.');
   const pdf = await load(original),
     form = pdf.getForm();
+  const sourcePages = pdf.getPages();
+  for (const { source } of pagePlan(info, edits))
+    sourcePages[source].setRotation(
+      degrees(geometryInfo.pages[source].rotation),
+    );
+  if (options.editFields || options.requireFields) {
+    const error = pdfFieldsError(info, edits.fields, options.requireFields);
+    if (error) throw new PdfToolsError(error);
+  }
+  const changedFields = [];
   for (const spec of info.fields) {
     const value = Object.hasOwn(edits.fields, spec.name)
       ? edits.fields[spec.name]
       : undefined;
     if (value === undefined) continue;
+    if (options.editFields && value === spec.value) continue;
     if (spec.readOnly) throw new PdfToolsError('This form field is read-only.');
     const field = form.getField(spec.name);
     if (
@@ -236,18 +369,60 @@ export async function exportLocalPdf(
       throw new PdfToolsError(
         'A form value is too long or unsupported. Check the form fields.',
       );
+    changedFields.push(field);
   }
+  if (
+    options.preserveFields &&
+    !options.editFields &&
+    Object.keys(edits.fields).length
+  )
+    throw new PdfToolsError('Quick Sign cannot change existing form values.');
   try {
-    form.updateFieldAppearances();
-    form.flatten({ updateFieldAppearances: false });
-  } catch {
+    if (!options.preserveFields) {
+      form.updateFieldAppearances();
+      form.flatten({ updateFieldAppearances: false });
+    } else if (options.editFields && changedFields.length) {
+      const font = await pdf.embedFont(StandardFonts.Helvetica);
+      for (const field of changedFields) {
+        if (field instanceof PDFTextField || field instanceof PDFDropdown) {
+          const value =
+            field instanceof PDFTextField
+              ? (field.getText() ?? '')
+              : (field.getSelected()[0] ?? '');
+          const widgets = field.acroField.getWidgets();
+          const width = Math.min(
+            ...widgets.map((widget) => widget.getRectangle().width - 8),
+          );
+          const height = Math.min(
+            ...widgets.map((widget) => widget.getRectangle().height - 6),
+          );
+          const size = Math.min(
+            12,
+            height,
+            value ? width / font.widthOfTextAtSize(value, 1) : 12,
+          );
+          if (size < 8)
+            throw new PdfToolsError(
+              'A form value does not fit legibly in its field. Shorten it, or use a larger added text box. Your value has been kept.',
+            );
+          field.setFontSize(size);
+          field.updateAppearances(font);
+        } else if (
+          field instanceof PDFCheckBox ||
+          field instanceof PDFRadioGroup
+        )
+          field.updateAppearances();
+      }
+    }
+  } catch (error) {
+    if (error instanceof PdfToolsError) throw error;
     throw new PdfToolsError(
       'These form values or appearances are unsupported. Standard fields support Western European text; use Add text for other characters, or choose a simpler PDF.',
     );
   }
   let imageBytes = 0;
   for (const { element, png } of images) {
-    const page = info.pages[element.page];
+    const page = geometryInfo.pages[element.page];
     if (
       !page ||
       ![element.x, element.y, element.width, element.height].every(
@@ -264,6 +439,10 @@ export async function exportLocalPdf(
         'An added element is outside the page. Move it inside and retry.',
       );
     imageBytes += png.byteLength;
+    // Live widget appearances paint above page content in independent viewers.
+    // The legacy editor flattens fields; signature-only exports preserve them.
+    if (options.preserveFields && overlapsPdfFormField(element, geometryInfo))
+      throw new PdfToolsError(PDF_FORM_OVERLAP_ERROR);
     if (imageBytes > 16 * 1024 * 1024)
       throw new PdfToolsError(
         'Added marks are too large. Remove some elements and retry.',
@@ -280,7 +459,23 @@ export async function exportLocalPdf(
       rotate: degrees(page.rotation),
     });
   }
-  const bytes = await pdf.save();
+  if (edits.pages) {
+    // Same document, same leaf/widget references, no copyPages and no flattening.
+    // Pin inherited attributes before detaching leaves from their original tree.
+    for (const page of sourcePages) {
+      for (const key of ['Resources', 'MediaBox', 'CropBox', 'Rotate']) {
+        const name = PDFName.of(key);
+        const value = page.node.getInheritableAttribute(name);
+        if (value) page.node.set(name, value);
+      }
+    }
+    for (let index = sourcePages.length - 1; index >= 0; index--)
+      pdf.removePage(index);
+    for (const { source } of edits.pages) pdf.addPage(sourcePages[source]);
+  }
+  const bytes = await pdf.save({
+    updateFieldAppearances: !options.preserveFields,
+  });
   if (bytes.length > PDF_TOOLS_LIMITS.outputBytes)
     throw new PdfToolsError(
       'The completed PDF exceeds the 30 MiB download limit. Remove some marks or use a smaller original.',
