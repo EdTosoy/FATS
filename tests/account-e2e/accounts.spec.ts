@@ -1,4 +1,5 @@
 import { browserTestOrigin } from '../helpers/browser-origin';
+import { checkDashboardReadability } from '../helpers/dashboard-readability';
 import { test as base, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { createServices } from '../../apps/web/src/server/services';
@@ -123,6 +124,87 @@ async function seedLocal(page: Page, data: WorkspaceData) {
   return page.evaluate(() => localStorage.getItem('fats.applications.v1'));
 }
 
+test('dashboard preserves populated account summaries and interview preparation in both themes', async ({
+  page,
+}, info) => {
+  await register(page);
+  await saveJob(page, 'Synthetic saved role');
+  await saveJob(page, 'Synthetic interview role');
+  await page
+    .getByRole('combobox', { name: 'Application status', exact: true })
+    .selectOption('Applied');
+  await page
+    .getByRole('button', { name: 'Schedule interview', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog');
+  await dialog
+    .getByLabel(/^Interview title/)
+    .fill('Synthetic account conversation');
+  await dialog.getByLabel(/^Date/).fill('2030-10-16');
+  await dialog.getByLabel(/^Time \(/).fill('10:00');
+  await dialog.getByLabel(/^Timezone/).fill('Asia/Manila');
+  await dialog
+    .getByLabel('Meeting URL', { exact: true })
+    .fill('https://example.test/conversation');
+  await dialog
+    .getByRole('button', { name: 'Save interview', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', {
+      name: 'Synthetic account conversation',
+      exact: true,
+    }),
+  ).toBeVisible();
+  const interviewUrl = page.url();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto('/');
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Hello, Test.', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator('.stat-card')
+        .filter({ hasText: 'Total applications' })
+        .locator('strong'),
+    ).toHaveText('2');
+    await expect(
+      page
+        .locator('.stat-card')
+        .filter({ hasText: 'In progress' })
+        .locator('strong'),
+    ).toHaveText('1');
+    await expect(page.getByLabel('Upcoming interview count')).toHaveText(
+      '1 upcoming',
+    );
+    await expect(
+      page.getByRole('link', { name: 'Synthetic saved role', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Synthetic interview role', exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() => localStorage.getItem('fats.applications.v1')),
+    ).toBeNull();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await checkDashboardReadability(page, info);
+    await page.screenshot({
+      path: info.outputPath(`account-populated-${colorScheme}.png`),
+      fullPage: true,
+    });
+    await page
+      .getByRole('link', { name: 'Open interview preparation', exact: true })
+      .focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(interviewUrl);
+  }
+});
+
 test('guest identity becomes the live account identity and returns with browser work intact', async ({
   page,
 }, info) => {
@@ -161,6 +243,13 @@ test('guest identity becomes the live account identity and returns with browser 
       'data-theme',
       colorScheme,
     );
+    await expect(
+      page.locator(
+        '.stat-card, .dashboard-interviews, .recent-card, .document-next-step, .momentum',
+      ),
+    ).toHaveCount(0);
+    await expect(page.locator('.button-primary:visible')).toHaveCount(1);
+
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

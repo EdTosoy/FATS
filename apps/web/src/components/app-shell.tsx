@@ -43,7 +43,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const account = useAccount();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuToggle = useRef<HTMLButtonElement>(null);
-  const { loading, error, openForm } = useApplications();
+  const { applications, loading, error, openForm } = useApplications();
+  const firstSave =
+    pathname === '/' && !loading && !error && applications.length === 0;
   const currentPage =
     pathname === '/resumes/pdf-tools'
       ? 'PDF Tools'
@@ -100,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </p>
             <span>One application at a time.</span>
           </div>
-          <Momentum />
+          {!firstSave && <Momentum />}
           <nav aria-label="Support navigation">
             {navLinks(secondaryNavigation)}
           </nav>
@@ -142,15 +144,20 @@ export function AppShell({ children }: { children: ReactNode }) {
               <LockKeyhole size={13} aria-hidden="true" />
               {account.user ? 'Account workspace' : 'Guest workspace'}
             </span>
-            <Button
-              onClick={() => openForm()}
-              disabled={
-                loading || !!error || account.expired || pathname === '/sign-in'
-              }
-            >
-              <BookmarkPlus size={17} aria-hidden="true" />
-              <span>Save a job</span>
-            </Button>
+            {!firstSave && (
+              <Button
+                onClick={() => openForm()}
+                disabled={
+                  loading ||
+                  !!error ||
+                  account.expired ||
+                  pathname === '/sign-in'
+                }
+              >
+                <BookmarkPlus size={17} aria-hidden="true" />
+                <span>Save a job</span>
+              </Button>
+            )}
             <Button
               ref={menuToggle}
               variant="ghost"
@@ -179,7 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {navLinks(navigation)}
             <hr />
             {navLinks(secondaryNavigation)}
-            <Momentum />
+            {!firstSave && <Momentum />}
           </nav>
         )}
         <main id="main-content" className="main-content" tabIndex={-1}>

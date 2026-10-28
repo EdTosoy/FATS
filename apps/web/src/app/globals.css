@@ -3009,3 +3009,46 @@ input[type='file']::file-selector-button {
     transition: none !important;
   }
 }
+
+/* Dashboard guidance stays readable without changing other product screens. */
+.dashboard .eyebrow,
+.dashboard .table-head {
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.dashboard .page-heading .muted,
+.dashboard-start-hint,
+.dashboard .welcome-description,
+.dashboard .compact-empty p,
+.dashboard .document-next-step p {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.dashboard .welcome-action > span,
+.dashboard .stat-card p,
+.dashboard .count-pill,
+.dashboard .company-name,
+.dashboard .location-cell,
+.dashboard .date-cell {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.dashboard .text-link,
+.dashboard .status {
+  font-size: 13px;
+}
+.dashboard .stat-line > span,
+.dashboard .role-link {
+  font-size: 14px;
+}
+.dashboard .section-heading h2 {
+  font-size: 16px;
+}
+.dashboard .compact-empty h3 {
+  font-size: 15px;
+}
+.dashboard-start-hint {
+  color: var(--muted);
+  max-width: 540px;
+}

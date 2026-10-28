@@ -15,7 +15,7 @@
     "better-auth": "1.7.8",
     "kysely": "0.29.6",
     "lucide-react": "1.57.0",
-    "next": "16.4.0",
+    "next": "16.4.1",
     "nodemailer": "10.1.1",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.4.299",

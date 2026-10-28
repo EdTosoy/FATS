@@ -1,4 +1,5 @@
 import { expect, test as base } from '@playwright/test';
+import { checkDashboardReadability } from '../helpers/dashboard-readability';
 
 const test = base.extend({
   page: async ({ page }, run) => {
@@ -45,6 +46,16 @@ for (const colorScheme of ['light', 'dark'] as const) {
         'Saved in this browser',
       );
     }
+    await expect(
+      page.locator(
+        '.stat-card, .dashboard-interviews, .recent-card, .document-next-step, .momentum',
+      ),
+    ).toHaveCount(0);
+    await expect(page.locator('.button-primary:visible')).toHaveCount(1);
+    await expect(
+      page.getByRole('button', { name: 'Save your first job', exact: true }),
+    ).toBeInViewport();
+    await checkDashboardReadability(page, info);
     // The guest explanation is visible on the first screen, including mobile.
     expect(
       (await storage.boundingBox())!.y + (await storage.boundingBox())!.height,
@@ -88,6 +99,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
         exact: true,
       }),
     ).toBeVisible();
+    await expect(page.locator('.stat-card')).toHaveCount(4);
+    await expect(
+      page.getByRole('link', { name: 'Review saved job', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Add interview', exact: true }),
+    ).toBeVisible();
+    await checkDashboardReadability(page, info);
     await page.screenshot({
       path: info.outputPath(`guest-returning-${colorScheme}.png`),
       fullPage: true,

@@ -158,9 +158,7 @@ test('welcome, all guest routes, and dialogs share a consistent responsive palet
         }),
       ).toBeVisible();
       await expect(welcome.getByRole('button')).toHaveCount(1);
-      expect(
-        await welcome.evaluate((el) => el.getBoundingClientRect().height),
-      ).toBeLessThan(300);
+      await expect(welcome.getByRole('button')).toBeInViewport();
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

@@ -24,7 +24,7 @@ test('meaningful guest activity persists without counting browsing, unchanged ed
   await page.clock.setFixedTime(new Date('2026-10-21T00:00:00.000Z'));
   if (testInfo.project.name === 'desktop')
     await page.setViewportSize({ width: 1916, height: 952 });
-  await page.goto('/');
+  await page.goto('/applications');
   let widget = await visibleMomentum(page);
   await expect(widget).toContainText('A small step is a lovely start.');
   await expect(widget.locator('.momentum-streak')).toHaveText('0days in a row');

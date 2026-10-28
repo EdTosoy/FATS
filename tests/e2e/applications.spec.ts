@@ -19,8 +19,12 @@ async function saveJob(
   company = 'Example Philippines',
 ) {
   await page
-    .getByRole('banner')
-    .getByRole('button', { name: 'Save a job', exact: true })
+    .getByRole('button', { name: 'Save your first job', exact: true })
+    .or(
+      page
+        .getByRole('banner')
+        .getByRole('button', { name: 'Save a job', exact: true }),
+    )
     .click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel(/^Job title/).fill(title);
@@ -59,16 +63,15 @@ test('first-time dashboard is honest, usable, and fits the viewport', async ({
   await expect(
     page.getByRole('button', { name: 'Save your first job' }),
   ).toBeVisible();
-  for (const label of [
-    'Total applications',
-    'Saved jobs',
-    'In progress',
-    'Offers',
-  ])
-    await expectStat(page, label, 0);
+  await expect(page.locator('.stat-card')).toHaveCount(0);
+  await expect(page.locator('.dashboard-interviews, .recent-card')).toHaveCount(
+    0,
+  );
   await expect(
-    page.getByRole('heading', { name: 'No scheduled interviews' }),
-  ).toBeVisible();
+    page
+      .getByRole('banner')
+      .getByRole('button', { name: 'Save a job', exact: true }),
+  ).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -204,9 +207,10 @@ test('search and status filters work together, and every status persists', async
 test('form validates required fields, supports keyboard focus, and cancels without saving', async ({
   page,
 }, testInfo) => {
-  const opener = page
-    .getByRole('banner')
-    .getByRole('button', { name: 'Save a job', exact: true });
+  const opener = page.getByRole('button', {
+    name: 'Save your first job',
+    exact: true,
+  });
   await opener.click();
   const dialog = page.getByRole('dialog');
   await expect(
@@ -238,7 +242,7 @@ test('form validates required fields, supports keyboard focus, and cancels witho
   await page.keyboard.press('Escape');
   await expect(dialog).not.toBeVisible();
   await expect(opener).toBeFocused();
-  await expectStat(page, 'Total applications', 0);
+  await expect(page.locator('.stat-card')).toHaveCount(0);
 });
 
 test('failed browser writes keep the draft and previous application intact', async ({
