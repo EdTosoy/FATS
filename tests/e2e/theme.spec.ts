@@ -47,7 +47,7 @@ test('System follows the device; explicit choices persist across navigation, rel
     .first()
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Hello, Maria.' }),
+    page.getByRole('heading', { name: 'Welcome to your workspace.' }),
   ).toBeVisible();
   await theme(page, 'light');
   expect(

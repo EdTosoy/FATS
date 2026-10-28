@@ -48,7 +48,7 @@ async function expectStat(page: Page, label: string, number: number) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: 'Hello, Maria.' }),
+    page.getByRole('heading', { name: 'Welcome to your workspace.' }),
   ).toBeVisible();
   // Each test gets a fresh browser context and real localStorage.
 });
@@ -335,6 +335,10 @@ test('corrupt storage is reported and preserved rather than replaced with a fake
       .getByRole('button', { name: 'Save a job', exact: true }),
   ).toBeDisabled();
   await expect(page.locator('.stat-card')).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Welcome to your workspace.' }),
+  ).toBeVisible();
+  await expect(page.getByRole('main')).not.toContainText('Maria');
   expect(
     await page.evaluate(() => localStorage.getItem('fats.applications.v1')),
   ).toBe('{unreadable');

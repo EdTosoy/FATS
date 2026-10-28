@@ -19,7 +19,7 @@ import { ActionLink, Button, Card, PageHeading, TextLink } from './ui';
 
 export function Dashboard() {
   const account = useAccount();
-  const name = account.user?.name.split(' ')[0] || 'Maria';
+  const name = account.user?.name.split(' ')[0];
   const { applications, interviews, now, loading, error, openForm } =
     useApplications();
   const stats = applicationStatistics(applications);
@@ -44,7 +44,7 @@ export function Dashboard() {
     return (
       <PageHeading
         eyebrow="Your workspace"
-        title={`Welcome back, ${name}.`}
+        title={name ? `Welcome back, ${name}.` : 'Welcome to your workspace.'}
         description="Restore access to your saved data to see your dashboard."
       />
     );
@@ -52,9 +52,13 @@ export function Dashboard() {
   return (
     <>
       <PageHeading
-        eyebrow="Your workspace"
-        title={`Hello, ${name}.`}
-        description="Your saved jobs, conversations, and next steps."
+        eyebrow={account.user ? 'Your workspace' : 'Guest workspace'}
+        title={name ? `Hello, ${name}.` : 'Welcome to your workspace.'}
+        description={
+          account.user
+            ? 'Your saved jobs, conversations, and next steps.'
+            : 'Your work is saved in this browser, not an account. Clearing site data removes it.'
+        }
       />
       <Card className="welcome-card" aria-label="Your next step">
         <div className="welcome-content">

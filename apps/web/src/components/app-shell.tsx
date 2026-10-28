@@ -18,6 +18,7 @@ import {
   ArrowUpRight,
   FolderOpen,
   SunMoon,
+  UserRound,
 } from 'lucide-react';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
@@ -105,14 +106,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="profile">
             <span className="avatar" aria-hidden="true">
-              {account.user?.name.slice(0, 1).toUpperCase() || 'M'}
+              {account.user ? (
+                account.user.name.slice(0, 1).toUpperCase()
+              ) : (
+                <UserRound size={18} aria-hidden="true" />
+              )}
             </span>
             <div>
-              <strong>{account.user?.name || 'Maria Santos'}</strong>
+              <strong>{account.user?.name || 'Guest workspace'}</strong>
               <span>
-                {account.user
-                  ? 'Account workspace'
-                  : 'Demo profile · local workspace'}
+                {account.user ? 'Account workspace' : 'Saved in this browser'}
               </span>
             </div>
           </div>
@@ -137,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
             <span className="local-label">
               <LockKeyhole size={13} aria-hidden="true" />
-              {account.user ? 'Account workspace' : 'Local workspace'}
+              {account.user ? 'Account workspace' : 'Guest workspace'}
             </span>
             <Button
               onClick={() => openForm()}

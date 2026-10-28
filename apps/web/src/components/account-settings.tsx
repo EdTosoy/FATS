@@ -27,7 +27,7 @@ export function AccountSettings() {
           <span className="icon-tile blue">
             <UserRound size={23} aria-hidden="true" />
           </span>
-          <h2>{account.user ? 'Your account' : 'Meet your demo profile'}</h2>
+          <h2>{account.user ? 'Your account' : 'Your guest workspace'}</h2>
           {account.user ? (
             <>
               <p>{account.user.name}</p>
@@ -55,9 +55,8 @@ export function AccountSettings() {
           ) : (
             <>
               <p>
-                The greeting uses Maria Santos as a sample profile. Your
-                application list starts empty and contains only the jobs you
-                save.
+                You’re using FATS without signing in. Your saved work belongs to
+                this browser workspace.
               </p>
               <ActionLink href="/sign-in">Sign in to an account</ActionLink>
               <p className="field-hint">

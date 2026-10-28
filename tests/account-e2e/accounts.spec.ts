@@ -123,6 +123,99 @@ async function seedLocal(page: Page, data: WorkspaceData) {
   return page.evaluate(() => localStorage.getItem('fats.applications.v1'));
 }
 
+test('guest identity becomes the live account identity and returns with browser work intact', async ({
+  page,
+}, info) => {
+  await saveJob(page, 'Synthetic guest identity opportunity');
+  const guestRaw = await page.evaluate(() =>
+    localStorage.getItem('fats.applications.v1'),
+  );
+  const owner = await register(page);
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto('/');
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: 'Hello, Test.', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Your saved jobs, conversations, and next steps.', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.locator('.page-heading')).not.toContainText(
+      'Guest workspace',
+    );
+    await expect(page.locator('body')).not.toContainText('Maria');
+    await expect(
+      page.getByRole('link', {
+        name: 'Synthetic guest identity opportunity',
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    if (info.project.name === 'desktop') {
+      await expect(page.locator('.profile')).toContainText('Test Graduate');
+      await expect(page.locator('.profile')).toContainText('Account workspace');
+    }
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-theme',
+      colorScheme,
+    );
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: info.outputPath(`account-dashboard-${colorScheme}.png`),
+      fullPage: true,
+    });
+    await page.goto('/settings');
+    await expect(
+      page.getByRole('heading', { name: 'Your account', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator('.content-card')
+        .filter({
+          has: page.getByRole('heading', { name: 'Your account', exact: true }),
+        })
+        .getByText(owner.email, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Your guest workspace', exact: true }),
+    ).toHaveCount(0);
+    await page.screenshot({
+      path: info.outputPath(`account-settings-${colorScheme}.png`),
+      fullPage: true,
+    });
+  }
+  expect(
+    await page.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBe(guestRaw);
+  await page.getByRole('button', { name: 'Sign out', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('heading', { name: 'Your guest workspace', exact: true }),
+  ).toBeVisible();
+  await page.goto('/');
+  await expect(
+    page.getByRole('heading', {
+      name: 'Welcome to your workspace.',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', {
+      name: 'Synthetic guest identity opportunity',
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBe(guestRaw);
+});
+
 test('registration, account CRUD, interview notes, session cookie, logout/login, and reload persistence', async ({
   page,
 }, info) => {

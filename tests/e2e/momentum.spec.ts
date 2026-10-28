@@ -141,7 +141,7 @@ test('unreadable activity stays intact and has an honest unavailable state', asy
 }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: 'Hello, Maria.' }),
+    page.getByRole('heading', { name: 'Welcome to your workspace.' }),
   ).toBeVisible();
   const corrupt = JSON.stringify({
     version: 1,
