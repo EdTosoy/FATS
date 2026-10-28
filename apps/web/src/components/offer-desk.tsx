@@ -18,6 +18,7 @@ import {
   type OfferTerms,
   type DocumentVersion,
 } from '@fats/domain';
+import { offerContinuationPath } from '@/lib/offer-continuation';
 import { useOffers } from './offer-provider';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
@@ -176,11 +177,13 @@ export function OfferDesk({ applicationId }: { applicationId: string }) {
           <p>Your first offer, one step at a time.</p>
           <p className="muted">
             Sign in to record private offer terms, review questions, and exact
-            offer-letter versions. Your browser applications stay separate;
-            transfer them in Settings after signing in.
+            offer-letter versions in your own account. Next, preview a copy of
+            your browser applications and interviews. Nothing is copied until
+            you confirm; the originals stay in this browser. New letter uploads
+            also require available server safety checks.
           </p>
           <ActionLink
-            href={`/sign-in?next=${encodeURIComponent(`/applications/${applicationId}#offer-desk`)}`}
+            href={`/sign-in?next=${encodeURIComponent(offerContinuationPath(applicationId))}`}
             variant="secondary"
           >
             Sign in for Offer Desk

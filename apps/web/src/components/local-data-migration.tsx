@@ -1,14 +1,18 @@
 'use client';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { LocalMigrationPreview, WorkspaceCounts } from '@fats/domain';
 import { HttpWorkspaceRepository } from '@/lib/http-workspace-repository';
 import { LocalDataTransfer } from '@/lib/local-data-transfer';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
-import { Button, Card } from './ui';
-export function LocalDataMigration() {
+import { ActionLink, Button, Card, TextLink } from './ui';
+export function LocalDataMigration({
+  continuationApplicationId,
+}: {
+  continuationApplicationId?: string;
+}) {
   const { user, expired } = useAccount();
-  const { refreshWorkspace } = useApplications();
+  const { refreshWorkspace, error: workspaceError } = useApplications();
   const account = useMemo(
     () => (user ? new HttpWorkspaceRepository(user.id) : null),
     [user],
@@ -27,6 +31,13 @@ export function LocalDataMigration() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [message, setMessage] = useState('');
+  const [ready, setReady] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (continuationApplicationId && message) heading.current?.focus();
+  }, [continuationApplicationId, message]);
   useEffect(() => {
     void source
       .inspect()
@@ -43,6 +54,9 @@ export function LocalDataMigration() {
     setBusy(true);
     setError('');
     setMessage('');
+    setCopied(false);
+    setAttempted(false);
+    setReady(false);
     setConfirmed(false);
     try {
       if (preview) source.cancel(account);
@@ -64,8 +78,23 @@ export function LocalDataMigration() {
     setBusy(true);
     setError('');
     try {
-      await source.confirm(account, preview.token);
-      await refreshWorkspace();
+      setAttempted(true);
+      const result = await source.confirm(account, preview.token);
+      setCopied(true);
+      try {
+        await refreshWorkspace();
+      } catch {
+        setError(
+          'Records were copied, but your account view could not refresh. Reload and preview again; retrying will not add duplicates.',
+        );
+        return;
+      }
+      setReady(
+        !!continuationApplicationId &&
+          result.applications.some(
+            (application) => application.id === continuationApplicationId,
+          ),
+      );
       setMessage(
         'Browser records copied to your account. Original local records were kept. Repeating this transfer will not add duplicates.',
       );
@@ -87,11 +116,17 @@ export function LocalDataMigration() {
       className="content-card local-migration"
       aria-labelledby="local-migration-title"
     >
-      <h2 id="local-migration-title">Bring your browser records with you</h2>
+      <h2 id="local-migration-title" ref={heading} tabIndex={-1}>
+        Bring your browser records with you
+      </h2>
       <p>
-        Your account and browser workspace are separate. Preview a copy into{' '}
-        <strong>{user.email}</strong>. Existing account records are kept;
-        original browser records are never removed.
+        {continuationApplicationId
+          ? 'Copy to '
+          : 'Your account and browser workspace are separate. Preview a copy into '}
+        <strong>{user.email}</strong>.{' '}
+        {continuationApplicationId
+          ? 'Existing account records and browser originals are kept.'
+          : 'Existing account records are kept; original browser records are never removed.'}
       </p>
       {counts && (
         <p>
@@ -99,12 +134,25 @@ export function LocalDataMigration() {
           {counts.interviews} browser interviews at this site address.
         </p>
       )}
+      {continuationApplicationId && counts && counts.applications === 0 && (
+        <p>
+          No browser applications were found at this site address. Nothing will
+          be copied. Open your account applications, or sign out in Settings to
+          check your browser workspace.
+        </p>
+      )}
       <p className="field-hint">
-        Identical records are skipped. Conflicting IDs stop the complete
-        transfer. Keep a local JSON backup; unreadable records must be recovered
-        before copying.
+        Identical records are skipped. Conflicts stop the whole copy.
+        {!continuationApplicationId &&
+          ' Keep a local JSON backup; unreadable records must be recovered before copying.'}
       </p>
-      {!preview ? (
+      {ready && !workspaceError ? (
+        <ActionLink
+          href={`/applications/${encodeURIComponent(continuationApplicationId!)}#offer-desk`}
+        >
+          Continue to Offer Desk
+        </ActionLink>
+      ) : !preview ? (
         <Button
           disabled={
             busy ||
@@ -118,6 +166,11 @@ export function LocalDataMigration() {
         </Button>
       ) : (
         <>
+          <p>
+            {continuationApplicationId
+              ? 'Review the counts, then confirm the copy to continue to Offer Desk.'
+              : 'Review this copy before continuing. The complete transfer succeeds together or leaves account records unchanged.'}
+          </p>
           <dl className="backup-counts">
             <div>
               <dt>Applications to add</dt>
@@ -165,7 +218,11 @@ export function LocalDataMigration() {
                   if (account) source.cancel(account);
                   setPreview(null);
                   setConfirmed(false);
-                  setMessage('Transfer cancelled. No records changed.');
+                  setMessage(
+                    attempted
+                      ? 'Transfer preview closed. Browser originals are kept. If copying was interrupted, preview again to check what reached your account.'
+                      : 'Transfer cancelled. No records changed.',
+                  );
                 }}
               >
                 Cancel transfer
@@ -176,6 +233,25 @@ export function LocalDataMigration() {
             </div>
           </form>
         </>
+      )}
+      {continuationApplicationId && (!ready || workspaceError) && (
+        <p>
+          <TextLink href="/applications">
+            Open account applications without copying
+          </TextLink>
+        </p>
+      )}
+      {copied && workspaceError && (
+        <p role="alert" className="error-message">
+          Records were copied, but your account view could not refresh. Reload
+          and preview again; retrying will not add duplicates.
+        </p>
+      )}
+      {copied && continuationApplicationId && !ready && !workspaceError && (
+        <p>
+          This copy does not contain the requested application. Open your
+          account applications to choose where to continue.
+        </p>
       )}
       {error && (
         <p className="error-message" role="alert">

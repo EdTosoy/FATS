@@ -164,7 +164,7 @@ export function ApplicationDocuments({
               </label>
               {!resumes.length && (
                 <ActionLink href="/resumes" variant="secondary">
-                  Add a resume to your library
+                  Review library availability
                 </ActionLink>
               )}
               <div className="document-actions">
@@ -233,7 +233,7 @@ export function DocumentNextStep() {
         </strong>
         <p>
           {!resumes.length
-            ? 'Add a private copy to your library.'
+            ? 'Check file-saving availability, or edit and download a local PDF.'
             : unlinked
               ? `${unlinked.company} has no submitted resume version recorded.`
               : `${library.documents.length} document${library.documents.length === 1 ? '' : 's'} in your private library.`}
@@ -250,7 +250,7 @@ export function DocumentNextStep() {
         variant="secondary"
       >
         {!resumes.length
-          ? 'Add your first resume'
+          ? 'Review document options'
           : unlinked
             ? 'Record a version'
             : 'Review documents'}

@@ -188,7 +188,7 @@ test('search and status filters work together, and every status persists', async
   await page
     .getByRole('link', { name: 'Junior Developer', exact: true })
     .click();
-  await expect(page).toHaveURL(firstUrl);
+  await expect(page).toHaveURL(firstUrl + '?q=accessible&status=Withdrawn');
   await page.goto('/applications');
   await expect(
     page.getByRole('link', { name: 'Junior Developer', exact: true }),

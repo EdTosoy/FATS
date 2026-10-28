@@ -259,8 +259,9 @@ export function CareerVaultView() {
           >
             <p>
               Verified accounts can keep employment history and track records
-              without attaching files. No employment history is needed to get
-              started.
+              without attaching files. Career Vault does not upload new files;
+              signing in does not enable restricted library uploads. No
+              employment history is needed to get started.
             </p>
           </EmptyState>
         </Card>
@@ -628,9 +629,10 @@ export function CareerVaultView() {
         <div>
           <h2>Your records can start with a note.</h2>
           <p>
-            Saving new document files is temporarily unavailable while required
-            safety scanning is not operational. Keep metadata now; link an
-            existing authorized accepted version only when available.
+            Track employment details and document notes without uploading files.
+            Career Vault can link an existing accepted version from your private
+            library when available. New library uploads require operational
+            safety checks, even after sign-in.
           </p>
           <p className="field-hint">
             Local PDF Tools can fill a file you choose and download a copy on

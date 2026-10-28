@@ -296,7 +296,7 @@ test('synthetic graduate: verified onboarding → Sidekick → interviews → re
         .getByRole('combobox', { name: 'Application status', exact: true })
         .selectOption(stage);
       await expect(
-        page.locator('.progress-card').getByRole('status'),
+        page.locator('.application-status').getByRole('status'),
       ).toHaveText(`Status updated to ${stage}.`);
     }
     const interviewUrls: string[] = [];

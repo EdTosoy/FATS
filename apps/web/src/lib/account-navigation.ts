@@ -1,3 +1,4 @@
+import { offerContinuationId } from './offer-continuation';
 export function accountReturnPath(value: unknown): string {
   if (
     typeof value !== 'string' ||
@@ -5,6 +6,8 @@ export function accountReturnPath(value: unknown): string {
     value.startsWith('//')
   )
     return '/settings';
+  if (value.startsWith('/continue-offer/'))
+    return offerContinuationId(value) ? value : '/settings';
   try {
     const url = new URL(value, 'https://fats.invalid');
     if (

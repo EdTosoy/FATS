@@ -1,6 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import {
+  applicationFilterQuery,
+  readApplicationFilters,
+} from '@/lib/application-list-url';
 import {
   APPLICATION_STATUSES,
   filterApplications,
@@ -19,8 +23,24 @@ import { Button, Card, EmptyState, PageHeading } from './ui';
 
 export function ApplicationList() {
   const { applications, loading, error, openForm } = useApplications();
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<ApplicationStatus | 'All'>('All');
+  const params = useSearchParams();
+  const { query, status } = readApplicationFilters(params);
+  function changeFilters(
+    nextQuery: string,
+    nextStatus: ApplicationStatus | 'All',
+    replace = false,
+  ) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('q');
+    url.searchParams.delete('status');
+    const filters = new URLSearchParams(
+      applicationFilterQuery(nextQuery, nextStatus),
+    );
+    filters.forEach((value, key) => url.searchParams.set(key, value));
+    const href = url.pathname + url.search + url.hash;
+    if (href !== location.pathname + location.search + location.hash)
+      window.history[replace ? 'replaceState' : 'pushState'](null, '', href);
+  }
   const filtered = filterApplications(applications, query, status);
 
   return (
@@ -54,7 +74,10 @@ export function ApplicationList() {
             <input
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              maxLength={500}
+              onChange={(event) =>
+                changeFilters(event.target.value, status, true)
+              }
               placeholder="Search by role, company, location…"
               disabled={loading || !!error}
             />
@@ -65,7 +88,10 @@ export function ApplicationList() {
             <select
               value={status}
               onChange={(event) =>
-                setStatus(event.target.value as ApplicationStatus | 'All')
+                changeFilters(
+                  query,
+                  event.target.value as ApplicationStatus | 'All',
+                )
               }
               disabled={loading || !!error}
             >
@@ -76,6 +102,12 @@ export function ApplicationList() {
             </select>
           </label>
         </div>
+        {(query || status !== 'All') &&
+          (filtered.length > 0 || applications.length === 0) && (
+            <Button variant="ghost" onClick={() => changeFilters('', 'All')}>
+              Clear search &amp; filters
+            </Button>
+          )}
         {loading ? (
           <p className="loading-state" role="status">
             Loading your applications…
@@ -109,8 +141,7 @@ export function ApplicationList() {
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setQuery('');
-                  setStatus('All');
+                  changeFilters('', 'All');
                 }}
               >
                 Clear search & filters
@@ -120,7 +151,10 @@ export function ApplicationList() {
             <p>Try a different word or choose another status.</p>
           </EmptyState>
         ) : (
-          <ApplicationTable applications={filtered} />
+          <ApplicationTable
+            applications={filtered}
+            listQuery={applicationFilterQuery(query, status)}
+          />
         )}
         <div className="tracker-footer" role="status">
           {!loading && !error && (

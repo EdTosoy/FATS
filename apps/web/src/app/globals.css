@@ -440,9 +440,6 @@
   .pdf-tools-layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .pdf-preview-card {
-    grid-row: 1;
-  }
   .pdf-tools-entry {
     align-items: flex-start;
     flex-direction: column;
@@ -3051,4 +3048,80 @@ input[type='file']::file-selector-button {
 .dashboard-start-hint {
   color: var(--muted);
   max-width: 540px;
+}
+
+/* Keep manual tracking beside the original posting, before long detail sections. */
+.detail-overview .source-link a {
+  min-height: 44px;
+}
+.application-status {
+  max-width: 400px;
+  margin-top: 16px;
+}
+.application-status .status-label {
+  font-size: 14px;
+}
+.application-status select {
+  min-height: 44px;
+}
+.application-status > .muted {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.application-status .save-feedback,
+.application-status .error-message {
+  font-size: 13px;
+}
+.application-status .save-feedback {
+  color: var(--muted);
+}
+.application-status .save-feedback svg {
+  color: var(--success-text);
+}
+
+/* F07: the edit → preview → download flow follows DOM order on mobile. */
+.pdf-review-heading,
+.pdf-download-area {
+  padding: 16px;
+}
+.pdf-review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.pdf-workflow-heading,
+.pdf-selection,
+.pdf-tools-error {
+  scroll-margin-block: 16px;
+}
+.pdf-review-heading h2,
+.pdf-download-area h2 {
+  font-size: 17px;
+  margin: 0 0 10px;
+}
+.pdf-download-area {
+  border-top: 1px solid var(--border);
+}
+.pdf-download-area .field-hint {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.pdf-download-area .pdf-tools-status {
+  margin-bottom: 0;
+}
+.pdf-controls .document-actions {
+  margin-bottom: 16px;
+}
+.pdf-controls .button,
+.pdf-review-heading .button,
+.pdf-download-area .button,
+.pdf-page-toolbar .button,
+.pdf-page-toolbar select,
+.pdf-field input:not([type='checkbox']),
+.pdf-field select {
+  min-height: 44px;
 }

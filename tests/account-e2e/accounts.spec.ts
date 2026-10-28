@@ -361,9 +361,9 @@ test('registration, account CRUD, interview notes, session cookie, logout/login,
   await page
     .getByRole('combobox', { name: 'Application status', exact: true })
     .selectOption('Applied');
-  await expect(page.locator('.progress-card').getByRole('status')).toHaveText(
-    'Status updated to Applied.',
-  );
+  await expect(
+    page.locator('.application-status').getByRole('status'),
+  ).toHaveText('Status updated to Applied.');
   await page.getByRole('button', { name: 'Edit details', exact: true }).click();
   await page
     .getByRole('dialog')
@@ -739,4 +739,32 @@ test('momentum stays separate across guest/account workspaces and survives a fre
   await expect((await momentum()).locator('.momentum-streak')).toHaveText(
     '1day in a row',
   );
+});
+
+test('account application filters survive reload and detail return', async ({
+  page,
+}) => {
+  await register(page);
+  await saveJob(page, 'Synthetic filtered account');
+  await page.goto('/applications?q=Synthetic&status=Saved');
+  await expect(page.getByRole('searchbox')).toHaveValue('Synthetic');
+  await page.reload();
+  await expect(page.getByLabel('Filter by status')).toHaveValue('Saved');
+  await page
+    .getByRole('link', { name: 'Synthetic filtered account', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', {
+      name: 'Synthetic filtered account',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole('link', { name: 'Back to applications', exact: true })
+    .click();
+  await expect(page.getByRole('searchbox')).toHaveValue('Synthetic');
+  await expect(page.getByLabel('Filter by status')).toHaveValue('Saved');
+  expect(
+    await page.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBeNull();
 });

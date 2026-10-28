@@ -22,8 +22,10 @@ export function CompanyAvatar({ company }: { company: string }) {
 
 export function ApplicationTable({
   applications,
+  listQuery = '',
 }: {
   applications: JobApplication[];
+  listQuery?: string;
 }) {
   return (
     <div className="application-table">
@@ -42,7 +44,7 @@ export function ApplicationTable({
               <div>
                 <Link
                   className="role-link"
-                  href={`/applications/${application.id}`}
+                  href={`/applications/${application.id}${listQuery ? `?${listQuery}` : ''}`}
                 >
                   {application.title}
                 </Link>
@@ -61,7 +63,7 @@ export function ApplicationTable({
             </time>
             <Link
               className="row-open"
-              href={`/applications/${application.id}`}
+              href={`/applications/${application.id}${listQuery ? `?${listQuery}` : ''}`}
               aria-label={`Open ${application.title} at ${application.company}`}
             >
               <ArrowUpRight size={18} aria-hidden="true" />

@@ -61,12 +61,12 @@ test.afterAll(async () => {
 });
 // Explicit missing-scanner scenario, independent of the operator's PATH. No
 // request interception or fake clean verdict is used.
-test('unavailable safety checks preserve file form inputs and never publish a document', async ({
+test('unavailable safety checks block upload entry and direct requests never publish a document', async ({
   page,
 }, info) => {
   test.skip(
     process.env.FATS_TEST_CLAMAV === '1',
-    'Run without the scanner opt-in to verify the unavailable-scanner configuration.',
+    'Requires the actual unavailable-scanner configuration.',
   );
   const id = await user(page);
   await page.goto('/resumes');
@@ -74,29 +74,31 @@ test('unavailable safety checks preserve file form inputs and never publish a do
     name: 'Upload document',
     exact: true,
   });
-  await opener.click();
-  const dialog = page.getByRole('dialog');
-  await dialog
-    .getByLabel('Document name', { exact: true })
-    .fill('Synthetic pending resume');
-  await dialog.getByLabel('Document file', { exact: true }).setInputFiles({
-    name: 'resume.pdf',
-    mimeType: 'application/pdf',
-    buffer: await pdfFixture(),
+  await expect(opener).toBeDisabled();
+  await expect(page.locator('#document-availability')).toContainText(
+    'New document uploads are unavailable',
+  );
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const bytes = await pdfFixture();
+  const response = await page.request.put('/api/documents', {
+    headers: {
+      origin,
+      'content-type': 'application/octet-stream',
+      'x-fats-account': id,
+      'x-fats-upload': encodeURIComponent(
+        JSON.stringify({
+          name: 'Synthetic blocked resume',
+          filename: 'resume.pdf',
+          category: 'Resumes',
+          requestId: randomUUID(),
+        }),
+      ),
+    },
+    data: bytes,
   });
-  const response = page.waitForResponse(
-    (r) => r.url().endsWith('/api/documents') && r.request().method() === 'PUT',
-  );
-  await dialog
-    .getByRole('button', { name: 'Upload document', exact: true })
-    .click();
-  expect((await response).status()).toBe(503);
-  await expect(dialog.getByRole('alert')).toContainText(
+  expect(response.status()).toBe(503);
+  expect((await response.json()).error).toContain(
     'Document safety checks are unavailable',
-  );
-  await expect(dialog.getByRole('alert')).toBeFocused();
-  await expect(dialog.getByLabel('Document name', { exact: true })).toHaveValue(
-    'Synthetic pending resume',
   );
   expect(
     (await pool.query('SELECT 1 FROM document_versions WHERE user_id=$1', [id]))
@@ -106,19 +108,13 @@ test('unavailable safety checks preserve file form inputs and never publish a do
     (await pool.query('SELECT 1 FROM document_objects WHERE user_id=$1', [id]))
       .rowCount,
   ).toBe(0);
-  expect(
-    await dialog
-      .getByLabel('Document file', { exact: true })
-      .evaluate((el: HTMLInputElement) => el.files?.length),
-  ).toBe(1);
-  await dialog.screenshot({ path: info.outputPath('scanner-unavailable.png') });
-  await dialog
-    .getByRole('button', { name: 'Close upload', exact: true })
-    .click();
-  await expect(opener).toBeFocused();
+  await page.screenshot({
+    path: info.outputPath('scanner-unavailable.png'),
+    fullPage: true,
+  });
   expect(
     await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
+      () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
 });
@@ -161,6 +157,23 @@ test('legacy files cannot preview, download or become usable, while confirmed ac
     .click();
   let dialog = page.getByRole('dialog');
   await expect(dialog.getByText(/needs safety verification/)).toBeVisible();
+  if (process.env.FATS_TEST_CLAMAV !== '1') {
+    await expect(
+      dialog.getByRole('button', { name: 'Add version', exact: true }),
+    ).toBeDisabled();
+    await expect(
+      dialog.getByText('New file versions are unavailable', { exact: false }),
+    ).toBeVisible();
+  }
+  await dialog
+    .getByLabel('Document name', { exact: true })
+    .fill('Synthetic legacy resume revised');
+  await dialog
+    .getByRole('button', { name: 'Save details', exact: true })
+    .click();
+  await expect(
+    dialog.getByText('Document details saved.', { exact: true }),
+  ).toBeVisible();
   await expect(dialog.getByRole('link', { name: /Download/ })).toHaveCount(0);
   await expect(
     dialog.getByRole('button', { name: 'Preview PDF', exact: true }),

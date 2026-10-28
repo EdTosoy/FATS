@@ -126,7 +126,9 @@ export function PdfPreview({
 function UploadForm({
   document,
   onSaved,
+  scanningAvailable,
 }: {
+  scanningAvailable: boolean;
   document?: Document;
   onSaved: () => void;
 }) {
@@ -144,6 +146,12 @@ function UploadForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+    if (!scanningAvailable) {
+      setError(
+        'New document uploads are unavailable while required safety checks are not ready. Keep your file and retry later.',
+      );
+      return;
+    }
     if (!file) {
       setError('Choose a PDF or DOCX first.');
       return;
@@ -229,7 +237,19 @@ function UploadForm({
           {error}
         </p>
       )}
-      <Button disabled={busy} type="submit">
+      {!scanningAvailable && (
+        <p id="upload-availability" className="field-hint">
+          New document uploads are unavailable while required safety checks are
+          not ready. Keep your file; your inputs have not been cleared.
+        </p>
+      )}
+      <Button
+        disabled={busy || !scanningAvailable}
+        aria-describedby={
+          !scanningAvailable ? 'upload-availability' : undefined
+        }
+        type="submit"
+      >
         {busy
           ? 'Uploading…'
           : document
@@ -243,7 +263,9 @@ function DocumentEditor({
   document,
   onDeleted,
   onPreview,
+  scanningAvailable,
 }: {
+  scanningAvailable: boolean;
   document: Document;
   onDeleted: () => void;
   onPreview: (v: DocumentVersion) => void;
@@ -368,12 +390,20 @@ function DocumentEditor({
         default resume uses its latest version; saved application links always
         keep the exact version you selected.
       </p>
+      {!scanningAvailable && (
+        <p className="field-hint">
+          New file versions are unavailable while required safety checks are not
+          ready. Existing version history is kept.
+        </p>
+      )}
       <div className="section-heading">
         <h3>Version history</h3>
         {!document.archived && !adding && (
           <Button
             variant="secondary"
-            disabled={busy || document.versions.length >= 20}
+            disabled={
+              busy || !scanningAvailable || document.versions.length >= 20
+            }
             onClick={() => setAdding(true)}
           >
             <Plus size={15} aria-hidden="true" />
@@ -385,6 +415,7 @@ function DocumentEditor({
         <div className="document-upload-panel">
           <h3>Upload a new version</h3>
           <UploadForm
+            scanningAvailable={scanningAvailable}
             document={document}
             onSaved={() => {
               setAdding(false);
@@ -468,7 +499,11 @@ function DocumentEditor({
     </>
   );
 }
-export function DocumentLibraryView() {
+export function DocumentLibraryView({
+  scanningAvailable,
+}: {
+  scanningAvailable: boolean;
+}) {
   const account = useAccount();
   const { library, loading, error, refresh } = useDocuments();
   const [search, setSearch] = useState(''),
@@ -496,11 +531,12 @@ export function DocumentLibraryView() {
       <PageHeading
         eyebrow="Tell your story"
         title="Your resumes & documents"
-        description="Keep your files together, and remember exactly what you sent."
+        description="Edit PDFs on your device, or manage existing documents in your account."
         action={
           account.user && !error ? (
             <Button
-              disabled={account.expired}
+              disabled={account.expired || !scanningAvailable || loading}
+              aria-describedby="document-availability"
               onClick={(event) => {
                 uploadOpener.current = event.currentTarget;
                 setUploading(true);
@@ -524,13 +560,11 @@ export function DocumentLibraryView() {
           Open PDF Tools
         </ActionLink>
       </Card>
-      {account.user && (
-        <p className="backup-warning">
-          New files become available only after required safety checks pass. If
-          scanning is unavailable, uploads stay blocked and your draft stays
-          open. Local PDF Tools works without uploading a file.
-        </p>
-      )}
+      <p id="document-availability" className="career-guidance">
+        {scanningAvailable
+          ? 'New uploads require a verified account and must pass every safety check. Existing accepted files remain subject to access and integrity checks.'
+          : 'New document uploads are unavailable while required safety checks are not ready. Signing in does not remove this restriction. Keep your files on your device; local PDF editing and downloading remain available. Reload this page to check again.'}
+      </p>
       {!account.user ? (
         <Card>
           <EmptyState
@@ -543,9 +577,9 @@ export function DocumentLibraryView() {
             }
           >
             <p>
-              Sign in to a verified account to upload resumes, cover letters,
-              certificates, and other application documents. Your browser
-              workspace stays separate.
+              A verified account keeps your document library separate from your
+              browser workspace. You can manage existing documents there;
+              signing in does not upload or save any local file.
             </p>
           </EmptyState>
         </Card>
@@ -673,6 +707,8 @@ export function DocumentLibraryView() {
                     </Button>
                   ) : (
                     <Button
+                      disabled={!scanningAvailable || account.expired}
+                      aria-describedby="document-availability"
                       onClick={(event) => {
                         uploadOpener.current = event.currentTarget;
                         setUploading(true);
@@ -686,7 +722,9 @@ export function DocumentLibraryView() {
                 <p>
                   {library?.documents.length
                     ? 'Try another name, category, or archive filter.'
-                    : 'Add a resume you already have. Each new version keeps the earlier copy safe.'}
+                    : scanningAvailable
+                      ? 'Add a resume you already have. Each new version keeps the earlier copy safe.'
+                      : 'No documents saved here yet. You can still edit and download a local PDF without saving it to this library.'}
                 </p>
               </EmptyState>
             </Card>
@@ -734,6 +772,7 @@ export function DocumentLibraryView() {
               organized.
             </Dialog.Description>
             <UploadForm
+              scanningAvailable={scanningAvailable}
               onSaved={() => {
                 setUploading(false);
                 setNotice('Document uploaded.');
@@ -774,6 +813,7 @@ export function DocumentLibraryView() {
               <DocumentEditor
                 key={document.id}
                 document={document}
+                scanningAvailable={scanningAvailable}
                 onDeleted={() => {
                   setSelected(null);
                   setNotice('Document deleted.');

@@ -1,10 +1,12 @@
 'use client';
+import { offerContinuationId } from '@/lib/offer-continuation';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAccount } from './account-provider';
 import { ActionLink, Button, Card, PageHeading } from './ui';
 import { VerificationForm } from './account-recovery';
 export function AuthForm({ returnTo = '/settings' }: { returnTo?: string }) {
+  const continuingOffer = offerContinuationId(returnTo) !== null;
   const account = useAccount();
   const router = useRouter();
   const [register, setRegister] = useState(false),
@@ -69,7 +71,11 @@ export function AuthForm({ returnTo = '/settings' }: { returnTo?: string }) {
       <PageHeading
         eyebrow="Your FATS account"
         title={register ? 'A place for your next beginning.' : 'Welcome back.'}
-        description="Keep your applications and interviews in your own account."
+        description={
+          continuingOffer
+            ? 'Sign in to keep private offer terms and letter versions in your own account. Then review your browser records before continuing to Offer Desk. New letter uploads also need available server safety checks.'
+            : 'Keep your applications and interviews in your own account.'
+        }
       />
       <Card className="content-card auth-card">
         {account.user && !account.expired ? (
@@ -77,10 +83,20 @@ export function AuthForm({ returnTo = '/settings' }: { returnTo?: string }) {
             <h2>You’re signed in.</h2>
             <p>{account.user.email}</p>
             <ActionLink
-              href={account.user.emailVerified ? '/settings' : '/verify-email'}
+              href={
+                continuingOffer
+                  ? account.user.emailVerified
+                    ? returnTo
+                    : '/verify-email?next=' + encodeURIComponent(returnTo)
+                  : account.user.emailVerified
+                    ? '/settings'
+                    : '/verify-email'
+              }
             >
               {account.user.emailVerified
-                ? 'Open account settings'
+                ? continuingOffer
+                  ? 'Continue to Offer Desk'
+                  : 'Open account settings'
                 : 'Verify your email'}
             </ActionLink>
           </>
@@ -179,8 +195,9 @@ export function AuthForm({ returnTo = '/settings' }: { returnTo?: string }) {
               </a>
             </p>
             <p className="field-hint">
-              Signing in does not upload or delete browser records. Copy them
-              separately in Settings after reviewing the transfer.
+              {continuingOffer
+                ? 'Signing in keeps your browser records separate. Next, you can preview and confirm a copy to this account. Originals stay in this browser.'
+                : 'Signing in does not upload or delete browser records. Copy them separately in Settings after reviewing the transfer.'}
             </p>
           </>
         )}

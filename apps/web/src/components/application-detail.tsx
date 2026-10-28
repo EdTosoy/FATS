@@ -1,4 +1,5 @@
 'use client';
+import { applicationListHref } from '@/lib/application-list-url';
 import { OfferDesk } from './offer-desk';
 
 import { useState } from 'react';
@@ -23,9 +24,11 @@ import { ActionLink, Button, Card, PageHeading, StatusBadge } from './ui';
 export function ApplicationDetail({
   id,
   matchingEnabled = false,
+  listQuery = '',
 }: {
   id: string;
   matchingEnabled?: boolean;
+  listQuery?: string;
 }) {
   const {
     applications,
@@ -60,7 +63,7 @@ export function ApplicationDetail({
           title="We couldn’t find this application."
           description="It may have been saved in another browser or workspace."
         />
-        <ActionLink href="/applications" variant="secondary">
+        <ActionLink href={applicationListHref(listQuery)} variant="secondary">
           <ArrowLeft size={16} aria-hidden="true" />
           Back to applications
         </ActionLink>
@@ -88,7 +91,7 @@ export function ApplicationDetail({
 
   return (
     <>
-      <Link className="back-link" href="/applications">
+      <Link className="back-link" href={applicationListHref(listQuery)}>
         <ArrowLeft size={16} aria-hidden="true" />
         Back to applications
       </Link>
@@ -130,6 +133,54 @@ export function ApplicationDetail({
                 Open job website <ArrowUpRight size={16} aria-hidden="true" />
               </a>
             </div>
+            <div className="application-status">
+              <label className="status-label">
+                Application status
+                <select
+                  value={application.status}
+                  disabled={saving}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={`application-status-guidance application-status-feedback${error ? ' application-status-error' : ''}`}
+                  onChange={(event) =>
+                    void changeStatus(event.target.value as ApplicationStatus)
+                  }
+                >
+                  {APPLICATION_STATUSES.map((status) => (
+                    <option key={status}>{status}</option>
+                  ))}
+                </select>
+              </label>
+              <div
+                id="application-status-feedback"
+                className="save-feedback"
+                role="status"
+              >
+                {saving ? (
+                  'Saving status…'
+                ) : message ? (
+                  <>
+                    <Check size={15} aria-hidden="true" />
+                    {message}
+                  </>
+                ) : error ? (
+                  `Status is still ${application.status}.`
+                ) : (
+                  'Changes save automatically.'
+                )}
+              </div>
+              {error && (
+                <p
+                  id="application-status-error"
+                  className="error-message"
+                  role="alert"
+                >
+                  {error}
+                </p>
+              )}
+              <p id="application-status-guidance" className="muted">
+                Update this after taking a step on the original job website.
+              </p>
+            </div>
             <p className="field-hint source-url">{application.sourceUrl}</p>
           </Card>
           <OfferDesk applicationId={application.id} />
@@ -165,42 +216,7 @@ export function ApplicationDetail({
         </div>
         <div>
           <Card className="progress-card">
-            <h2>Your progress</h2>
-            <p className="muted">
-              Update this after taking a step on the original job website.
-            </p>
-            <label className="status-label">
-              Application status
-              <select
-                value={application.status}
-                disabled={saving}
-                onChange={(event) =>
-                  void changeStatus(event.target.value as ApplicationStatus)
-                }
-              >
-                {APPLICATION_STATUSES.map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
-            </label>
-            <div className="save-feedback" role="status">
-              {saving ? (
-                'Saving status…'
-              ) : message ? (
-                <>
-                  <Check size={15} aria-hidden="true" />
-                  {message}
-                </>
-              ) : (
-                'Changes save automatically.'
-              )}
-            </div>
-            {error && (
-              <p className="error-message" role="alert">
-                {error}
-              </p>
-            )}
-            <hr />
+            <h2>Application record</h2>
             <dl>
               <div>
                 <dt>Saved on</dt>

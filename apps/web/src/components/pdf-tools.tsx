@@ -33,6 +33,10 @@ const errorText = (error: unknown) =>
 export function PdfToolsView() {
   const router = useRouter();
   const signatureOpener = useRef<HTMLButtonElement>(null);
+  const editHeading = useRef<HTMLHeadingElement>(null);
+  const selectedRegion = useRef<HTMLElement>(null);
+  const previewHeading = useRef<HTMLHeadingElement>(null);
+  const errorMessage = useRef<HTMLParagraphElement>(null);
   const discardOpener = useRef<HTMLElement | null>(null);
   const worker = useRef<LocalPdfWorker | null>(null),
     session = useRef(0),
@@ -69,6 +73,21 @@ export function PdfToolsView() {
     !!file &&
     serialized !== downloaded &&
     (edits.elements.length > 0 || Object.keys(edits.fields).length > 0);
+  const fieldsPending = JSON.stringify(edits.fields) !== appliedFields;
+  const pageFields =
+    file?.info.fields.filter((field) => field.pages.includes(page)) ?? [];
+  function reviewPage() {
+    previewHeading.current?.focus({ preventScroll: true });
+    previewHeading.current?.scrollIntoView({ block: 'start' });
+  }
+  function editPage() {
+    const target = selectedRegion.current ?? editHeading.current;
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: 'start' });
+  }
+  useEffect(() => {
+    if (error) errorMessage.current?.focus();
+  }, [error]);
   const selectedMark = edits.elements.find(
     (element) => element.id === selected,
   );
@@ -210,6 +229,7 @@ export function PdfToolsView() {
       setFile({ ...file, preview: result.bytes, revision: file.revision + 1 });
       setAppliedFields(JSON.stringify(edits.fields));
       setNotice('Form fields updated in the preview.');
+      reviewPage();
     } catch (error) {
       setError(errorText(error));
     } finally {
@@ -352,53 +372,31 @@ export function PdfToolsView() {
           </EmptyState>
         </Card>
       )}
-      {error && (
-        <p role="alert" className="error-message pdf-tools-error">
-          {error}
-        </p>
+      {!file && (
+        <>
+          {error && (
+            <p
+              ref={errorMessage}
+              tabIndex={-1}
+              role="alert"
+              className="error-message pdf-tools-error"
+            >
+              {error}
+            </p>
+          )}
+          <p role="status" className="pdf-tools-status">
+            {busy ? 'Working locally…' : notice}
+          </p>
+        </>
       )}
-      <p role="status" className="pdf-tools-status">
-        {busy ? 'Working locally…' : notice}
-      </p>
       {file && (
         <>
           <Card className="pdf-file-bar">
             <div>
               <strong>{file.name}</strong>
-              <p className="field-hint">
-                {dirty
-                  ? 'Changes not downloaded'
-                  : downloaded
-                    ? 'Current changes downloaded'
-                    : 'Original open · no changes yet'}{' '}
-                · Download before leaving this tab.
-              </p>
+              <p className="field-hint">Your original file stays unchanged.</p>
             </div>
             <div className="document-actions">
-              <Button
-                variant="secondary"
-                disabled={busy || !history.past.length}
-                onClick={() => {
-                  setHistory((current) => stepHistory(current, 'undo'));
-                  setSelected(null);
-                }}
-              >
-                Undo
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={busy || !history.future.length}
-                onClick={() => {
-                  setHistory((current) => stepHistory(current, 'redo'));
-                  setSelected(null);
-                }}
-              >
-                Redo
-              </Button>
-              <Button disabled={busy} onClick={() => void download()}>
-                <Download size={16} aria-hidden="true" />
-                Download completed PDF
-              </Button>
               <Button
                 variant="ghost"
                 disabled={busy}
@@ -414,89 +412,123 @@ export function PdfToolsView() {
           </Card>
           <div className="pdf-tools-layout">
             <Card className="pdf-controls">
+              <h2
+                ref={editHeading}
+                tabIndex={-1}
+                className="pdf-workflow-heading"
+              >
+                Edit page {page + 1}
+              </h2>
+              <div className="document-actions">
+                {' '}
+                <Button
+                  variant="secondary"
+                  disabled={busy || !history.past.length}
+                  onClick={() => {
+                    setHistory((current) => stepHistory(current, 'undo'));
+                    setSelected(null);
+                  }}
+                >
+                  Undo
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={busy || !history.future.length}
+                  onClick={() => {
+                    setHistory((current) => stepHistory(current, 'redo'));
+                    setSelected(null);
+                  }}
+                >
+                  Redo
+                </Button>
+              </div>
               <fieldset disabled={busy}>
                 {file.info.fields.length > 0 && (
                   <details open>
                     <summary>
-                      Fill the form ({file.info.fields.length} fields)
+                      Fill this page ({pageFields.length} fields)
                     </summary>
                     <p className="field-hint">
                       Fields on the current page are listed below. Apply your
                       changes to see them on the page.
                     </p>
-                    {file.info.fields
-                      .filter((field) => field.pages.includes(page))
-                      .map((field) => (
-                        <label key={field.name} className="pdf-field">
-                          <span>
-                            {field.name}
-                            {field.readOnly ? ' (read-only)' : ''}
-                          </span>
-                          {field.kind === 'checkbox' ? (
-                            <input
-                              type="checkbox"
-                              disabled={field.readOnly}
-                              checked={Boolean(
-                                Object.hasOwn(edits.fields, field.name)
-                                  ? edits.fields[field.name]
-                                  : field.value,
-                              )}
-                              onChange={(event) =>
-                                commit({
-                                  ...edits,
-                                  fields: {
-                                    ...edits.fields,
-                                    [field.name]: event.target.checked,
-                                  },
-                                })
-                              }
-                            />
-                          ) : field.kind === 'choice' ? (
-                            <select
-                              disabled={field.readOnly}
-                              value={String(
-                                Object.hasOwn(edits.fields, field.name)
-                                  ? edits.fields[field.name]
-                                  : field.value,
-                              )}
-                              onChange={(event) =>
-                                commit({
-                                  ...edits,
-                                  fields: {
-                                    ...edits.fields,
-                                    [field.name]: event.target.value,
-                                  },
-                                })
-                              }
-                            >
-                              <option value="">Choose an option</option>
-                              {field.options?.map((value) => (
-                                <option key={value}>{value}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              disabled={field.readOnly}
-                              value={String(
-                                Object.hasOwn(edits.fields, field.name)
-                                  ? edits.fields[field.name]
-                                  : field.value,
-                              )}
-                              maxLength={field.maxLength}
-                              onChange={(event) =>
-                                commit({
-                                  ...edits,
-                                  fields: {
-                                    ...edits.fields,
-                                    [field.name]: event.target.value,
-                                  },
-                                })
-                              }
-                            />
-                          )}
-                        </label>
-                      ))}
-                    {JSON.stringify(edits.fields) !== appliedFields && (
+                    {!pageFields.length && (
+                      <p className="field-hint">
+                        No editable form fields on this page. You can add marks
+                        below or choose another page.
+                      </p>
+                    )}
+                    {pageFields.map((field) => (
+                      <label key={field.name} className="pdf-field">
+                        <span>
+                          {field.name}
+                          {field.readOnly ? ' (read-only)' : ''}
+                        </span>
+                        {field.kind === 'checkbox' ? (
+                          <input
+                            type="checkbox"
+                            disabled={field.readOnly}
+                            checked={Boolean(
+                              Object.hasOwn(edits.fields, field.name)
+                                ? edits.fields[field.name]
+                                : field.value,
+                            )}
+                            onChange={(event) =>
+                              commit({
+                                ...edits,
+                                fields: {
+                                  ...edits.fields,
+                                  [field.name]: event.target.checked,
+                                },
+                              })
+                            }
+                          />
+                        ) : field.kind === 'choice' ? (
+                          <select
+                            disabled={field.readOnly}
+                            value={String(
+                              Object.hasOwn(edits.fields, field.name)
+                                ? edits.fields[field.name]
+                                : field.value,
+                            )}
+                            onChange={(event) =>
+                              commit({
+                                ...edits,
+                                fields: {
+                                  ...edits.fields,
+                                  [field.name]: event.target.value,
+                                },
+                              })
+                            }
+                          >
+                            <option value="">Choose an option</option>
+                            {field.options?.map((value) => (
+                              <option key={value}>{value}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            disabled={field.readOnly}
+                            value={String(
+                              Object.hasOwn(edits.fields, field.name)
+                                ? edits.fields[field.name]
+                                : field.value,
+                            )}
+                            maxLength={field.maxLength}
+                            onChange={(event) =>
+                              commit({
+                                ...edits,
+                                fields: {
+                                  ...edits.fields,
+                                  [field.name]: event.target.value,
+                                },
+                              })
+                            }
+                          />
+                        )}
+                      </label>
+                    ))}
+                    {fieldsPending && (
                       <p className="field-hint">
                         Form changes are waiting to appear in the preview.
                       </p>
@@ -574,7 +606,12 @@ export function PdfToolsView() {
                   nudge; Shift moves farther.
                 </p>
                 {selectedMark && (
-                  <section className="pdf-selection" aria-label="Selected mark">
+                  <section
+                    ref={selectedRegion}
+                    tabIndex={-1}
+                    className="pdf-selection"
+                    aria-label="Selected mark"
+                  >
                     <h3>Selected {selectedMark.kind}</h3>
                     {['text', 'date', 'signature'].includes(
                       selectedMark.kind,
@@ -690,9 +727,26 @@ export function PdfToolsView() {
                       ))}
                   </ul>
                 </details>
+                <Button variant="secondary" onClick={reviewPage}>
+                  Review page
+                </Button>
               </fieldset>
             </Card>
             <Card className="pdf-preview-card">
+              <div className="pdf-review-heading">
+                <h2
+                  ref={previewHeading}
+                  tabIndex={-1}
+                  className="pdf-workflow-heading"
+                >
+                  Preview page {page + 1}
+                </h2>
+                <Button variant="secondary" disabled={busy} onClick={editPage}>
+                  {selectedMark
+                    ? 'Edit selected mark'
+                    : 'Edit fields and marks'}
+                </Button>
+              </div>
               <div className="pdf-page-toolbar">
                 <Button
                   variant="secondary"
@@ -759,6 +813,55 @@ export function PdfToolsView() {
                 onMove={updateMark}
                 disabled={busy}
               />
+              <div
+                className="pdf-download-area"
+                aria-label="Completed PDF download"
+                role="region"
+              >
+                <h2>Keep your completed copy</h2>
+                <p className="field-hint">
+                  {dirty
+                    ? 'Changes not downloaded'
+                    : downloaded
+                      ? 'Current changes downloaded'
+                      : 'Original open · no changes yet'}{' '}
+                  · Download before leaving this tab.
+                </p>
+                {fieldsPending && (
+                  <p className="field-hint">
+                    Form changes are not shown in this preview yet. Apply fields
+                    to review them; downloading still includes your latest
+                    edits.
+                  </p>
+                )}
+                <div className="document-actions">
+                  <Button disabled={busy} onClick={() => void download()}>
+                    <Download size={16} aria-hidden="true" />
+                    Download completed PDF
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={editPage}
+                  >
+                    Back to editing
+                  </Button>
+                </div>
+                {error && (
+                  <p
+                    ref={errorMessage}
+                    tabIndex={-1}
+                    role="alert"
+                    className="error-message pdf-tools-error"
+                  >
+                    {error}
+                  </p>
+                )}
+                <p role="status" className="pdf-tools-status">
+                  {busy ? 'Working locally…' : notice}
+                </p>
+              </div>
             </Card>
           </div>
         </>
@@ -767,9 +870,10 @@ export function PdfToolsView() {
         A personal signature mark is a visual mark, not a cryptographically
         verified digital signature. FATS does not verify identity, certify legal
         validity, or guarantee employer acceptance. Check the recipient’s
-        requirements. Downloaded forms and marks are flattened. Saving an edited
-        copy into FATS is unavailable while required scanning is not
-        operational.
+        requirements. Downloaded forms and marks are flattened. PDF Tools does
+        not save the edited copy to your account or Career Vault. Download it to
+        keep your work; separate library uploads require available server safety
+        checks.
       </p>
       <Dialog.Root
         open={signatureOpen}
