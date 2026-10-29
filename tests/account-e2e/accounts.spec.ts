@@ -24,6 +24,9 @@ const db = createServices(
   randomUUID() + randomUUID(),
 );
 const owners: string[] = [];
+test.beforeEach(async () => {
+  await db.pool.query('DELETE FROM "rateLimit"');
+});
 test.afterAll(async () => {
   for (const id of owners) {
     await db.pool.query('DELETE FROM interviews WHERE user_id=$1', [id]);

@@ -1,19 +1,28 @@
 import { betterAuth } from 'better-auth';
 import { Pool } from 'pg';
-import { authOptions } from './auth-config';
+import { authOptions, type AuthRuntimeOptions } from './auth-config';
 import type { AccountMailer } from './account-email';
+import { after } from 'next/server.js';
+import { attachDatabasePool } from '@vercel/functions';
+import { databaseConnection } from './database-config';
 
 export function createDatabasePool(connectionString: string) {
+  const connection = databaseConnection(connectionString);
   const pool = new Pool({
-    connectionString,
+    connectionString: connection.connectionString,
     max: 10,
     connectionTimeoutMillis: 5000,
-    idleTimeoutMillis: 30000,
-    statement_timeout: 15000,
+    idleTimeoutMillis: 5000,
+    query_timeout: 15000,
+    enableChannelBinding: true,
+    // PgBouncer rejects/ignores session startup settings. Hosted operators set
+    // the role's statement timeout; transaction guards use SET LOCAL as well.
+    ...(connection.local ? { statement_timeout: 15000 } : {}),
   });
   pool.on('error', () =>
     console.error('FATS database connection interrupted.'),
   );
+  if (process.env.VERCEL === '1') attachDatabasePool(pool);
   return pool;
 }
 export function createServices(
@@ -21,11 +30,12 @@ export function createServices(
   origin: string,
   secret: string,
   mailer?: AccountMailer,
+  runtime: AuthRuntimeOptions = {},
 ) {
   const pool = createDatabasePool(connectionString);
   return {
     pool,
-    auth: betterAuth(authOptions(pool, origin, secret, mailer)),
+    auth: betterAuth(authOptions(pool, origin, secret, mailer, runtime)),
     origin,
   };
 }
@@ -40,15 +50,15 @@ export function getServices(): Services {
       throw new Error(
         'Account storage is not configured. Your local workspace is still available.',
       );
-    // Mailpit is a local inbox, never a hosted delivery provider.
-    if (!['localhost', '127.0.0.1'].includes(new URL(BETTER_AUTH_URL).hostname))
-      throw new Error(
-        'Hosted account email delivery has not been configured. This slice supports local email testing only.',
-      );
     serviceCache.fatsServices = createServices(
       DATABASE_URL,
       BETTER_AUTH_URL,
       BETTER_AUTH_SECRET,
+      undefined,
+      {
+        scheduleEmail: (task) => after(task),
+        vercelProxy: process.env.VERCEL === '1',
+      },
     );
   }
   return serviceCache.fatsServices;

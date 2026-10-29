@@ -28,16 +28,21 @@ async function eraseOwner(
   owner: string,
   storage?: DocumentStorage,
 ) {
-  const client = await pool.connect();
+  const guard = await pool.connect();
+  let client: import('pg').PoolClient | undefined;
   let locked = false;
   try {
+    await guard.query('BEGIN');
+    await guard.query("SET LOCAL statement_timeout='15s'");
+    await guard.query("SET LOCAL idle_in_transaction_session_timeout='60s'");
     locked = (
-      await client.query(
-        'SELECT pg_try_advisory_lock(16435,hashtext($1)) AS locked',
+      await guard.query(
+        'SELECT pg_try_advisory_xact_lock(16435,hashtext($1)) AS locked',
         [owner],
       )
     ).rows[0].locked;
     if (!locked) return 'pending' as const;
+    client = await pool.connect();
     await client.query('BEGIN');
     await client.query("SET LOCAL lock_timeout='5s'");
     await client.query('SELECT pg_advisory_xact_lock_shared(16432,5)');
@@ -92,19 +97,17 @@ async function eraseOwner(
     );
     return completed.rowCount ? ('complete' as const) : ('pending' as const);
   } catch {
-    await client.query('ROLLBACK').catch(() => {});
+    await client?.query('ROLLBACK').catch(() => {});
     return 'pending' as const;
   } finally {
     let failed = false;
-    if (locked)
-      try {
-        await client.query('SELECT pg_advisory_unlock(16435,hashtext($1))', [
-          owner,
-        ]);
-      } catch {
-        failed = true;
-      }
-    client.release(failed);
+    try {
+      await guard.query('ROLLBACK');
+    } catch {
+      failed = true;
+    }
+    client?.release();
+    guard.release(failed);
   }
 }
 export async function recoverDataLifecycle(
@@ -122,38 +125,40 @@ export async function recoverDataLifecycle(
   );
   for (const { user_id: owner } of owners.rows) {
     const guard = await pool.connect();
-    let locked = false;
+    let client: import('pg').PoolClient | undefined;
     try {
-      locked = (
+      await guard.query('BEGIN');
+      await guard.query("SET LOCAL statement_timeout='15s'");
+      await guard.query("SET LOCAL idle_in_transaction_session_timeout='60s'");
+      const locked = (
         await guard.query(
-          'SELECT pg_try_advisory_lock(16435,hashtext($1)) AS locked',
+          'SELECT pg_try_advisory_xact_lock(16435,hashtext($1)) AS locked',
           [owner],
         )
       ).rows[0].locked;
       if (!locked) continue;
-      await guard.query('BEGIN');
-      await guard.query("SET LOCAL lock_timeout='5s'");
-      await guard.query('SELECT pg_advisory_xact_lock_shared(16432,5)');
-      await guard.query('SELECT id FROM "user" WHERE id=$1 FOR UPDATE', [
+      client = await pool.connect();
+      await client.query('BEGIN');
+      await client.query("SET LOCAL lock_timeout='5s'");
+      await client.query('SELECT pg_advisory_xact_lock_shared(16432,5)');
+      await client.query('SELECT id FROM "user" WHERE id=$1 FOR UPDATE', [
         owner,
       ]);
-      await guard.query(
+      await client.query(
         'INSERT INTO document_garbage(storage_key) SELECT o.storage_key FROM document_objects o WHERE user_id=$1 AND NOT EXISTS(SELECT 1 FROM document_versions v WHERE v.storage_key=o.storage_key) ON CONFLICT DO NOTHING',
         [owner],
       );
-      await guard.query('COMMIT');
+      await client.query('COMMIT');
       await cleanupDocumentGarbage(pool, storage, owner);
     } finally {
-      await guard.query('ROLLBACK').catch(() => {});
+      await client?.query('ROLLBACK').catch(() => {});
       let failed = false;
-      if (locked)
-        try {
-          await guard.query('SELECT pg_advisory_unlock(16435,hashtext($1))', [
-            owner,
-          ]);
-        } catch {
-          failed = true;
-        }
+      try {
+        await guard.query('ROLLBACK');
+      } catch {
+        failed = true;
+      }
+      client?.release();
       guard.release(failed);
     }
   }

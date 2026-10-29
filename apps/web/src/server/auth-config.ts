@@ -8,11 +8,17 @@ import {
   type AccountEmail,
 } from './account-email';
 
+export interface AuthRuntimeOptions {
+  scheduleEmail?: (task: () => Promise<void>) => void;
+  vercelProxy?: boolean;
+}
+
 export function authOptions(
   pool: Pool,
   origin: string,
   secret: string,
-  mailer: AccountMailer = createAccountMailer(),
+  mailer?: AccountMailer,
+  runtime: AuthRuntimeOptions = {},
 ): BetterAuthOptions {
   const url = new URL(origin);
   if (
@@ -30,14 +36,21 @@ export function authOptions(
     throw new Error(
       'Configure a private BETTER_AUTH_SECRET of at least 32 characters.',
     );
+  const send = mailer ?? createAccountMailer(origin);
   function deliver(message: AccountEmail) {
-    // Only delivery runs in the background. OTP/token persistence must finish
-    // inside the library's transaction before registration returns.
-    void mailer(message).catch(() =>
-      console.error(
-        'FATS account email delivery is unavailable. Request a new message.',
-      ),
-    );
+    const task = async () => {
+      try {
+        await send(message);
+      } catch {
+        console.error(
+          'FATS account email delivery is unavailable. Request a new message.',
+        );
+      }
+    };
+    // Do not configure Better Auth backgroundTasks: its OTP hook also wraps
+    // persistence. Only delivery is deferred; the library transaction is awaited.
+    if (runtime.scheduleEmail) runtime.scheduleEmail(task);
+    else void task();
   }
   return {
     appName: 'FATS',
@@ -101,9 +114,10 @@ export function authOptions(
     advanced: {
       useSecureCookies: url.protocol === 'https:',
       defaultCookieAttributes: { httpOnly: true, sameSite: 'lax', path: '/' },
-      // This local server has no trusted reverse proxy. Do not trust arbitrary
-      // X-Forwarded-For values; Better Auth uses a shared per-path bucket.
-      ipAddress: { ipAddressHeaders: [] },
+      // Vercel overwrites this header. Local servers still distrust forwarded IPs.
+      ipAddress: {
+        ipAddressHeaders: runtime.vercelProxy ? ['x-vercel-forwarded-for'] : [],
+      },
       database: { generateId: 'uuid' },
     },
     rateLimit: {

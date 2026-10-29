@@ -2,6 +2,8 @@
 
 Status: accepted for the explicitly requested Phase 4.1 local slice (2026-10-15).
 
+D2 update (2026-10-29): the separately authorized hosted preparation adds Resend for verified hosted senders, exact HTTPS origins, Vercel's overwritten client-IP header, and Next `after()` for delivery lifetime. Only delivery is deferred; token persistence and transactional account rules remain awaited. Local/test delivery stays loopback Mailpit. Bounded transaction-scoped advisory guards replace runtime session locks for Neon transaction pooling. See [D2 verification and remaining operator steps](../FATS_D2_HOSTED_ACCOUNTS_VERIFICATION.md). The historical local archive/restore tooling below remains local-only.
+
 ## Authentication
 
 Retain the Next Node API, Better Auth 1.7.8, PostgreSQL, and repository boundary from [ADR 0001](0001-authentication-and-persistence.md). Require email verification before account login/workspace access. Existing unverified accounts are not silently marked verified: their records remain in place, and existing sessions receive a verification gate. Guest recovery and JSON backups remain available after sign-out. Public authentication/recovery screens are independent of the workspace provider so an expired/unverified account cannot block them.

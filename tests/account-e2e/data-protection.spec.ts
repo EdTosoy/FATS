@@ -1,13 +1,14 @@
 import { access } from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
 import { randomUUID, randomBytes } from 'node:crypto';
+import { browserTestOrigin } from '../helpers/browser-origin';
 import { createDatabasePool } from '../../apps/web/src/server/services';
 import { testEmail } from '../helpers/test-inbox';
 import { pdfFixture, docxFixture } from '../helpers/document-fixtures';
 import { beginAccountErasure } from '../../apps/web/src/server/account-lifecycle';
 import { recoverAccountErasure } from '../../apps/web/src/server/account-erasure';
 import { FilesystemDocumentStorage } from '../../apps/web/src/server/document-storage';
-const origin = 'http://127.0.0.1:3000',
+const origin = browserTestOrigin,
   password = 'Synthetic-erasure-browser-passphrase!';
 const pool = createDatabasePool(process.env.FATS_TEST_DATABASE_URL!);
 const owners: string[] = [];

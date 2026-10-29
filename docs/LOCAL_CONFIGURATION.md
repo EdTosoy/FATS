@@ -18,7 +18,11 @@ FATS_MAIL_PORT=1025
 FATS_DOCUMENTS_DIR=/absolute/private/path/fats-documents
 ```
 
-`BETTER_AUTH_URL` must match the exact local hostname/port you open. Mail is delivered only to loopback Mailpit: SMTP 1025 and inbox <http://127.0.0.1:8025>. Test services use separate ports and synthetic accounts; see [setup](../README.md#accounts-and-local-postgresql--phase-41). Hosted email delivery is outside this local slice.
+`BETTER_AUTH_URL` must match the exact local hostname/port you open. Local mail uses loopback Mailpit: SMTP 1025 and inbox <http://127.0.0.1:8025>. Test services use separate ports and synthetic accounts; see [setup](../README.md#accounts-and-local-postgresql--phase-41).
+
+## Hosted accounts
+
+See [D2 hosted-account configuration and verification](FATS_D2_HOSTED_ACCOUNTS_VERIFICATION.md) for Neon, Resend and the protected Vercel environment. Hosted mail requires `FATS_MAIL_PROVIDER=resend`, `RESEND_API_KEY` and a verified-domain `FATS_MAIL_FROM`; Mailpit cannot serve hosted origins. Remote database URLs require `sslmode=verify-full`. The operator-only `pnpm db:migrate:hosted` uses `DATABASE_URL_UNPOOLED` with an independently selected host/database and explicit confirmation. It never reads local configuration automatically. Production migrations and deployments require separate approval.
 
 Phase 5 files require persistent local storage separate from PostgreSQL. Existing configurations need this variable added manually and a server restart; `db:configure` never overwrites them. Keep bytes outside public/static hosting roots; see [document setup](DOCUMENTS.md). Restore uses an independently configured `FATS_RESTORE_DOCUMENTS_DIR` and never replaces an existing directory.
 

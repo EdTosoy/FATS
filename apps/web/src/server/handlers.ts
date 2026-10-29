@@ -111,7 +111,13 @@ export async function handleAuth(
       }
     }
     authGuard = await services.pool.connect();
-    await authGuard.query('SELECT pg_advisory_lock_shared(16432,8)');
+    await authGuard.query('BEGIN');
+    await authGuard.query("SET LOCAL statement_timeout='15s'");
+    await authGuard.query("SET LOCAL lock_timeout='5s'");
+    await authGuard.query(
+      "SET LOCAL idle_in_transaction_session_timeout='60s'",
+    );
+    await authGuard.query('SELECT pg_advisory_xact_lock_shared(16432,8)');
     if (
       typeof input.email === 'string' &&
       (
@@ -189,7 +195,7 @@ export async function handleAuth(
     if (authGuard) {
       let failed = false;
       try {
-        await authGuard.query('SELECT pg_advisory_unlock_shared(16432,8)');
+        await authGuard.query('ROLLBACK');
       } catch {
         failed = true;
       }

@@ -22,6 +22,7 @@
     "verify:extension": "pnpm --filter @fats/extension verify",
     "test:extension": "pnpm build:extension && pnpm verify:extension && playwright test --config=playwright.extension.config.ts",
     "db:migrate": "node --env-file-if-exists=apps/web/.env.local apps/web/scripts/migrate.mjs",
+    "db:migrate:hosted": "node apps/web/scripts/migrate-hosted.mjs",
     "db:up": "docker compose --env-file apps/web/.env.local up -d --wait",
     "db:stop": "docker compose --env-file apps/web/.env.local stop",
     "test:integration": "node --env-file-if-exists=.env.phase4-test node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts",

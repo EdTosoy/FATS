@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { browserTestOrigin } from '../helpers/browser-origin';
 import { createDatabasePool } from '../../apps/web/src/server/services';
 import { completeAccountVerification, testEmail } from '../helpers/test-inbox';
 const password = 'Synthetic-recovery-passphrase-42!';
@@ -84,7 +85,7 @@ test('forgot/reset flow uses real email, protects the token URL, revokes session
   const owner = await register(page),
     id = randomUUID();
   const created = await page.request.post('/api/workspace', {
-    headers: { origin: 'http://127.0.0.1:3000' },
+    headers: { origin: browserTestOrigin },
     data: {
       action: 'create',
       id,
@@ -179,7 +180,7 @@ test('unverified existing accounts keep their records and recovery pages stay ac
 }) => {
   const owner = await register(page);
   const saved = await page.request.post('/api/workspace', {
-    headers: { origin: 'http://127.0.0.1:3000' },
+    headers: { origin: browserTestOrigin },
     data: {
       action: 'create',
       id: randomUUID(),
