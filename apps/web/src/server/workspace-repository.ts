@@ -3,6 +3,12 @@ import { assertActiveAccount } from './account-lifecycle';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
+  previewCsvRows,
+  selectCsvApplications,
+  csvDigest,
+  CsvImportError,
+  type CsvSource,
+  type CsvImportRequest,
   normalizeTracking,
   hasMeaningfulChange,
   workspaceActivityDays,
@@ -392,6 +398,44 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         throw new WorkspaceError('Interview not found.', 404);
     });
   }
+  async previewCsv(source: CsvSource) {
+    return this.transaction(false, async (client, revision) => ({
+      token: await csvDigest({ owner: this.owner, revision, source }),
+      rows: await previewCsvRows(
+        source,
+        (await this.read(client)).applications,
+      ),
+    }));
+  }
+  async importCsv(request: CsvImportRequest) {
+    if (request.confirmed !== true)
+      throw new CsvImportError('Confirm the CSV preview before importing.');
+    const { text, mapping, dateOrder } = request;
+    const source = { text, mapping, dateOrder };
+    return this.transaction(true, async (client, revision) => {
+      if (
+        request.token !==
+        (await csvDigest({ owner: this.owner, revision, source }))
+      )
+        throw new CsvImportError(
+          'Your workspace or CSV changed since preview. Preview again before importing.',
+        );
+      const current = await this.read(client);
+      const rows = await previewCsvRows(source, current.applications);
+      const applications = selectCsvApplications(
+        rows,
+        request.selected,
+        new Date().toISOString(),
+      );
+      for (const application of applications)
+        await this.insert(client, 'applications', application);
+      return {
+        imported: applications.length,
+        skipped: rows.length - applications.length,
+      };
+    });
+  }
+
   async exportBackup() {
     return this.transaction(false, async (client) => {
       const data = await this.read(client),

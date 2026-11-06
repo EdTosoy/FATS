@@ -1,4 +1,5 @@
 import {
+  CsvImportError,
   MAX_BACKUP_BYTES,
   ApplicationValidationError,
   InterviewValidationError,
@@ -95,6 +96,7 @@ export function errorResponse(error: unknown): Response {
       { status: error.status, headers: privateHeaders },
     );
   if (
+    error instanceof CsvImportError ||
     error instanceof ApplicationValidationError ||
     error instanceof InterviewValidationError ||
     error instanceof BackupValidationError ||

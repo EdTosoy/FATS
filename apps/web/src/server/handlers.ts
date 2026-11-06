@@ -1,6 +1,8 @@
 import type { PoolClient } from 'pg';
 import { assertActiveAccount } from './account-lifecycle';
 import {
+  type CsvSource,
+  type CsvImportRequest,
   normalizeTracking,
   validateApplicationActivities,
   isCaptureId,
@@ -352,6 +354,16 @@ export async function handleWorkspace(
             services.origin,
           ),
           applicationInput(objectField(row, 'input')),
+        );
+        break;
+      case 'preview-csv':
+        result = await repository.previewCsv(
+          objectField(row, 'source') as unknown as CsvSource,
+        );
+        break;
+      case 'import-csv':
+        result = await repository.importCsv(
+          objectField(row, 'input') as unknown as CsvImportRequest,
         );
         break;
       case 'export':

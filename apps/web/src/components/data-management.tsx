@@ -7,6 +7,7 @@ import { MAX_BACKUP_BYTES, type RestorePreview } from '@fats/domain';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { Button, Card } from './ui';
+import { CsvImport } from './csv-import';
 import { useOffers } from './offer-provider';
 
 function errorMessage(error: unknown) {
@@ -211,6 +212,7 @@ export function DataManagement() {
             </form>
           </section>
         </div>
+        <CsvImport />
         <p className="save-feedback" role="status">
           {busy && !preview ? 'Preparing backup…' : message}
         </p>

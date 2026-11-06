@@ -1,4 +1,8 @@
 import {
+  type CsvSource,
+  type CsvImportRequest,
+  type CsvImportSummary,
+  type CsvPreview,
   validateActivityDays,
   type WorkspaceSnapshot,
   parseBackup,
@@ -118,6 +122,12 @@ export class HttpWorkspaceRepository implements WorkspaceRepository {
   }
   createCapturedApplication(capture: JobCapture, input: ApplicationInput) {
     return this.request<JobApplication>('capture', { capture, input });
+  }
+  previewCsv(source: CsvSource) {
+    return this.request<CsvPreview>('preview-csv', { source });
+  }
+  importCsv(input: CsvImportRequest) {
+    return this.request<CsvImportSummary>('import-csv', { input });
   }
   async exportBackup() {
     return serializeBackup(parseBackup(await this.request<string>('export')));

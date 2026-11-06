@@ -4,6 +4,9 @@ import { mkdtemp, cp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import {
+  parseCsv,
+  suggestCsvMapping,
+  type CsvSource,
   activityDate,
   createBackup,
   serializeBackup,
@@ -181,6 +184,130 @@ afterAll(async () => {
   await services.pool.end();
 });
 describe('PostgreSQL migrations and real authentication', () => {
+  it('previews and imports CSV atomically through authenticated APIs, rejects stale/concurrent requests and prevents reimport', async () => {
+    const a = await user(),
+      b = await user();
+    const existing = await a.repository.create(app);
+    const text =
+      'Company,Title,Location,URL,Status,Technologies,Notes\nCSV Co,Analyst,Cebu,https://example.test/csv-a,Submitted,SQL,Keep this note\nCSV Two,Engineer,Manila,https://example.test/csv-b,Interview,TypeScript,Other note';
+    const source: CsvSource = {
+      text,
+      mapping: suggestCsvMapping(parseCsv(text).headers),
+      dateOrder: 'iso',
+    };
+    const response = await request(a.cookie, { action: 'preview-csv', source });
+    expect(response.status).toBe(200);
+    const preview = await response.json();
+    expect(await a.repository.list()).toEqual([existing]);
+    const input = {
+      ...source,
+      token: preview.token,
+      selected: [2, 3],
+      confirmed: true,
+    };
+    expect(
+      (await request(b.cookie, { action: 'import-csv', input })).status,
+    ).toBe(400);
+    expect(
+      (
+        await request(a.cookie, {
+          action: 'import-csv',
+          input: { ...input, confirmed: false },
+        })
+      ).status,
+    ).toBe(400);
+    const concurrent = await Promise.all([
+      request(a.cookie, { action: 'import-csv', input }),
+      request(a.cookie, { action: 'import-csv', input }),
+    ]);
+    expect(concurrent.map((response) => response.status).sort()).toEqual([
+      200, 400,
+    ]);
+    const rows = await a.repository.list();
+    expect(rows).toHaveLength(3);
+    expect(rows).toContainEqual(existing);
+    expect(rows.find((row) => row.company === 'CSV Co')).toMatchObject({
+      status: 'Applied',
+      technologies: 'SQL',
+      notes: 'Keep this note',
+    });
+    expect(
+      rows.find((row) => row.company === 'CSV Two')?.applicationDate,
+    ).toBeUndefined();
+    expect(
+      rows.find((row) => row.company === 'CSV Two')?.activities,
+    ).toBeUndefined();
+    const again = await a.repository.previewCsv(source);
+    expect(again.rows.every((row) => row.duplicate)).toBe(true);
+    await expect(
+      a.repository.importCsv({ ...input, token: again.token }),
+    ).rejects.toThrow('cannot be imported');
+    const copy = await b.repository.previewRestore(
+      await a.repository.exportBackup(),
+    );
+    await b.repository.restoreBackup(copy.token);
+    expect(await b.repository.list()).toEqual(rows);
+    const before = await a.repository.previewCsv({
+      ...source,
+      text: source.text.replaceAll('csv-', 'new-'),
+    });
+    await a.repository.create({
+      ...app,
+      title: 'Concurrent new job',
+      sourceUrl: 'https://example.test/concurrent',
+    });
+    await expect(
+      a.repository.importCsv({
+        ...input,
+        text: source.text.replaceAll('csv-', 'new-'),
+        token: before.token,
+      }),
+    ).rejects.toThrow('changed');
+    expect(await a.repository.list()).toHaveLength(4);
+  });
+  it('rolls back every CSV record if PostgreSQL rejects a later insert, then permits a safe retry', async () => {
+    const a = await user();
+    const text =
+      'Company,Title,Location,URL\nCSV Good,Analyst,Cebu,https://example.test/good\nCSV Fail,Engineer,Manila,https://example.test/fail';
+    const source: CsvSource = {
+      text,
+      mapping: suggestCsvMapping(parseCsv(text).headers),
+      dateOrder: 'iso',
+    };
+    const preview = await a.repository.previewCsv(source);
+    const name = 'csv_test_' + randomUUID().replaceAll('-', '');
+    try {
+      await services.pool.query(
+        `CREATE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id='${a.id}' AND NEW.company='CSV Fail' THEN RAISE EXCEPTION 'Synthetic CSV failure'; END IF; RETURN NEW; END $$`,
+      );
+      await services.pool.query(
+        `CREATE TRIGGER ${name} BEFORE INSERT ON applications FOR EACH ROW EXECUTE FUNCTION ${name}()`,
+      );
+      await expect(
+        a.repository.importCsv({
+          ...source,
+          token: preview.token,
+          selected: [2, 3],
+          confirmed: true,
+        }),
+      ).rejects.toThrow('Synthetic CSV failure');
+      expect(await a.repository.list()).toEqual([]);
+    } finally {
+      await services.pool.query(
+        `DROP TRIGGER IF EXISTS ${name} ON applications`,
+      );
+      await services.pool.query(`DROP FUNCTION IF EXISTS ${name}()`);
+    }
+    await expect(
+      a.repository.importCsv({
+        ...source,
+        token: preview.token,
+        selected: [2, 3],
+        confirmed: true,
+      }),
+    ).resolves.toEqual({ imported: 2, skipped: 0 });
+  });
+
   it('persists R1 fields, timeline and backup restore with account ownership', async () => {
     const a = await user(),
       b = await user();

@@ -3157,3 +3157,43 @@ input[type='file']::file-selector-button {
   margin-top: 8px;
   white-space: pre-wrap;
 }
+
+.csv-import {
+  margin-top: 28px;
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+.csv-import h4 {
+  margin-block: 20px 12px;
+}
+.csv-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block: 16px;
+}
+.csv-rows {
+  list-style: none;
+  padding: 0;
+}
+.csv-rows > li {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-block: 12px;
+  overflow-wrap: anywhere;
+}
+.csv-import select {
+  max-width: 100%;
+  min-width: 0;
+}
+.csv-import label {
+  min-width: 0;
+}
+.csv-import .restore-confirmation {
+  margin-block: 16px;
+}
+.csv-counts {
+  font-weight: 600;
+}

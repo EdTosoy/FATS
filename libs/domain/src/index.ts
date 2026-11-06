@@ -1,11 +1,13 @@
 export * from './application';
+export * from './csv-import';
 export * from './interview';
 export * from './backup';
 export * from './capture';
 export type WorkspaceRepository =
   import('./application').ApplicationRepository &
     import('./interview').InterviewRepository &
-    import('./backup').BackupRepository & {
+    import('./backup').BackupRepository &
+    import('./csv-import').CsvImportRepository & {
       getWorkspace?: () => Promise<import('./momentum').WorkspaceSnapshot>;
     };
 export * from './migration';

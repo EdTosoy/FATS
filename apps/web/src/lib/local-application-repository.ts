@@ -1,4 +1,10 @@
 import {
+  previewCsvRows,
+  selectCsvApplications,
+  csvDigest,
+  CsvImportError,
+  type CsvSource,
+  type CsvImportRequest,
   activityDate,
   workspaceActivityDays,
   hasMeaningfulChange,
@@ -76,66 +82,74 @@ export class LocalApplicationRepository implements WorkspaceRepository {
   }
 
   async create(input: ApplicationInput): Promise<JobApplication> {
-    const data = this.read();
-    const rows = data.applications;
-    const application = createApplication(input, this.id(), this.now());
-    this.write(
-      this.withActivity(
-        { ...data, applications: [...rows, application] },
-        application.createdAt,
-      ),
-    );
-    return application;
+    return this.withWriteLock(async () => {
+      const data = this.read();
+      const rows = data.applications;
+      const application = createApplication(input, this.id(), this.now());
+      this.write(
+        this.withActivity(
+          { ...data, applications: [...rows, application] },
+          application.createdAt,
+        ),
+      );
+      return application;
+    });
   }
 
   async createCapturedApplication(
     capture: JobCapture,
     input: ApplicationInput,
   ): Promise<JobApplication> {
-    const now = this.now();
-    const valid = validateJobCapture(capture, now);
-    const normalized = normalizeApplicationInput(input);
-    const data = this.read();
-    const existing = data.applications.find(
-      (row) =>
-        row.id === valid.id ||
-        canonicalPostingUrl(row.sourceUrl) ===
-          canonicalPostingUrl(normalized.sourceUrl),
-    );
-    if (existing) return existing; // Retry or already-saved posting; never overwrite it.
-    const application = createApplication(normalized, valid.id, now);
-    this.write(
-      this.withActivity(
-        { ...data, applications: [...data.applications, application] },
-        now,
-      ),
-    );
-    return application;
+    return this.withWriteLock(async () => {
+      const now = this.now();
+      const valid = validateJobCapture(capture, now);
+      const normalized = normalizeApplicationInput(input);
+      const data = this.read();
+      const existing = data.applications.find(
+        (row) =>
+          row.id === valid.id ||
+          canonicalPostingUrl(row.sourceUrl) ===
+            canonicalPostingUrl(normalized.sourceUrl),
+      );
+      if (existing) return existing; // Retry or already-saved posting; never overwrite it.
+      const application = createApplication(normalized, valid.id, now);
+      this.write(
+        this.withActivity(
+          { ...data, applications: [...data.applications, application] },
+          now,
+        ),
+      );
+      return application;
+    });
   }
 
   async update(
     id: string,
     input: ApplicationInput & { status: ApplicationStatus },
   ): Promise<JobApplication> {
-    const data = this.read();
-    const rows = data.applications;
-    const current = rows.find((row) => row.id === id);
-    if (!current)
-      throw new ApplicationStorageError(
-        'This application could not be found. Refresh and try again.',
+    return this.withWriteLock(async () => {
+      const data = this.read();
+      const rows = data.applications;
+      const current = rows.find((row) => row.id === id);
+      if (!current)
+        throw new ApplicationStorageError(
+          'This application could not be found. Refresh and try again.',
+        );
+      const application = updateApplication(current, input, this.now());
+      if (!hasMeaningfulChange(current, application)) return current;
+      this.write(
+        this.withActivity(
+          {
+            ...data,
+            applications: rows.map((row) =>
+              row.id === id ? application : row,
+            ),
+          },
+          application.updatedAt,
+        ),
       );
-    const application = updateApplication(current, input, this.now());
-    if (!hasMeaningfulChange(current, application)) return current;
-    this.write(
-      this.withActivity(
-        {
-          ...data,
-          applications: rows.map((row) => (row.id === id ? application : row)),
-        },
-        application.updatedAt,
-      ),
-    );
-    return application;
+      return application;
+    });
   }
 
   async listInterviews(applicationId?: string): Promise<Interview[]> {
@@ -149,58 +163,64 @@ export class LocalApplicationRepository implements WorkspaceRepository {
     return upcomingInterviews(await this.listInterviews(), now);
   }
   async createInterview(input: InterviewInput): Promise<Interview> {
-    const data = this.read();
-    this.requireParent(data, input.applicationId);
-    const interview = createInterview(input, this.id(), this.now());
-    if (data.interviews.some((row) => row.id === interview.id))
-      throw new ApplicationStorageError(
-        'An interview with this identifier already exists. Try again.',
+    return this.withWriteLock(async () => {
+      const data = this.read();
+      this.requireParent(data, input.applicationId);
+      const interview = createInterview(input, this.id(), this.now());
+      if (data.interviews.some((row) => row.id === interview.id))
+        throw new ApplicationStorageError(
+          'An interview with this identifier already exists. Try again.',
+        );
+      this.write(
+        this.withActivity(
+          { ...data, interviews: [...data.interviews, interview] },
+          interview.createdAt,
+        ),
       );
-    this.write(
-      this.withActivity(
-        { ...data, interviews: [...data.interviews, interview] },
-        interview.createdAt,
-      ),
-    );
-    return interview;
+      return interview;
+    });
   }
   async updateInterview(
     id: string,
     input: InterviewInput & { status: InterviewStatus },
   ): Promise<Interview> {
-    const data = this.read();
-    this.requireParent(data, input.applicationId);
-    const current = data.interviews.find((row) => row.id === id);
-    if (!current)
-      throw new ApplicationStorageError(
-        'This interview could not be found. Refresh and try again.',
+    return this.withWriteLock(async () => {
+      const data = this.read();
+      this.requireParent(data, input.applicationId);
+      const current = data.interviews.find((row) => row.id === id);
+      if (!current)
+        throw new ApplicationStorageError(
+          'This interview could not be found. Refresh and try again.',
+        );
+      const interview = updateInterview(current, input, this.now());
+      if (!hasMeaningfulChange(current, interview)) return current;
+      this.write(
+        this.withActivity(
+          {
+            ...data,
+            interviews: data.interviews.map((row) =>
+              row.id === id ? interview : row,
+            ),
+          },
+          interview.updatedAt,
+        ),
       );
-    const interview = updateInterview(current, input, this.now());
-    if (!hasMeaningfulChange(current, interview)) return current;
-    this.write(
-      this.withActivity(
-        {
-          ...data,
-          interviews: data.interviews.map((row) =>
-            row.id === id ? interview : row,
-          ),
-        },
-        interview.updatedAt,
-      ),
-    );
-    return interview;
+      return interview;
+    });
   }
   async deleteApplication(id: string): Promise<void> {
-    const data = this.read();
-    this.requireParent(data, id);
-    if (data.interviews.some((row) => row.applicationId === id))
-      throw new ApplicationStorageError(
-        'This application has linked interviews and cannot be deleted. Keep it to preserve your interview history.',
-      );
-    this.write({
-      ...data,
-      activityDays: workspaceActivityDays(data),
-      applications: data.applications.filter((row) => row.id !== id),
+    return this.withWriteLock(async () => {
+      const data = this.read();
+      this.requireParent(data, id);
+      if (data.interviews.some((row) => row.applicationId === id))
+        throw new ApplicationStorageError(
+          'This application has linked interviews and cannot be deleted. Keep it to preserve your interview history.',
+        );
+      this.write({
+        ...data,
+        activityDays: workspaceActivityDays(data),
+        applications: data.applications.filter((row) => row.id !== id),
+      });
     });
   }
   private requireParent(data: WorkspaceData, id: string) {
@@ -244,29 +264,82 @@ export class LocalApplicationRepository implements WorkspaceRepository {
   }
 
   async restoreBackup(token: string): Promise<WorkspaceData> {
-    const staged = this.pendingRestore;
-    if (!staged || staged.token !== token)
-      throw new ApplicationStorageError(
-        'Preview the backup again before restoring.',
-      );
-    // Do not overwrite changes made after the user reviewed the counts.
-    if (this.readRaw() !== staged.raw) {
+    return this.withWriteLock(async () => {
+      const staged = this.pendingRestore;
+      if (!staged || staged.token !== token)
+        throw new ApplicationStorageError(
+          'Preview the backup again before restoring.',
+        );
+      // Do not overwrite changes made after the user reviewed the counts.
+      if (this.readRaw() !== staged.raw) {
+        this.pendingRestore = null;
+        throw new ApplicationStorageError(
+          'Your workspace changed since this preview. Cancel and preview the backup again before replacing it.',
+        );
+      }
+      const data = validateWorkspaceData(staged.data);
+      // A single setItem atomically replaces both collections. Never clear first.
+      let activityDays: string[] = [];
+      try {
+        activityDays = workspaceActivityDays(this.decode(staged.raw));
+      } catch {
+        /* Confirmed recovery. */
+      }
+      this.write({ ...data, activityDays });
       this.pendingRestore = null;
-      throw new ApplicationStorageError(
-        'Your workspace changed since this preview. Cancel and preview the backup again before replacing it.',
+      return data;
+    });
+  }
+
+  private async withWriteLock<T>(run: () => Promise<T>): Promise<T> {
+    if (typeof navigator !== 'undefined' && navigator.locks)
+      return await navigator.locks.request(APPLICATION_STORAGE_KEY, run);
+    return run();
+  }
+  async previewCsv(source: CsvSource) {
+    const raw = this.readRaw();
+    const data = this.decode(raw);
+    return {
+      token: await csvDigest({ raw, source }),
+      rows: await previewCsvRows(source, data.applications),
+    };
+  }
+  async importCsv(request: CsvImportRequest) {
+    if (typeof window !== 'undefined' && !navigator.locks)
+      throw new CsvImportError(
+        'This browser cannot safely lock the guest workspace. Use a current browser with local storage enabled.',
       );
-    }
-    const data = validateWorkspaceData(staged.data);
-    // A single setItem atomically replaces both collections. Never clear first.
-    let activityDays: string[] = [];
-    try {
-      activityDays = workspaceActivityDays(this.decode(staged.raw));
-    } catch {
-      /* Confirmed recovery. */
-    }
-    this.write({ ...data, activityDays });
-    this.pendingRestore = null;
-    return data;
+    return this.withWriteLock(async () => {
+      if (request.confirmed !== true)
+        throw new CsvImportError('Confirm the CSV preview before importing.');
+      const { text, mapping, dateOrder } = request;
+      const source = { text, mapping, dateOrder };
+      const raw = this.readRaw();
+      const data = this.decode(raw);
+      if (request.token !== (await csvDigest({ raw, source })))
+        throw new CsvImportError(
+          'Your workspace or CSV changed since preview. Preview again before importing.',
+        );
+      const rows = await previewCsvRows(source, data.applications);
+      const applications = selectCsvApplications(
+        rows,
+        request.selected,
+        this.now(),
+      );
+      if (this.readRaw() !== raw)
+        throw new CsvImportError(
+          'Your workspace changed since preview. Preview again before importing.',
+        );
+      if (applications.length)
+        this.write({
+          ...data,
+          applications: [...data.applications, ...applications],
+        });
+      return {
+        imported: applications.length,
+        skipped: rows.length - applications.length,
+      };
+    });
   }
 
   private readRaw(): string | null {
