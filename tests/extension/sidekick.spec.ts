@@ -175,6 +175,15 @@ test('real toolbar permission → capture → corrected review → FATS confirma
     company: 'Corrected Company',
     status: 'Saved',
     location: 'Makati, PH · Remote',
+    workArrangement: 'remote',
+    salaryMin: 25000,
+    salaryMax: 35000,
+    currency: 'PHP',
+    paymentPeriod: 'month',
+    postingDate: '2026-10-01',
+    seniority: 'Junior',
+    technologies: 'TypeScript\nSQL',
+    qualifications: 'Degree or equivalent experience.',
   });
   await fats.reload();
   await expect(
@@ -193,19 +202,25 @@ async function captureJob(extension: ExtensionSession, path: string) {
     .getByRole('button', { name: 'Capture Job', exact: true })
     .evaluate((button: HTMLButtonElement) => button.click());
 }
-async function openFats(extension: ExtensionSession) {
+async function openFats(
+  extension: ExtensionSession,
+  origin = 'http://127.0.0.1:3000',
+) {
   await extension.panel
     .getByRole('button', { name: 'Review details', exact: true })
     .click();
   await extension.panel
     .getByRole('combobox', { name: 'FATS workspace', exact: true })
-    .selectOption('http://127.0.0.1:3000');
+    .selectOption(origin);
   const pending = extension.context.waitForEvent('page');
   await extension.panel
     .getByRole('button', { name: 'Open FATS to confirm', exact: true })
     .click();
   const fats = await pending;
-  await fats.waitForURL(/127\.0\.0\.1:3000\/sidekick#/);
+  await fats.waitForURL(
+    (url) =>
+      url.origin === origin && url.pathname === '/sidekick' && !!url.hash,
+  );
   return fats;
 }
 
@@ -229,6 +244,16 @@ test('semantic metadata capture and missing/malformed structured information sta
       exact: true,
     }),
   ).toHaveValue('Hybrid');
+  await panel.getByText('Optional posting details', { exact: true }).click();
+  await expect(panel.getByLabel('Minimum salary', { exact: true })).toHaveValue(
+    '0',
+  );
+  await expect(panel.getByLabel('Posting date', { exact: true })).toHaveValue(
+    '2026-10-02',
+  );
+  await expect(
+    panel.getByRole('textbox', { name: 'Technologies', exact: true }),
+  ).toHaveValue('SQL');
   await captureJob(extension, 'partial');
   await expect(
     panel.getByRole('textbox', { name: 'Job title', exact: true }),
@@ -238,6 +263,15 @@ test('semantic metadata capture and missing/malformed structured information sta
   ).toHaveValue('');
   await expect(
     panel.getByRole('textbox', { name: 'Location', exact: true }),
+  ).toHaveValue('');
+  await expect(panel.getByLabel('Minimum salary', { exact: true })).toHaveValue(
+    '',
+  );
+  await expect(
+    panel.getByLabel('Currency (three-letter code)', { exact: true }),
+  ).toHaveValue('');
+  await expect(
+    panel.getByRole('textbox', { name: 'Technologies', exact: true }),
   ).toHaveValue('');
   await expect(panel.getByRole('status')).toContainText(
     'structured data could not be read',
@@ -486,6 +520,49 @@ test('authenticated capture survives sign-in, saves only to PostgreSQL, and resu
     .click();
   await completeAccountVerification(fats, email, password);
   await expect(fats).toHaveURL(captureUrl);
+  await expect(
+    fats.getByRole('button', { name: 'Confirm and save', exact: true }),
+  ).toBeEnabled();
+  await fats
+    .getByLabel('Company', { exact: true })
+    .fill('Reviewed before session expiry');
+  const expired = await fats.request.post('/api/auth/sign-out', {
+    headers: { origin: 'http://127.0.0.1:3000' },
+    data: {},
+  });
+  expect(expired.ok()).toBe(true);
+  await fats
+    .getByRole('button', { name: 'Confirm and save', exact: true })
+    .click();
+  await expect(
+    fats.getByRole('button', {
+      name: 'Confirm and save',
+      exact: true,
+      includeHidden: true,
+    }),
+  ).toBeDisabled();
+  await expect(fats.getByLabel('Company', { exact: true })).toHaveValue(
+    'Reviewed before session expiry',
+  );
+  expect(
+    await fats.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBeNull();
+  const reauth = extension.context.waitForEvent('page');
+  await fats
+    .getByRole('link', { name: 'Sign in again in a new tab', exact: true })
+    .click();
+  const signIn = await reauth;
+  await signIn.getByLabel('Email', { exact: true }).fill(email);
+  await signIn.getByLabel('Password', { exact: true }).fill(password);
+  await signIn.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(signIn).toHaveURL('http://127.0.0.1:3000/settings');
+  await fats.bringToFront();
+  await expect(
+    fats.getByRole('button', { name: 'Confirm and save', exact: true }),
+  ).toBeEnabled();
+  expect(
+    (await (await fats.request.get('/api/workspace')).json()).applications,
+  ).toHaveLength(0);
   await fats
     .getByRole('button', { name: 'Confirm and save', exact: true })
     .click();
@@ -495,9 +572,20 @@ test('authenticated capture survives sign-in, saves only to PostgreSQL, and resu
   expect(
     await fats.evaluate(() => localStorage.getItem('fats.applications.v1')),
   ).toBeNull();
-  expect(
-    (await (await fats.request.get('/api/workspace')).json()).applications,
-  ).toHaveLength(1);
+  const accountRecords = (
+    await (await fats.request.get('/api/workspace')).json()
+  ).applications;
+  expect(accountRecords).toHaveLength(1);
+  expect(accountRecords[0]).toMatchObject({
+    salaryMin: 25000,
+    salaryMax: 35000,
+    currency: 'PHP',
+    paymentPeriod: 'month',
+    workArrangement: 'remote',
+    technologies: 'TypeScript\nSQL',
+    qualifications: 'Degree or equivalent experience.',
+    postingDate: '2026-10-01',
+  });
   const pending = await extension.worker.evaluate<{
     pendingJob: Record<string, unknown>;
   }>("chrome.storage.session.get('pendingJob')");
@@ -532,4 +620,293 @@ test('authenticated capture survives sign-in, saves only to PostgreSQL, and resu
   expect(
     (await (await fats.request.get('/api/workspace')).json()).applications,
   ).toHaveLength(1);
+});
+
+// The browser sees the exact HTTPS hosted origin; every request is fulfilled
+// from the isolated local test server. This never contacts the live deployment.
+async function simulateHosted(extension: ExtensionSession) {
+  // Extension-created initial navigations can escape Playwright routing. Hold
+  // that navigation at about:blank, assert the worker's chosen URL, and navigate
+  // from Playwright so all hosted requests stay on the local fixture transport.
+  await extension.worker.evaluate(() => {
+    const create = chrome.tabs.create.bind(chrome.tabs);
+    chrome.tabs.create = async (options: chrome.tabs.CreateProperties) => {
+      (
+        globalThis as typeof globalThis & { sidekickTestDestination?: string }
+      ).sidekickTestDestination = options.url;
+      return create({
+        ...options,
+        url: options.url?.startsWith('https://fats.edtosoy.com/')
+          ? 'about:blank'
+          : options.url,
+      });
+    };
+  });
+  const server = { available: true };
+  await extension.context.route(
+    'https://fats.edtosoy.com/**',
+    async (route) => {
+      if (!server.available) return route.abort('connectionrefused');
+      const source = new URL(route.request().url());
+      source.protocol = 'http:';
+      source.host = '127.0.0.1:3000';
+      const response = await route.fetch({ url: source.href, maxRedirects: 0 });
+      await route.fulfill({ response });
+    },
+  );
+  return server;
+}
+async function openHosted(extension: ExtensionSession) {
+  const pending = extension.context.waitForEvent('page');
+  await extension.panel
+    .getByRole('button', { name: 'Open FATS to confirm', exact: true })
+    .click();
+  const page = await pending;
+  const destination = await extension.worker.evaluate<string>(
+    'globalThis.sidekickTestDestination',
+  );
+  expect(destination).toMatch(
+    /^https:\/\/fats\.edtosoy\.com\/sidekick#[0-9a-f-]{36}$/,
+  );
+  await page.goto(destination);
+  return page;
+}
+test('explicit hosted destination → real bridge → correction → guest save, reload and posting duplicate', async ({
+  extension,
+}) => {
+  await simulateHosted(extension);
+  await captureJob(extension, 'structured');
+  await extension.panel
+    .getByRole('button', { name: 'Review details', exact: true })
+    .click();
+  await expect(
+    extension.panel.getByRole('combobox', { name: 'FATS workspace' }),
+  ).toHaveValue('');
+  await expect(
+    extension.panel.getByRole('button', {
+      name: 'Open FATS to confirm',
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await extension.panel
+    .getByRole('combobox', { name: 'FATS workspace' })
+    .selectOption('https://fats.edtosoy.com');
+  const fats = await openHosted(extension);
+  await expect(
+    fats.getByRole('button', { name: 'Confirm and save', exact: true }),
+  ).toBeVisible();
+  await expect(
+    fats.getByText(
+      'Destination: https://fats.edtosoy.com · Guest workspace in this browser',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(new URL(fats.url()).search).toBe('');
+  expect(new URL(fats.url()).hash).toMatch(/^#[0-9a-f-]{36}$/);
+  expect(
+    await fats.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBeNull();
+  await fats.getByText('Optional posting details', { exact: true }).click();
+  await fats.getByLabel('Maximum salary', { exact: true }).fill('36000');
+  await fats
+    .getByRole('button', { name: 'Confirm and save', exact: true })
+    .dblclick();
+  await expect(
+    fats.getByRole('link', { name: 'Open saved application' }),
+  ).toBeVisible();
+  const saved = await fats.evaluate(() =>
+    JSON.parse(localStorage.getItem('fats.applications.v1')!),
+  );
+  expect(saved.applications).toHaveLength(1);
+  expect(saved.applications[0]).toMatchObject({
+    salaryMax: 36000,
+    technologies: 'TypeScript\nSQL',
+    workArrangement: 'remote',
+  });
+  await fats.reload();
+  await expect(
+    fats.getByRole('heading', { name: 'This opportunity is already saved.' }),
+  ).toBeVisible();
+  const again = await openHosted(extension);
+  await expect(
+    again.getByRole('heading', { name: 'This opportunity is already saved.' }),
+  ).toBeVisible();
+  expect(
+    await again.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem('fats.applications.v1')!).applications
+          .length,
+    ),
+  ).toBe(1);
+  const local = await extension.context.newPage();
+  await local.goto('http://127.0.0.1:3000/sidekick');
+  expect(
+    await local.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBeNull();
+});
+
+test('hosted bridge refuses a local draft and retrieval on the wrong path', async ({
+  extension,
+}) => {
+  await simulateHosted(extension);
+  await captureJob(extension, 'structured');
+  const local = await openFats(extension);
+  await expect(
+    local.getByRole('button', { name: 'Confirm and save', exact: true }),
+  ).toBeVisible();
+  const hosted = await extension.context.newPage();
+  await hosted.goto(
+    `https://fats.edtosoy.com/sidekick${new URL(local.url()).hash}`,
+  );
+  await expect(hosted.getByRole('main').getByRole('alert')).toContainText(
+    'another FATS workspace',
+  );
+  expect(
+    await hosted.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBeNull();
+  await hosted.goto('https://fats.edtosoy.com/sidekick-extra');
+  const response = await hosted.evaluate(async (id) => {
+    const requestId = crypto.randomUUID();
+    return new Promise((resolve) => {
+      window.addEventListener('message', (event) => {
+        if (
+          event.data?.type === 'fats-sidekick/response' &&
+          event.data.requestId === requestId
+        )
+          resolve(event.data);
+      });
+      window.postMessage(
+        { type: 'fats-sidekick/request', id, requestId },
+        location.origin,
+      );
+      setTimeout(() => resolve(null), 500);
+    });
+  }, new URL(local.url()).hash.slice(1));
+  expect(response).toBeNull();
+  await local.reload();
+  await expect(
+    local.getByRole('button', { name: 'Confirm and save', exact: true }),
+  ).toBeVisible();
+});
+
+test('unavailable hosted server preserves reviewed details and never falls back to localhost', async ({
+  extension,
+}) => {
+  const server = await simulateHosted(extension);
+  server.available = false;
+  await captureJob(extension, 'structured');
+  await extension.panel
+    .getByRole('button', { name: 'Review details', exact: true })
+    .click();
+  await extension.panel
+    .getByRole('combobox', { name: 'FATS workspace' })
+    .selectOption('https://fats.edtosoy.com');
+  const failed = extension.context.waitForEvent('page');
+  await extension.panel
+    .getByRole('button', { name: 'Open FATS to confirm', exact: true })
+    .click();
+  const unavailable = await failed;
+  const destination = await extension.worker.evaluate<string>(
+    'globalThis.sidekickTestDestination',
+  );
+  expect(destination).toMatch(/^https:\/\/fats\.edtosoy\.com\/sidekick#/);
+  await expect(unavailable.goto(destination)).rejects.toThrow(
+    'ERR_CONNECTION_REFUSED',
+  );
+  await expect(extension.panel.getByRole('status')).toContainText(
+    'If the server is unavailable',
+  );
+  expect(
+    extension.context
+      .pages()
+      .some((page) => page.url().startsWith('http://127.0.0.1:3000')),
+  ).toBe(false);
+  await expect(
+    extension.panel.getByRole('combobox', { name: 'FATS workspace' }),
+  ).toHaveValue('https://fats.edtosoy.com');
+  server.available = true;
+  const fats = await openHosted(extension);
+  await expect(fats.getByLabel('Job title', { exact: true })).toHaveValue(
+    'Graduate Engineer',
+  );
+  expect(
+    await fats.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBeNull();
+});
+
+test('unreliable optional facts remain empty and never infer technologies or seniority', async ({
+  extension,
+}) => {
+  await extension.context.route('http://jobs.fats.test/unreliable', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<script type="application/ld+json">${JSON.stringify({
+        '@type': 'JobPosting',
+        title: 'Engineer',
+        hiringOrganization: { name: 'Example' },
+        description: 'Earn PHP 50k. Senior role with TypeScript.',
+        baseSalary: {
+          currency: 'pesos',
+          value: { minValue: 40000, maxValue: 20000, unitText: 'annually' },
+        },
+        datePosted: '2026-02-30',
+        skills: 'Teamwork, TypeScript',
+      })}</script>`,
+    }),
+  );
+  await captureJob(extension, 'unreliable');
+  await extension.panel
+    .getByText('Optional posting details', { exact: true })
+    .click();
+  for (const label of [
+    'Minimum salary',
+    'Maximum salary',
+    'Currency (three-letter code)',
+    'Posting date',
+    'Seniority',
+    'Technologies',
+  ])
+    await expect(
+      extension.panel.getByLabel(label, { exact: true }),
+    ).toHaveValue('');
+  await expect(
+    extension.panel.getByRole('combobox', {
+      name: 'Payment period',
+      exact: true,
+    }),
+  ).toHaveValue('');
+});
+
+test('localhost destination remains a separate guest workspace with a real confirmation save', async ({
+  extension,
+}) => {
+  await captureJob(extension, 'structured');
+  const fats = await openFats(extension, 'http://localhost:3000');
+  await expect(
+    fats.getByRole('button', { name: 'Confirm and save', exact: true }),
+  ).toBeEnabled();
+  await expect(
+    fats.getByText(
+      'Destination: http://localhost:3000 · Guest workspace in this browser',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(
+    await fats.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBeNull();
+  await fats
+    .getByRole('button', { name: 'Confirm and save', exact: true })
+    .click();
+  await expect(
+    fats.getByRole('link', { name: 'Open saved application', exact: true }),
+  ).toBeVisible();
+  await fats.reload();
+  await expect(
+    fats.getByRole('heading', { name: 'This opportunity is already saved.' }),
+  ).toBeVisible();
+  const other = await extension.context.newPage();
+  await other.goto('http://127.0.0.1:3000/sidekick');
+  expect(
+    await other.evaluate(() => localStorage.getItem('fats.applications.v1')),
+  ).toBeNull();
 });

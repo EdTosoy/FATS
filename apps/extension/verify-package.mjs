@@ -16,6 +16,7 @@ assert.equal(manifest.externally_connectable, undefined);
 assert.deepEqual(manifest.content_scripts[0].matches, [
   'http://localhost/sidekick*',
   'http://127.0.0.1/sidekick*',
+  'https://fats.edtosoy.com/sidekick*',
 ]);
 assert.equal(manifest.content_scripts[0].all_frames, false);
 for (const file of [

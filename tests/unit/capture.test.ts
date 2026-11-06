@@ -40,6 +40,10 @@ describe('Sidekick contract and trust boundaries', () => {
     expect(normalized).not.toHaveProperty('extra');
     expect(applicationFromCapture(normalized).location).toBe('Makati · Hybrid');
     expect(
+      applicationFromCapture({ ...normalized, workArrangement: 'On-site' })
+        .workArrangement,
+    ).toBe('onsite');
+    expect(
       applicationFromCapture({
         ...normalized,
         location: '',
@@ -72,6 +76,12 @@ describe('Sidekick contract and trust boundaries', () => {
     { sourceUrl: 'https://user:pass@example.com' },
     { description: 'x'.repeat(20001) },
     { workArrangement: 5 },
+    { salaryMin: -1 },
+    { salaryMin: 200, salaryMax: 100 },
+    { currency: 'pesos' },
+    { paymentPeriod: 'guess' },
+    { seniority: {} },
+    { postingDate: '2026-02-30' },
     { location: '', workArrangement: '' },
   ])('rejects unsafe or incomplete job %#', (patch) =>
     expect(() => normalizeCapturedJob({ ...capture.job, ...patch })).toThrow(),
@@ -87,6 +97,7 @@ describe('Sidekick contract and trust boundaries', () => {
   it.each([
     'http://localhost:3000/sidekick',
     'http://127.0.0.1:3000/sidekick#id',
+    'https://fats.edtosoy.com/sidekick#id',
   ])('accepts only the supported FATS route %s', (url) =>
     expect(isFatsCapturePage(url)).toBe(true),
   );
@@ -97,6 +108,12 @@ describe('Sidekick contract and trust boundaries', () => {
     'http://localhost.evil.test:3000/sidekick',
     'http://user:pass@localhost:3000/sidekick',
     'javascript:alert(1)',
+    'http://fats.edtosoy.com/sidekick',
+    'https://fats.edtosoy.com:444/sidekick',
+    'https://fats.edtosoy.com.evil.test/sidekick',
+    'https://other.edtosoy.com/sidekick',
+    'https://user:pass@fats.edtosoy.com/sidekick',
+    'https://fats.edtosoy.com/sidekick/extra',
   ])('rejects other URLs %s', (url) =>
     expect(isFatsCapturePage(url)).toBe(false),
   );
@@ -139,6 +156,44 @@ describe('Sidekick contract and trust boundaries', () => {
   });
 });
 describe('confirmed capture persistence', () => {
+  it('projects only supported posting details and preserves them through guest persistence', async () => {
+    const job = normalizeCapturedJob({
+      ...capture.job,
+      salaryMin: 0,
+      salaryMax: 35000,
+      currency: 'php',
+      paymentPeriod: 'month',
+      seniority: 'Junior',
+      technologies: 'TypeScript',
+      qualifications: 'Degree or equivalent',
+      postingDate: '2026-10-01',
+      recruiterEmail: 'untrusted@example.test',
+      tasks: [],
+      newActivity: { notes: 'untrusted' },
+    });
+    expect(job).not.toHaveProperty('recruiterEmail');
+    expect(job).not.toHaveProperty('tasks');
+    expect(job).not.toHaveProperty('newActivity');
+    const f = fixture();
+    const saved = await f.repository.createCapturedApplication(
+      { ...capture, job },
+      applicationFromCapture(job),
+    );
+    expect(saved).toMatchObject({
+      salaryMin: 0,
+      salaryMax: 35000,
+      currency: 'PHP',
+      paymentPeriod: 'month',
+      seniority: 'Junior',
+      technologies: 'TypeScript',
+      qualifications: 'Degree or equivalent',
+      postingDate: '2026-10-01',
+      workArrangement: 'hybrid',
+    });
+    expect((await new LocalApplicationRepository(f.storage).list())[0]).toEqual(
+      saved,
+    );
+  });
   function fixture() {
     let raw: string | null = null;
     let fail = false;

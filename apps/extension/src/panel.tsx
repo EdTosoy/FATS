@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
+  PAYMENT_PERIODS,
   FATS_ORIGINS,
   normalizeCapturedJob,
   type CapturedJob,
@@ -20,7 +21,7 @@ function Sidekick() {
   const [currentUrl, setCurrentUrl] = useState(
     'Click the Sidekick toolbar icon on the job page.',
   );
-  const [origin, setOrigin] = useState<string>(FATS_ORIGINS[0]);
+  const [origin, setOrigin] = useState('');
   const [busy, setBusy] = useState(false),
     [review, setReview] = useState(false);
   const [error, setError] = useState(''),
@@ -126,7 +127,7 @@ function Sidekick() {
             'FATS could not be opened. Check that the extension is enabled and try again.',
         );
       setMessage(
-        'FATS is open. Confirm and save there; opening it has not saved this job.',
+        `Opened ${origin}. Confirm and save there. If the server is unavailable, keep this panel open, restore the connection, and reopen the same destination. Nothing is saved by opening it.`,
       );
     } catch (error) {
       setError(
@@ -217,6 +218,89 @@ function Sidekick() {
                 placeholder="Paste responsibilities, requirements, or your own notes."
               />
             </label>
+            <details>
+              <summary>Optional posting details</summary>
+              {(['salaryMin', 'salaryMax'] as const).map((key) => (
+                <label key={key}>
+                  {key === 'salaryMin' ? 'Minimum salary' : 'Maximum salary'}
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000000000000"
+                    step="any"
+                    value={job[key] ?? ''}
+                    onChange={(event) =>
+                      setJob({
+                        ...job,
+                        [key]:
+                          event.target.value === ''
+                            ? null
+                            : Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+              ))}
+              <label>
+                Currency (three-letter code)
+                <input
+                  maxLength={3}
+                  value={job.currency ?? ''}
+                  onChange={(event) =>
+                    setJob({ ...job, currency: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Payment period
+                <select
+                  value={job.paymentPeriod ?? ''}
+                  onChange={(event) =>
+                    setJob({
+                      ...job,
+                      paymentPeriod: event.target
+                        .value as typeof job.paymentPeriod,
+                    })
+                  }
+                >
+                  <option value="">Unspecified</option>
+                  {PAYMENT_PERIODS.map((period) => (
+                    <option key={period} value={period}>
+                      {period}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Posting date
+                <input
+                  type="date"
+                  value={job.postingDate ?? ''}
+                  onChange={(event) =>
+                    setJob({ ...job, postingDate: event.target.value })
+                  }
+                />
+              </label>
+              {(
+                [
+                  ['seniority', 'Seniority'],
+                  ['technologies', 'Technologies'],
+                  ['qualifications', 'Qualifications'],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <textarea
+                    rows={3}
+                    maxLength={20000}
+                    value={job[key] ?? ''}
+                    onChange={(event) =>
+                      setJob({ ...job, [key]: event.target.value })
+                    }
+                  />
+                </label>
+              ))}
+            </details>
           </fieldset>
           <button type="submit" disabled={busy}>
             Review details
@@ -234,6 +318,27 @@ function Sidekick() {
           <p className="description">
             {job.description || 'No description added.'}
           </p>
+          <dl>
+            {(
+              [
+                ['salaryMin', 'Minimum salary'],
+                ['salaryMax', 'Maximum salary'],
+                ['currency', 'Currency'],
+                ['paymentPeriod', 'Payment period'],
+                ['postingDate', 'Posting date'],
+                ['seniority', 'Seniority'],
+                ['technologies', 'Technologies'],
+                ['qualifications', 'Qualifications'],
+              ] as const
+            )
+              .filter(([key]) => job[key] !== '' && job[key] != null)
+              .map(([key, label]) => (
+                <div key={key}>
+                  <dt>{label}</dt>
+                  <dd className="description">{job[key]}</dd>
+                </div>
+              ))}
+          </dl>
           <label>
             FATS workspace
             <select
@@ -241,14 +346,19 @@ function Sidekick() {
               onChange={(event) => setOrigin(event.target.value)}
               disabled={busy}
             >
+              <option value="" disabled>
+                Choose a destination
+              </option>
               {FATS_ORIGINS.map((value) => (
                 <option key={value}>{value}</option>
               ))}
             </select>
           </label>
           <p className="hint">
-            Choose the same address used for your existing tracker. The two
-            addresses have separate saved data.
+            Choose the address used for your existing tracker. Each address has
+            its own browser workspace and sign-in session. FATS will show the
+            guest or account workspace before you save. Destinations never
+            change automatically.
           </p>
           <div className="actions">
             <button
@@ -258,7 +368,7 @@ function Sidekick() {
             >
               Edit details
             </button>
-            <button disabled={busy} onClick={() => void handoff()}>
+            <button disabled={busy || !origin} onClick={() => void handoff()}>
               {busy ? 'Opening…' : 'Open FATS to confirm'}
             </button>
           </div>
