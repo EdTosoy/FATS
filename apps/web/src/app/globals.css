@@ -3256,3 +3256,8 @@ input[type='file']::file-selector-button {
 .preparation-empty {
   margin-block: 20px;
 }
+
+.application-tasks li,
+.next-actions li {
+  overflow-wrap: anywhere;
+}

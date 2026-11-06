@@ -1,5 +1,6 @@
 import {
   type PreparationChange,
+  type TaskChange,
   type CsvSource,
   type CsvImportRequest,
   type CsvImportSummary,
@@ -108,6 +109,12 @@ export class HttpWorkspaceRepository implements WorkspaceRepository {
   }
   changePreparation(applicationId: string, change: PreparationChange) {
     return this.request<JobApplication>('change-preparation', {
+      id: applicationId,
+      change,
+    });
+  }
+  changeTask(applicationId: string, change: TaskChange) {
+    return this.request<JobApplication>('change-task', {
       id: applicationId,
       change,
     });

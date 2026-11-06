@@ -13,6 +13,7 @@ import {
 import { workspaceActivityDays, type WorkspaceSnapshot } from '@fats/domain';
 import type {
   PreparationRepository,
+  TaskRepository,
   CsvImportRepository,
   ApplicationInput,
   WorkspaceRepository,
@@ -31,7 +32,7 @@ import {
 import { JobFormDialog } from './job-form-dialog';
 
 interface ApplicationContextValue
-  extends CsvImportRepository, PreparationRepository {
+  extends CsvImportRepository, PreparationRepository, TaskRepository {
   refreshWorkspace: () => Promise<void>;
   createCapturedApplication: (
     capture: JobCapture,
@@ -215,6 +216,12 @@ export function ApplicationProvider({
             applicationId,
             change,
           );
+          await refresh();
+          channel.current?.postMessage('refresh');
+          return saved;
+        },
+        changeTask: async (applicationId, change) => {
+          const saved = await repository.changeTask(applicationId, change);
           await refresh();
           channel.current?.postMessage('refresh');
           return saved;

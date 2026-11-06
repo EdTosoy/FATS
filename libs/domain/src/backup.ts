@@ -1,3 +1,4 @@
+import { validateTasks } from './task';
 import { validatePreparations } from './preparation';
 import {
   normalizeTracking,
@@ -54,6 +55,7 @@ export interface WorkspaceCounts {
   applications: number;
   interviews: number;
   preparations?: number;
+  tasks?: number;
 }
 export interface RestorePreview {
   token: string;
@@ -115,12 +117,14 @@ function application(value: unknown): JobApplication {
     row.preparations === undefined
       ? []
       : validatePreparations(row.preparations);
+  const tasks = row.tasks === undefined ? [] : validateTasks(row.tasks);
   // Validate using creation rules, but preserve original text and timestamps.
   return {
     ...input,
     ...normalizeTracking(row),
     ...(activities.length ? { activities } : {}),
     ...(preparations.length ? { preparations } : {}),
+    ...(tasks.length ? { tasks } : {}),
     ...identity(row),
     status: row.status,
   };
@@ -176,6 +180,14 @@ export function workspaceCounts(data: WorkspaceData): WorkspaceCounts {
   );
   return {
     ...(preparations ? { preparations } : {}),
+    ...(data.applications.some((row) => row.tasks?.length)
+      ? {
+          tasks: data.applications.reduce(
+            (count, row) => count + (row.tasks?.length ?? 0),
+            0,
+          ),
+        }
+      : {}),
     applications: data.applications.length,
     interviews: data.interviews.length,
   };

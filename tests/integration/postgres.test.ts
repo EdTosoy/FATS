@@ -4,6 +4,7 @@ import { mkdtemp, cp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import {
+  type TaskInput,
   type PreparationInput,
   parseCsv,
   suggestCsvMapping,
@@ -185,6 +186,91 @@ afterAll(async () => {
   await services.pool.end();
 });
 describe('PostgreSQL migrations and real authentication', () => {
+  it('persists owner-scoped tasks, rejects competing edits, restores backups and recovers failed writes', async () => {
+    const a = await user(),
+      b = await user(),
+      saved = await a.repository.create(app);
+    const input: TaskInput = {
+      title: 'Follow up',
+      notes: 'Ask recruiter',
+      dueDate: '2026-11-06',
+      dueTime: '12:00',
+      timeZone: 'Asia/Manila',
+      occurrence: '',
+    };
+    const change = {
+      action: 'save' as const,
+      id: 'task',
+      input,
+      expected: null,
+    };
+    expect(
+      (await request(b.cookie, { action: 'change-task', id: saved.id, change }))
+        .status,
+    ).toBe(404);
+    const response = await request(a.cookie, {
+      action: 'change-task',
+      id: saved.id,
+      change,
+    });
+    expect(response.status).toBe(200);
+    const task = (await response.json()).tasks[0];
+    const results = await Promise.allSettled(
+      ['complete', 'delete'].map((action) =>
+        a.repository.changeTask(saved.id, {
+          action: action as 'complete' | 'delete',
+          id: 'task',
+          expected: task,
+        }),
+      ),
+    );
+    expect(results.filter((row) => row.status === 'fulfilled')).toHaveLength(1);
+    const current = (await a.repository.list())[0];
+    if (!current.tasks?.length) await a.repository.changeTask(saved.id, change);
+    const preview = await b.repository.previewRestore(
+      await a.repository.exportBackup(),
+    );
+    expect(preview.incoming.tasks).toBe(1);
+    await b.repository.restoreBackup(preview.token);
+    expect((await b.repository.list())[0].tasks).toEqual(
+      (await a.repository.list())[0].tasks,
+    );
+    const before = (await a.repository.list())[0],
+      name = 'task_test_' + randomUUID().replaceAll('-', '');
+    try {
+      await services.pool.query(
+        `CREATE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id='${a.id}' THEN RAISE EXCEPTION 'Synthetic task failure'; END IF; RETURN NEW; END $$`,
+      );
+      await services.pool.query(
+        `CREATE TRIGGER ${name} BEFORE UPDATE ON applications FOR EACH ROW EXECUTE FUNCTION ${name}()`,
+      );
+      expect(
+        (
+          await request(a.cookie, {
+            action: 'change-task',
+            id: saved.id,
+            change: {
+              action: 'reopen',
+              id: 'task',
+              expected: before.tasks![0],
+            },
+          })
+        ).status,
+      ).toBe(503);
+      expect((await a.repository.list())[0]).toEqual(before);
+    } finally {
+      await services.pool.query(
+        `DROP TRIGGER IF EXISTS ${name} ON applications`,
+      );
+      await services.pool.query(`DROP FUNCTION IF EXISTS ${name}()`);
+    }
+    await a.repository.changeTask(saved.id, {
+      action: 'reopen',
+      id: 'task',
+      expected: before.tasks![0],
+    });
+    expect((await a.repository.list())[0].tasks![0].completedAt).toBeNull();
+  });
   it('keeps preparation materials owner-scoped, preserves submitted copies and restores them with R1/R2 data', async () => {
     const a = await user(),
       b = await user();
@@ -513,6 +599,7 @@ describe('PostgreSQL migrations and real authentication', () => {
       '0011_momentum.sql',
       '0012_application_tracking.sql',
       '0013_application_preparation.sql',
+      '0014_application_tasks.sql',
     ]);
     expect(
       (
@@ -520,7 +607,7 @@ describe('PostgreSQL migrations and real authentication', () => {
           'SELECT name FROM fats_schema_migrations ORDER BY name',
         )
       ).rows,
-    ).toHaveLength(13);
+    ).toHaveLength(14);
     const a = await user(),
       b = await user();
     const data = await dataset(a);

@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { assertActiveAccount } from './account-lifecycle';
 import {
   type PreparationChange,
+  type TaskChange,
   type CsvSource,
   type CsvImportRequest,
   normalizeTracking,
@@ -325,6 +326,12 @@ export async function handleWorkspace(
         result = await repository.changePreparation(
           identity(row),
           objectField(row, 'change') as unknown as PreparationChange,
+        );
+        break;
+      case 'change-task':
+        result = await repository.changeTask(
+          identity(row),
+          objectField(row, 'change') as unknown as TaskChange,
         );
         break;
       case 'delete-application':

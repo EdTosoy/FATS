@@ -180,6 +180,7 @@ export interface JobApplication extends ApplicationInput {
   id: string;
   activities?: ApplicationActivity[];
   preparations?: import('./preparation').Preparation[];
+  tasks?: import('./task').ApplicationTask[];
   status: ApplicationStatus;
   createdAt: string;
   updatedAt: string;

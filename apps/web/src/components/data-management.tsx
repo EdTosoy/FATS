@@ -279,6 +279,15 @@ export function DataManagement() {
                   <dd>{preview.current?.interviews ?? 'Unreadable'}</dd>
                 </div>
               </dl>
+              {preview.incoming.tasks || preview.current?.tasks ? (
+                <p className="backup-warning">
+                  Backup tasks: {preview.incoming.tasks ?? 0}. Current tasks:{' '}
+                  {preview.current?.tasks ?? 0}.{' '}
+                  {preview.portable
+                    ? 'Application imports include tasks; conflicting records block import.'
+                    : 'Replacement removes current tasks and replaces them with tasks in this backup.'}
+                </p>
+              ) : null}
               {preview.incoming.preparations ||
               preview.current?.preparations ? (
                 <p className="backup-warning">

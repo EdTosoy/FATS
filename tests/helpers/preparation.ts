@@ -10,6 +10,7 @@ export async function savePreparationJob(page: Page) {
         .getByRole('banner')
         .getByRole('button', { name: 'Save a job', exact: true }),
     )
+    .first()
     .click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel(/^Job title/).fill('Preparation Engineer');

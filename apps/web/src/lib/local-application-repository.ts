@@ -1,5 +1,7 @@
 import {
   changeApplicationPreparation,
+  changeApplicationTask,
+  type TaskChange,
   type PreparationChange,
   previewCsvRows,
   selectCsvApplications,
@@ -218,6 +220,23 @@ export class LocalApplicationRepository implements WorkspaceRepository {
         (row) => row.id === applicationId,
       )!;
       const next = changeApplicationPreparation(current, change, this.now());
+      this.write({
+        ...data,
+        applications: data.applications.map((row) =>
+          row.id === applicationId ? next : row,
+        ),
+      });
+      return next;
+    });
+  }
+  async changeTask(applicationId: string, change: TaskChange) {
+    return this.withWriteLock(async () => {
+      const data = this.read();
+      this.requireParent(data, applicationId);
+      const current = data.applications.find(
+        (row) => row.id === applicationId,
+      )!;
+      const next = changeApplicationTask(current, change, this.now());
       this.write({
         ...data,
         applications: data.applications.map((row) =>
