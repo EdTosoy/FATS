@@ -3125,3 +3125,35 @@ input[type='file']::file-selector-button {
 .pdf-field select {
   min-height: 44px;
 }
+
+.tracking-details > div {
+  margin-block: 1rem;
+}
+.tracking-details dt {
+  color: var(--muted);
+}
+.tracking-details dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tracking-timeline {
+  padding-inline-start: 1.25rem;
+}
+.tracking-timeline li {
+  margin-block: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.tracking-card {
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.tracking-card h2 {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+.tracking-entry-notes {
+  margin-top: 8px;
+  white-space: pre-wrap;
+}

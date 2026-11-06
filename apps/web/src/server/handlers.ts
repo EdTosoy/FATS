@@ -1,6 +1,8 @@
 import type { PoolClient } from 'pg';
 import { assertActiveAccount } from './account-lifecycle';
 import {
+  normalizeTracking,
+  validateApplicationActivities,
   isCaptureId,
   validateJobCapture,
   normalizeApplicationInput,
@@ -208,13 +210,19 @@ export async function handleAuth(
   }
 }
 function applicationInput(value: Record<string, unknown>) {
-  return normalizeApplicationInput({
-    title: textField(value, 'title'),
-    company: textField(value, 'company'),
-    sourceUrl: textField(value, 'sourceUrl'),
-    location: textField(value, 'location'),
-    description: textField(value, 'description'),
-  });
+  return {
+    ...normalizeApplicationInput({
+      ...normalizeTracking(value),
+      title: textField(value, 'title'),
+      company: textField(value, 'company'),
+      sourceUrl: textField(value, 'sourceUrl'),
+      location: textField(value, 'location'),
+      description: textField(value, 'description'),
+    }),
+    ...(value.newActivity === undefined
+      ? {}
+      : { newActivity: validateApplicationActivities([value.newActivity])[0] }),
+  };
 }
 function interviewInput(value: Record<string, unknown>) {
   return normalizeInterviewInput({

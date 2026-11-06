@@ -3,6 +3,7 @@ import { assertActiveAccount } from './account-lifecycle';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
+  normalizeTracking,
   hasMeaningfulChange,
   workspaceActivityDays,
   type WorkspaceSnapshot,
@@ -54,6 +55,8 @@ const APP_FIELDS = [
   'status',
   'createdAt',
   'updatedAt',
+  'tracking',
+  'activities',
 ] as const;
 const INTERVIEW_FIELDS = [
   'id',
@@ -150,7 +153,10 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       ),
     ]);
     return validateWorkspaceData({
-      applications: apps.rows.map(dates),
+      applications: apps.rows.map((row) => ({
+        ...dates(row),
+        ...row.tracking,
+      })),
       interviews: interviews.rows.map(dates),
     });
   }
@@ -185,8 +191,12 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     row: JobApplication | Interview,
   ) {
     const fields = table === 'applications' ? APP_FIELDS : INTERVIEW_FIELDS;
-    const values = fields.map(
-      (key) => (row as unknown as Record<string, string>)[key],
+    const values = fields.map((key) =>
+      key === 'tracking'
+        ? JSON.stringify(normalizeTracking(row as JobApplication))
+        : key === 'activities'
+          ? JSON.stringify((row as JobApplication).activities ?? [])
+          : (row as unknown as Record<string, string>)[key],
     );
     await client.query(
       `INSERT INTO ${table}(user_id,${fields.map((key) => `"${key}"`).join(',')}) VALUES(${[this.owner, ...values].map((_, i) => `$${i + 1}`).join(',')})`,
@@ -201,8 +211,12 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     const fields = (
       table === 'applications' ? APP_FIELDS : INTERVIEW_FIELDS
     ).filter((key) => key !== 'id' && key !== 'createdAt');
-    const values = fields.map(
-      (key) => (row as unknown as Record<string, string>)[key],
+    const values = fields.map((key) =>
+      key === 'tracking'
+        ? JSON.stringify(normalizeTracking(row as JobApplication))
+        : key === 'activities'
+          ? JSON.stringify((row as JobApplication).activities ?? [])
+          : (row as unknown as Record<string, string>)[key],
     );
     await client.query(
       `UPDATE ${table} SET ${fields.map((key, i) => `"${key}"=$${i + 3}`).join(',')} WHERE user_id=$1 AND id=$2`,

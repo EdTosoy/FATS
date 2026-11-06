@@ -45,10 +45,37 @@ test('account status saves beside the posting and recovers from an interrupted w
   await form.getByLabel(/^Company/).fill('Example Company');
   await form.getByLabel(/^Location/).fill('Makati');
   await form.getByLabel(/^Source URL/).fill('https://example.test/job');
+  await form.getByText('Job and application details (optional)').click();
+  await form.getByLabel('Work arrangement').selectOption('hybrid');
+  await form.getByLabel('Technologies').fill('TypeScript');
+  await form.getByLabel('Recruiter / contact name').fill('Synthetic Recruiter');
+  await form
+    .getByLabel('Personal fit assessment notes')
+    .fill('Matches my learning goals');
   await form.getByRole('button', { name: 'Save job', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Graduate Developer', exact: true }),
   ).toBeVisible();
+  await page.getByLabel('Activity type').selectOption('recruiter-response');
+  await page.getByLabel('Activity date').fill('2026-11-06');
+  await page
+    .getByLabel('Activity notes')
+    .fill('Recruiter acknowledged application');
+  await page.getByRole('button', { name: 'Add activity', exact: true }).click();
+  await expect(
+    page.getByText('Recruiter acknowledged application', { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText('Recruiter acknowledged application', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Matches my learning goals', { exact: true }),
+  ).toBeVisible();
+  const record = (await (await page.request.get('/api/workspace')).json())
+    .applications[0];
+  expect(record.workArrangement).toBe('hybrid');
+  expect(record.recruiterName).toBe('Synthetic Recruiter');
   const control = page.getByRole('combobox', {
     name: 'Application status',
     exact: true,

@@ -1,4 +1,6 @@
 import {
+  normalizeTracking,
+  validateApplicationActivities,
   isApplicationStatus,
   normalizeApplicationInput,
   type JobApplication,
@@ -103,8 +105,18 @@ function application(value: unknown): JobApplication {
   normalizeApplicationInput(input);
   if (!isApplicationStatus(row.status))
     throw new BackupValidationError('Application status is invalid.');
+  const activities =
+    row.activities === undefined
+      ? []
+      : validateApplicationActivities(row.activities);
   // Validate using creation rules, but preserve original text and timestamps.
-  return { ...input, ...identity(row), status: row.status };
+  return {
+    ...input,
+    ...normalizeTracking(row),
+    ...(activities.length ? { activities } : {}),
+    ...identity(row),
+    status: row.status,
+  };
 }
 function interview(value: unknown): Interview {
   const row = record(value);

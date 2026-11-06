@@ -181,6 +181,54 @@ afterAll(async () => {
   await services.pool.end();
 });
 describe('PostgreSQL migrations and real authentication', () => {
+  it('persists R1 fields, timeline and backup restore with account ownership', async () => {
+    const a = await user(),
+      b = await user();
+    const created = await request(a.cookie, {
+      action: 'create',
+      id: randomUUID(),
+      input: {
+        ...app,
+        workArrangement: 'remote',
+        salaryMin: 25000,
+        salaryMax: 35000,
+        currency: 'PHP',
+        technologies: 'TypeScript',
+        fitNotes: 'Learning opportunities',
+      },
+    });
+    expect(created.status).toBe(200);
+    const saved = await created.json();
+    const changed = await request(a.cookie, {
+      action: 'update',
+      id: saved.id,
+      input: {
+        ...saved,
+        status: 'Applied',
+        newActivity: {
+          kind: 'recruiter-response',
+          date: '2026-11-06',
+          notes: 'Requested availability',
+        },
+      },
+    });
+    expect(changed.status).toBe(200);
+    const updated = await changed.json();
+    expect(updated.activities).toHaveLength(2);
+    expect((await a.repository.list())[0]).toEqual(updated);
+    expect(await b.repository.list()).toEqual([]);
+    const exported = await a.repository.exportBackup();
+    const preview = await b.repository.previewRestore(exported);
+    await b.repository.restoreBackup(preview.token);
+    expect((await b.repository.list())[0]).toEqual(updated);
+    await a.repository.update(saved.id, {
+      ...updated,
+      salaryMin: null,
+      salaryMax: null,
+    });
+    expect((await a.repository.list())[0].salaryMin).toBeNull();
+  });
+
   it('applies exactly the versioned schema, reruns safely, and enforces database ownership keys', async () => {
     expect(await runMigrations(services.pool)).toEqual([
       '0001_auth.sql',
@@ -194,6 +242,7 @@ describe('PostgreSQL migrations and real authentication', () => {
       '0009_document_intake.sql',
       '0010_career_vault.sql',
       '0011_momentum.sql',
+      '0012_application_tracking.sql',
     ]);
     expect(
       (
@@ -201,7 +250,7 @@ describe('PostgreSQL migrations and real authentication', () => {
           'SELECT name FROM fats_schema_migrations ORDER BY name',
         )
       ).rows,
-    ).toHaveLength(11);
+    ).toHaveLength(12);
     const a = await user(),
       b = await user();
     const data = await dataset(a);
