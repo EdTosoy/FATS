@@ -3,6 +3,8 @@ import { assertActiveAccount } from './account-lifecycle';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
+  changeApplicationPreparation,
+  type PreparationChange,
   previewCsvRows,
   selectCsvApplications,
   csvDigest,
@@ -63,6 +65,7 @@ const APP_FIELDS = [
   'updatedAt',
   'tracking',
   'activities',
+  'preparations',
 ] as const;
 const INTERVIEW_FIELDS = [
   'id',
@@ -202,7 +205,9 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         ? JSON.stringify(normalizeTracking(row as JobApplication))
         : key === 'activities'
           ? JSON.stringify((row as JobApplication).activities ?? [])
-          : (row as unknown as Record<string, string>)[key],
+          : key === 'preparations'
+            ? JSON.stringify((row as JobApplication).preparations ?? [])
+            : (row as unknown as Record<string, string>)[key],
     );
     await client.query(
       `INSERT INTO ${table}(user_id,${fields.map((key) => `"${key}"`).join(',')}) VALUES(${[this.owner, ...values].map((_, i) => `$${i + 1}`).join(',')})`,
@@ -222,7 +227,9 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         ? JSON.stringify(normalizeTracking(row as JobApplication))
         : key === 'activities'
           ? JSON.stringify((row as JobApplication).activities ?? [])
-          : (row as unknown as Record<string, string>)[key],
+          : key === 'preparations'
+            ? JSON.stringify((row as JobApplication).preparations ?? [])
+            : (row as unknown as Record<string, string>)[key],
     );
     await client.query(
       `UPDATE ${table} SET ${fields.map((key, i) => `"${key}"=$${i + 3}`).join(',')} WHERE user_id=$1 AND id=$2`,
@@ -292,6 +299,21 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       await this.replace(client, 'applications', row);
       await recordMomentum(client, this.owner, row.updatedAt);
       return row;
+    });
+  }
+  async changePreparation(applicationId: string, change: PreparationChange) {
+    return this.transaction(true, async (client) => {
+      const current = (await this.read(client)).applications.find(
+        (row) => row.id === applicationId,
+      );
+      if (!current) throw new WorkspaceError('Application not found.', 404);
+      const next = changeApplicationPreparation(
+        current,
+        change,
+        new Date().toISOString(),
+      );
+      await this.replace(client, 'applications', next);
+      return next;
     });
   }
   async deleteApplication(id: string) {

@@ -179,6 +179,7 @@ export interface ApplicationInput extends TrackingFields {
 export interface JobApplication extends ApplicationInput {
   id: string;
   activities?: ApplicationActivity[];
+  preparations?: import('./preparation').Preparation[];
   status: ApplicationStatus;
   createdAt: string;
   updatedAt: string;

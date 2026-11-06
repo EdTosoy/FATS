@@ -1,4 +1,5 @@
 import {
+  type PreparationChange,
   type CsvSource,
   type CsvImportRequest,
   type CsvImportSummary,
@@ -104,6 +105,12 @@ export class HttpWorkspaceRepository implements WorkspaceRepository {
   }
   update(id: string, input: ApplicationInput & { status: ApplicationStatus }) {
     return this.request<JobApplication>('update', { id, input });
+  }
+  changePreparation(applicationId: string, change: PreparationChange) {
+    return this.request<JobApplication>('change-preparation', {
+      id: applicationId,
+      change,
+    });
   }
   deleteApplication(id: string) {
     return this.request<void>('delete-application', { id });

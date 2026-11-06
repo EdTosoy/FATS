@@ -1,4 +1,6 @@
 import {
+  changeApplicationPreparation,
+  type PreparationChange,
   previewCsvRows,
   selectCsvApplications,
   csvDigest,
@@ -206,6 +208,23 @@ export class LocalApplicationRepository implements WorkspaceRepository {
         ),
       );
       return interview;
+    });
+  }
+  async changePreparation(applicationId: string, change: PreparationChange) {
+    return this.withWriteLock(async () => {
+      const data = this.read();
+      this.requireParent(data, applicationId);
+      const current = data.applications.find(
+        (row) => row.id === applicationId,
+      )!;
+      const next = changeApplicationPreparation(current, change, this.now());
+      this.write({
+        ...data,
+        applications: data.applications.map((row) =>
+          row.id === applicationId ? next : row,
+        ),
+      });
+      return next;
     });
   }
   async deleteApplication(id: string): Promise<void> {

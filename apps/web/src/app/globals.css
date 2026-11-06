@@ -3197,3 +3197,62 @@ input[type='file']::file-selector-button {
 .csv-counts {
   font-weight: 600;
 }
+
+.preparation-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.preparation-heading h2,
+.preparation-heading h3 {
+  margin: 0;
+}
+.preparation-heading h3 {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.preparation-list {
+  list-style: none;
+  padding: 0;
+}
+.preparation-list > li,
+.preparation-notes {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-block: 20px;
+}
+.preparation-list h3,
+.preparation-notes h3 {
+  font-size: 15px;
+}
+.preparation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.preparation-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-block: 12px;
+}
+.preparation-url {
+  overflow-wrap: anywhere;
+}
+.preparation-submitted {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.preparation-confirm {
+  padding: 16px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+}
+.preparation-empty {
+  margin-block: 20px;
+}

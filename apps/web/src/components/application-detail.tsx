@@ -1,5 +1,6 @@
 'use client';
 import { applicationListHref } from '@/lib/application-list-url';
+import { ApplicationPreparation } from './application-preparation';
 import { ApplicationTracking } from './application-tracking';
 import { OfferDesk } from './offer-desk';
 
@@ -185,6 +186,7 @@ export function ApplicationDetail({
             <p className="field-hint source-url">{application.sourceUrl}</p>
           </Card>
           <ApplicationTracking application={application} />
+          <ApplicationPreparation application={application} />
           <OfferDesk applicationId={application.id} />
           <ApplicationDocuments applicationId={application.id} />
           {matchingEnabled && <ResumeMatching applicationId={application.id} />}

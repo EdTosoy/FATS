@@ -1,3 +1,4 @@
+import { validatePreparations } from './preparation';
 import {
   normalizeTracking,
   validateApplicationActivities,
@@ -52,6 +53,7 @@ export type AnyWorkspaceBackup =
 export interface WorkspaceCounts {
   applications: number;
   interviews: number;
+  preparations?: number;
 }
 export interface RestorePreview {
   token: string;
@@ -109,11 +111,16 @@ function application(value: unknown): JobApplication {
     row.activities === undefined
       ? []
       : validateApplicationActivities(row.activities);
+  const preparations =
+    row.preparations === undefined
+      ? []
+      : validatePreparations(row.preparations);
   // Validate using creation rules, but preserve original text and timestamps.
   return {
     ...input,
     ...normalizeTracking(row),
     ...(activities.length ? { activities } : {}),
+    ...(preparations.length ? { preparations } : {}),
     ...identity(row),
     status: row.status,
   };
@@ -163,7 +170,12 @@ export function validateWorkspaceData(value: unknown): WorkspaceData {
   return { applications, interviews };
 }
 export function workspaceCounts(data: WorkspaceData): WorkspaceCounts {
+  const preparations = data.applications.reduce(
+    (count, row) => count + (row.preparations?.length ?? 0),
+    0,
+  );
   return {
+    ...(preparations ? { preparations } : {}),
     applications: data.applications.length,
     interviews: data.interviews.length,
   };

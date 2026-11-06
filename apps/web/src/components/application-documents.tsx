@@ -60,7 +60,7 @@ export function ApplicationDocuments({
     }
   }
   return (
-    <Card className="application-documents">
+    <Card id="submitted-resume" className="application-documents">
       <div className="section-heading">
         <h2>
           <FileText size={18} aria-hidden="true" />

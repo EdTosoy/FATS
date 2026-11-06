@@ -297,7 +297,7 @@ it('performs a real confirmed restore and verifies records, relationships, crede
           'SELECT count(*)::int AS count FROM fats_schema_migrations',
         )
       ).rows[0].count,
-    ).toBe(12);
+    ).toBe(13);
     expect(
       (
         await recovered.pool.query(

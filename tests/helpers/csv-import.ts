@@ -141,7 +141,9 @@ export async function completeCsvJourney(page: Page) {
     page.getByText('TypeScript, SQL', { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText('Private imported note', { exact: true }),
+    page
+      .locator('.tracking-details')
+      .getByText('Private imported note', { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText('First line\nSecond line with "quotes"', { exact: true }),
