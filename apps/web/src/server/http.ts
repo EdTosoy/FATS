@@ -91,7 +91,54 @@ export function objectField(
     throw new WorkspaceError(`The ${field} field must be an object.`);
   return value as Record<string, unknown>;
 }
-export function errorResponse(error: unknown): Response {
+export type AuthFailureStage =
+  | 'auth-initialization'
+  | 'auth-connect'
+  | 'auth-guard'
+  | 'auth-library'
+  | 'auth-session';
+
+export function reportAuthFailure(stage: AuthFailureStage, error?: unknown) {
+  const candidate =
+    error instanceof Error && 'code' in error ? error.code : undefined;
+  const code = typeof candidate === 'string' ? candidate : '';
+  // Never log the error object, message, SQL, request, recipient or arbitrary
+  // driver code. Only these fixed categories may leave the server boundary.
+  const category =
+    code === '42P01' || code === '42703'
+      ? 'database-schema'
+      : code === '42501'
+        ? 'database-permission'
+        : code === '28P01' || code === '28000'
+          ? 'database-authentication'
+          : [
+                'ECONNREFUSED',
+                'ECONNRESET',
+                'ETIMEDOUT',
+                'ENOTFOUND',
+                'EAI_AGAIN',
+                '08006',
+                '53300',
+                '57P03',
+              ].includes(code)
+            ? 'database-connection'
+            : [
+                  'ERR_TLS_CERT_ALTNAME_INVALID',
+                  'CERT_HAS_EXPIRED',
+                  'DEPTH_ZERO_SELF_SIGNED_CERT',
+                  'SELF_SIGNED_CERT_IN_CHAIN',
+                  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+                  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+                ].includes(code)
+              ? 'database-tls'
+              : 'unexpected';
+  console.error('FATS authentication unavailable.', { stage, category });
+}
+
+export function errorResponse(
+  error: unknown,
+  authStage?: AuthFailureStage,
+): Response {
   if (error instanceof WorkspaceError)
     return Response.json(
       { error: error.message },
@@ -111,6 +158,7 @@ export function errorResponse(error: unknown): Response {
       { error: error.message },
       { status: 400, headers: privateHeaders },
     );
+  if (authStage) reportAuthFailure(authStage, error);
   return Response.json(
     {
       error:

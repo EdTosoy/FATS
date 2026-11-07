@@ -180,6 +180,69 @@ it('holds transaction-scoped auth coordination through the library operation and
   }
 });
 
+it('identifies failed auth stages without logging driver details and recovers on retry', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const connect = vi.spyOn(services.pool, 'connect').mockRejectedValueOnce(
+    Object.assign(new Error('Private connection details.'), {
+      code: 'ECONNREFUSED',
+    }),
+  );
+  try {
+    expect(
+      (
+        await call('sign-in/email', {
+          email: 'synthetic@example.test',
+          password,
+        })
+      ).status,
+    ).toBe(503);
+    expect(log).toHaveBeenLastCalledWith('FATS authentication unavailable.', {
+      stage: 'auth-connect',
+      category: 'database-connection',
+    });
+  } finally {
+    connect.mockRestore();
+  }
+  const handler = vi.spyOn(services.auth, 'handler');
+  try {
+    handler.mockRejectedValueOnce(
+      Object.assign(new Error('Private SQL and parameters.'), {
+        code: '42501',
+      }),
+    );
+    expect(
+      (
+        await call('sign-in/email', {
+          email: 'synthetic@example.test',
+          password,
+        })
+      ).status,
+    ).toBe(503);
+    expect(log).toHaveBeenLastCalledWith('FATS authentication unavailable.', {
+      stage: 'auth-library',
+      category: 'database-permission',
+    });
+    handler.mockResolvedValueOnce(
+      new Response('Private library failure.', { status: 500 }),
+    );
+    const response = await call('sign-in/email', {
+      email: 'synthetic@example.test',
+      password,
+    });
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain('Private');
+    expect(log).toHaveBeenLastCalledWith('FATS authentication unavailable.', {
+      stage: 'auth-library',
+      category: 'unexpected',
+    });
+    expect(JSON.stringify(log.mock.calls)).not.toContain('Private');
+  } finally {
+    handler.mockRestore();
+    log.mockRestore();
+  }
+  await verified();
+});
+
 it('previews pending SQL without applying it and rejects changed migration checksums', async () => {
   const directory = await mkdtemp(tmpdir() + '/fats-d2-migrations-');
   try {
@@ -190,15 +253,20 @@ it('previews pending SQL without applying it and rejects changed migration check
     );
     const marker = 'd2_' + randomUUID().replaceAll('-', '');
     await writeFile(
-      directory + '/0012_dtwo_probe.sql',
+      directory + '/0015_dtwo_probe.sql',
       `CREATE TABLE ${marker}(id integer);`,
     );
     const plan = await previewMigrations(
       services.pool,
       pathToFileURL(directory + '/'),
     );
-    expect(plan.applied).toHaveLength(11);
-    expect(plan.pending).toEqual(['0012_dtwo_probe.sql']);
+    expect(plan.applied).toHaveLength(14);
+    expect(plan.applied.slice(-3)).toEqual([
+      '0012_application_tracking.sql',
+      '0013_application_preparation.sql',
+      '0014_application_tasks.sql',
+    ]);
+    expect(plan.pending).toEqual(['0015_dtwo_probe.sql']);
     expect(
       (await services.pool.query('SELECT to_regclass($1) AS name', [marker]))
         .rows[0].name,

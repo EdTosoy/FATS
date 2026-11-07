@@ -27,6 +27,8 @@ import {
   requireOrigin,
   textField,
   objectField,
+  reportAuthFailure,
+  type AuthFailureStage,
 } from './http';
 
 function publicUser(value: unknown) {
@@ -45,6 +47,7 @@ export async function handleAuth(
 ): Promise<Response> {
   const started = Date.now();
   let authGuard: PoolClient | undefined;
+  let failureStage: AuthFailureStage = 'auth-guard';
   const path = new URL(request.url).pathname.replace('/api/auth', '');
   const genericRequest = [
     '/sign-up/email',
@@ -116,7 +119,9 @@ export async function handleAuth(
           break;
       }
     }
+    failureStage = 'auth-connect';
     authGuard = await services.pool.connect();
+    failureStage = 'auth-guard';
     await authGuard.query('BEGIN');
     await authGuard.query("SET LOCAL statement_timeout='15s'");
     await authGuard.query("SET LOCAL lock_timeout='5s'");
@@ -151,6 +156,7 @@ export async function handleAuth(
         ...(request.method === 'POST' ? { body: JSON.stringify(input) } : {}),
       },
     );
+    failureStage = 'auth-library';
     const response = await services.auth.handler(forwarded);
     const outgoing = new Headers(response.headers);
     outgoing.delete('content-length');
@@ -159,6 +165,7 @@ export async function handleAuth(
     for (const [key, value] of Object.entries(privateHeaders))
       outgoing.set(key, value);
     if (!response.ok) {
+      if (response.status >= 500) reportAuthFailure(failureStage);
       const error =
         response.status === 429
           ? 'Too many attempts. Please wait a minute and try again.'
@@ -178,6 +185,7 @@ export async function handleAuth(
       return Response.json({ error }, { status, headers: outgoing });
     }
     if (path === '/get-session' || path === '/sign-in/email') {
+      failureStage = 'auth-session';
       const result = await response.json();
       if (result?.user) {
         try {
@@ -196,7 +204,7 @@ export async function handleAuth(
     // New/existing registrations and email requests have identical output.
     return Response.json({ success: true }, { headers: outgoing });
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, failureStage);
   } finally {
     if (authGuard) {
       let failed = false;
