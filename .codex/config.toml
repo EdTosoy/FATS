@@ -1,0 +1,4 @@
+# Repository scope only; preserve the user-level Codex configuration.
+# No local server is registered until its installation/runtime is verified.
+[mcp_servers.graphify]
+enabled = false

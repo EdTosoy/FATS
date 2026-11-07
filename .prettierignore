@@ -11,3 +11,9 @@ apps/extension/dist
 backups
 .fats-private/
 *.dump.documents/
+.tools/
+graphify-out/
+.graphify/
+.icm/
+.obsidian/
+.trash/

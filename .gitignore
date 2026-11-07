@@ -17,3 +17,12 @@ backups/
 .fats-private/
 *.dump.documents/
 .vercel
+
+# Local developer tools, indexes and memory (only reviewed ICM config is shared).
+.tools/
+graphify-out/
+.graphify/
+.icm/*
+!.icm/config.toml
+.obsidian/
+.trash/

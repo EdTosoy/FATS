@@ -1,0 +1,27 @@
+# Explicitly select this config with ICM_CONFIG; do not run `icm init`.
+# Reviewed against rtk-ai/icm's config/default.toml and config.rs (2026-11-08).
+[store]
+path = ".icm/memories.db"
+
+[embeddings]
+enabled = false
+
+[memory]
+auto_consolidate_enabled = false
+
+[extraction]
+enabled = false
+store_raw = false
+
+[extraction.conversation]
+enabled = false
+in_session = false
+
+[extraction.summarizer]
+provider = "none"
+
+[consolidate.summarizer]
+provider = "none"
+
+[cloud]
+enabled = false
