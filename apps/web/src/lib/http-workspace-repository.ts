@@ -1,4 +1,10 @@
 import {
+  type PreparationChange,
+  type TaskChange,
+  type CsvSource,
+  type CsvImportRequest,
+  type CsvImportSummary,
+  type CsvPreview,
   validateActivityDays,
   type WorkspaceSnapshot,
   parseBackup,
@@ -101,6 +107,18 @@ export class HttpWorkspaceRepository implements WorkspaceRepository {
   update(id: string, input: ApplicationInput & { status: ApplicationStatus }) {
     return this.request<JobApplication>('update', { id, input });
   }
+  changePreparation(applicationId: string, change: PreparationChange) {
+    return this.request<JobApplication>('change-preparation', {
+      id: applicationId,
+      change,
+    });
+  }
+  changeTask(applicationId: string, change: TaskChange) {
+    return this.request<JobApplication>('change-task', {
+      id: applicationId,
+      change,
+    });
+  }
   deleteApplication(id: string) {
     return this.request<void>('delete-application', { id });
   }
@@ -118,6 +136,12 @@ export class HttpWorkspaceRepository implements WorkspaceRepository {
   }
   createCapturedApplication(capture: JobCapture, input: ApplicationInput) {
     return this.request<JobApplication>('capture', { capture, input });
+  }
+  previewCsv(source: CsvSource) {
+    return this.request<CsvPreview>('preview-csv', { source });
+  }
+  importCsv(input: CsvImportRequest) {
+    return this.request<CsvImportSummary>('import-csv', { input });
   }
   async exportBackup() {
     return serializeBackup(parseBackup(await this.request<string>('export')));

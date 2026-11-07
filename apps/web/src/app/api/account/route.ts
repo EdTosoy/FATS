@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       getServices(),
     );
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, 'auth-initialization');
   }
 }
 export async function POST(request: Request) {

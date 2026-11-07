@@ -27,7 +27,7 @@ async function handle(value: unknown, sender: chrome.runtime.MessageSender) {
     isPanelSender(sender, chrome.runtime.id)
   ) {
     if (!isFatsOrigin(message.origin))
-      throw new Error('Choose a supported local FATS workspace.');
+      throw new Error('Choose a supported FATS destination.');
     const job = normalizeCapturedJob(message.job),
       createdAt = new Date().toISOString();
     const capture: JobCapture = {

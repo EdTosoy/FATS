@@ -16,3 +16,4 @@ backups/
 *.dump.*.partial
 .fats-private/
 *.dump.documents/
+.vercel

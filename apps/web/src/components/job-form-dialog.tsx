@@ -6,7 +6,14 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookmarkPlus, X } from 'lucide-react';
-import { APPLICATION_STATUSES, type JobApplication } from '@fats/domain';
+import {
+  TRACKING_TEXT_FIELDS,
+  PAYMENT_PERIODS,
+  APPLICATION_WORK_ARRANGEMENTS,
+  type ApplicationInput,
+  APPLICATION_STATUSES,
+  type JobApplication,
+} from '@fats/domain';
 import { useApplications } from './application-provider';
 import { Button } from './ui';
 
@@ -28,7 +35,18 @@ export function JobFormDialog({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const input = {
+    const input: ApplicationInput = {
+      ...Object.fromEntries(
+        TRACKING_TEXT_FIELDS.map((key) => [key, String(data.get(key) ?? '')]),
+      ),
+      salaryMin: data.get('salaryMin') ? Number(data.get('salaryMin')) : null,
+      salaryMax: data.get('salaryMax') ? Number(data.get('salaryMax')) : null,
+      workArrangement: String(
+        data.get('workArrangement') ?? '',
+      ) as ApplicationInput['workArrangement'],
+      paymentPeriod: String(
+        data.get('paymentPeriod') ?? '',
+      ) as ApplicationInput['paymentPeriod'],
       title: String(data.get('title') ?? ''),
       company: String(data.get('company') ?? ''),
       sourceUrl: String(data.get('sourceUrl') ?? ''),
@@ -160,6 +178,75 @@ export function JobFormDialog({
                   </select>
                 </label>
               )}
+              <details>
+                <summary>Job and application details (optional)</summary>
+                <div className="form-grid">
+                  {(['salaryMin', 'salaryMax'] as const).map((key) => (
+                    <label key={key}>
+                      {key === 'salaryMin'
+                        ? 'Minimum salary'
+                        : 'Maximum salary'}
+                      <input
+                        name={key}
+                        type="number"
+                        min="0"
+                        step="any"
+                        defaultValue={application?.[key] ?? ''}
+                      />
+                    </label>
+                  ))}
+                  <label>
+                    Work arrangement
+                    <select
+                      name="workArrangement"
+                      defaultValue={application?.workArrangement ?? ''}
+                    >
+                      <option value="">Not specified</option>
+                      {APPLICATION_WORK_ARRANGEMENTS.map((value) => (
+                        <option key={value}>{value}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Payment period
+                    <select
+                      name="paymentPeriod"
+                      defaultValue={application?.paymentPeriod ?? ''}
+                    >
+                      <option value="">Not specified</option>
+                      {PAYMENT_PERIODS.map((value) => (
+                        <option key={value}>{value}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {TRACKING_TEXT_FIELDS.map((key) => (
+                    <label key={key}>
+                      {TRACKING_LABELS[key]}
+                      {['notes', 'fitNotes', 'qualifications'].includes(key) ? (
+                        <textarea
+                          name={key}
+                          maxLength={20000}
+                          defaultValue={application?.[key] ?? ''}
+                          rows={3}
+                        />
+                      ) : (
+                        <input
+                          name={key}
+                          type={
+                            key.endsWith('Date')
+                              ? 'date'
+                              : key === 'recruiterEmail'
+                                ? 'email'
+                                : 'text'
+                          }
+                          maxLength={20000}
+                          defaultValue={application?.[key] ?? ''}
+                        />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </details>
               <label>
                 Job description{' '}
                 <span className="required-note">(optional)</span>
@@ -208,3 +295,22 @@ export function JobFormDialog({
     </Dialog.Root>
   );
 }
+
+export const TRACKING_LABELS: Record<
+  (typeof TRACKING_TEXT_FIELDS)[number],
+  string
+> = {
+  currency: 'Currency (three-letter code)',
+  seniority: 'Seniority',
+  technologies: 'Technologies',
+  qualifications: 'Required qualifications',
+  postingDate: 'Job posting date',
+  lastCheckedDate: 'Last checked date',
+  applicationDate: 'Application date',
+  applicationChannel: 'Application channel',
+  recruiterName: 'Recruiter / contact name',
+  recruiterEmail: 'Contact email',
+  recruiterPhone: 'Contact phone',
+  notes: 'Notes',
+  fitNotes: 'Personal fit assessment notes',
+};

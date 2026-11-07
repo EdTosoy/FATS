@@ -4,6 +4,11 @@ import { mkdtemp, cp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import {
+  type TaskInput,
+  type PreparationInput,
+  parseCsv,
+  suggestCsvMapping,
+  type CsvSource,
   activityDate,
   createBackup,
   serializeBackup,
@@ -181,6 +186,404 @@ afterAll(async () => {
   await services.pool.end();
 });
 describe('PostgreSQL migrations and real authentication', () => {
+  it('persists owner-scoped tasks, rejects competing edits, restores backups and recovers failed writes', async () => {
+    const a = await user(),
+      b = await user(),
+      saved = await a.repository.create(app);
+    const input: TaskInput = {
+      title: 'Follow up',
+      notes: 'Ask recruiter',
+      dueDate: '2026-11-06',
+      dueTime: '12:00',
+      timeZone: 'Asia/Manila',
+      occurrence: '',
+    };
+    const change = {
+      action: 'save' as const,
+      id: 'task',
+      input,
+      expected: null,
+    };
+    expect(
+      (await request(b.cookie, { action: 'change-task', id: saved.id, change }))
+        .status,
+    ).toBe(404);
+    const response = await request(a.cookie, {
+      action: 'change-task',
+      id: saved.id,
+      change,
+    });
+    expect(response.status).toBe(200);
+    const task = (await response.json()).tasks[0];
+    const results = await Promise.allSettled(
+      ['complete', 'delete'].map((action) =>
+        a.repository.changeTask(saved.id, {
+          action: action as 'complete' | 'delete',
+          id: 'task',
+          expected: task,
+        }),
+      ),
+    );
+    expect(results.filter((row) => row.status === 'fulfilled')).toHaveLength(1);
+    const current = (await a.repository.list())[0];
+    if (!current.tasks?.length) await a.repository.changeTask(saved.id, change);
+    const preview = await b.repository.previewRestore(
+      await a.repository.exportBackup(),
+    );
+    expect(preview.incoming.tasks).toBe(1);
+    await b.repository.restoreBackup(preview.token);
+    expect((await b.repository.list())[0].tasks).toEqual(
+      (await a.repository.list())[0].tasks,
+    );
+    const before = (await a.repository.list())[0],
+      name = 'task_test_' + randomUUID().replaceAll('-', '');
+    try {
+      await services.pool.query(
+        `CREATE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id='${a.id}' THEN RAISE EXCEPTION 'Synthetic task failure'; END IF; RETURN NEW; END $$`,
+      );
+      await services.pool.query(
+        `CREATE TRIGGER ${name} BEFORE UPDATE ON applications FOR EACH ROW EXECUTE FUNCTION ${name}()`,
+      );
+      expect(
+        (
+          await request(a.cookie, {
+            action: 'change-task',
+            id: saved.id,
+            change: {
+              action: 'reopen',
+              id: 'task',
+              expected: before.tasks![0],
+            },
+          })
+        ).status,
+      ).toBe(503);
+      expect((await a.repository.list())[0]).toEqual(before);
+    } finally {
+      await services.pool.query(
+        `DROP TRIGGER IF EXISTS ${name} ON applications`,
+      );
+      await services.pool.query(`DROP FUNCTION IF EXISTS ${name}()`);
+    }
+    await a.repository.changeTask(saved.id, {
+      action: 'reopen',
+      id: 'task',
+      expected: before.tasks![0],
+    });
+    expect((await a.repository.list())[0].tasks![0].completedAt).toBeNull();
+  });
+  it('keeps preparation materials owner-scoped, preserves submitted copies and restores them with R1/R2 data', async () => {
+    const a = await user(),
+      b = await user();
+    const saved = await a.repository.create({
+      ...app,
+      technologies: 'TypeScript',
+      notes: 'General notes',
+    });
+    const input: PreparationInput = {
+      kind: 'screening-answer',
+      title: 'Why this role?',
+      text: 'My original answer',
+      url: '',
+      state: 'ready',
+    };
+    const create = {
+      action: 'change-preparation',
+      id: saved.id,
+      change: { action: 'save', id: 'answer', input, expected: null },
+    };
+    expect((await request(undefined, create)).status).toBe(401);
+    expect((await request(b.cookie, create)).status).toBe(404);
+    const response = await request(a.cookie, create);
+    expect(response.status).toBe(200);
+    const prepared = await response.json();
+    const submitted = await a.repository.changePreparation(saved.id, {
+      action: 'submit',
+      id: 'answer',
+      expected: prepared.preparations[0],
+    });
+    const revised = await a.repository.changePreparation(saved.id, {
+      action: 'save',
+      id: 'answer',
+      input: { ...input, text: 'My revised answer', state: 'draft' },
+      expected: submitted.preparations![0],
+    });
+    expect(revised.preparations![0].submitted?.text).toBe(input.text);
+    await a.repository.update(saved.id, { ...saved, status: 'Applied' });
+    const loaded = (await a.repository.list())[0];
+    expect(loaded.preparations).toEqual(revised.preparations);
+    expect(loaded.technologies).toBe('TypeScript');
+    expect(loaded.activities).toHaveLength(1);
+    const preview = await b.repository.previewRestore(
+      await a.repository.exportBackup(),
+    );
+    expect(preview.incoming.preparations).toBe(1);
+    await b.repository.restoreBackup(preview.token);
+    expect((await b.repository.list())[0]).toEqual(loaded);
+    const removed = await a.repository.changePreparation(saved.id, {
+      action: 'delete',
+      id: 'answer',
+      expected: revised.preparations![0],
+    });
+    expect(removed.preparations ?? []).toHaveLength(0);
+    expect((await b.repository.list())[0].preparations).toHaveLength(1);
+  });
+  it('rejects competing preparation edits and invalidates backup/CSV previews after a saved preparation', async () => {
+    const a = await user(),
+      saved = await a.repository.create(app);
+    const input: PreparationInput = {
+      kind: 'cover-letter',
+      title: 'Letter',
+      text: 'Original',
+      url: '',
+      state: 'draft',
+    };
+    const prepared = await a.repository.changePreparation(saved.id, {
+      action: 'save',
+      id: 'letter',
+      input,
+      expected: null,
+    });
+    const backup = await a.repository.previewRestore(
+      await a.repository.exportBackup(),
+    );
+    const edits = await Promise.allSettled(
+      ['First edit', 'Second edit'].map((text) =>
+        a.repository.changePreparation(saved.id, {
+          action: 'save',
+          id: 'letter',
+          input: { ...input, text },
+          expected: prepared.preparations![0],
+        }),
+      ),
+    );
+    expect(edits.filter((row) => row.status === 'fulfilled')).toHaveLength(1);
+    expect(edits.filter((row) => row.status === 'rejected')).toHaveLength(1);
+    await expect(a.repository.restoreBackup(backup.token)).rejects.toThrow(
+      'changed since preview',
+    );
+    const loaded = (await a.repository.list())[0];
+    expect(['First edit', 'Second edit']).toContain(
+      loaded.preparations![0].text,
+    );
+  });
+  it('preserves saved preparation data after a real PostgreSQL failure and permits retry', async () => {
+    const a = await user(),
+      saved = await a.repository.create(app);
+    const input: PreparationInput = {
+      kind: 'introduction',
+      title: 'Introduction',
+      text: 'My script',
+      url: '',
+      state: 'ready',
+    };
+    const change = {
+      action: 'save' as const,
+      id: 'script',
+      input,
+      expected: null,
+    };
+    const name = 'preparation_test_' + randomUUID().replaceAll('-', '');
+    try {
+      await services.pool.query(
+        `CREATE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id='${a.id}' THEN RAISE EXCEPTION 'Synthetic preparation failure'; END IF; RETURN NEW; END $$`,
+      );
+      await services.pool.query(
+        `CREATE TRIGGER ${name} BEFORE UPDATE ON applications FOR EACH ROW EXECUTE FUNCTION ${name}()`,
+      );
+      const response = await request(a.cookie, {
+        action: 'change-preparation',
+        id: saved.id,
+        change,
+      });
+      expect(response.status).toBe(503);
+      expect(JSON.stringify(await response.json())).not.toContain(
+        'Synthetic preparation failure',
+      );
+      expect(await a.repository.list()).toEqual([saved]);
+    } finally {
+      await services.pool.query(
+        `DROP TRIGGER IF EXISTS ${name} ON applications`,
+      );
+      await services.pool.query(`DROP FUNCTION IF EXISTS ${name}()`);
+    }
+    const prepared = await a.repository.changePreparation(saved.id, change);
+    expect((await a.repository.list())[0].preparations).toEqual(
+      prepared.preparations,
+    );
+  });
+
+  it('previews and imports CSV atomically through authenticated APIs, rejects stale/concurrent requests and prevents reimport', async () => {
+    const a = await user(),
+      b = await user();
+    const existing = await a.repository.create(app);
+    const text =
+      'Company,Title,Location,URL,Status,Technologies,Notes\nCSV Co,Analyst,Cebu,https://example.test/csv-a,Submitted,SQL,Keep this note\nCSV Two,Engineer,Manila,https://example.test/csv-b,Interview,TypeScript,Other note';
+    const source: CsvSource = {
+      text,
+      mapping: suggestCsvMapping(parseCsv(text).headers),
+      dateOrder: 'iso',
+    };
+    const response = await request(a.cookie, { action: 'preview-csv', source });
+    expect(response.status).toBe(200);
+    const preview = await response.json();
+    expect(await a.repository.list()).toEqual([existing]);
+    const input = {
+      ...source,
+      token: preview.token,
+      selected: [2, 3],
+      confirmed: true,
+    };
+    expect(
+      (await request(b.cookie, { action: 'import-csv', input })).status,
+    ).toBe(400);
+    expect(
+      (
+        await request(a.cookie, {
+          action: 'import-csv',
+          input: { ...input, confirmed: false },
+        })
+      ).status,
+    ).toBe(400);
+    const concurrent = await Promise.all([
+      request(a.cookie, { action: 'import-csv', input }),
+      request(a.cookie, { action: 'import-csv', input }),
+    ]);
+    expect(concurrent.map((response) => response.status).sort()).toEqual([
+      200, 400,
+    ]);
+    const rows = await a.repository.list();
+    expect(rows).toHaveLength(3);
+    expect(rows).toContainEqual(existing);
+    expect(rows.find((row) => row.company === 'CSV Co')).toMatchObject({
+      status: 'Applied',
+      technologies: 'SQL',
+      notes: 'Keep this note',
+    });
+    expect(
+      rows.find((row) => row.company === 'CSV Two')?.applicationDate,
+    ).toBeUndefined();
+    expect(
+      rows.find((row) => row.company === 'CSV Two')?.activities,
+    ).toBeUndefined();
+    const again = await a.repository.previewCsv(source);
+    expect(again.rows.every((row) => row.duplicate)).toBe(true);
+    await expect(
+      a.repository.importCsv({ ...input, token: again.token }),
+    ).rejects.toThrow('cannot be imported');
+    const copy = await b.repository.previewRestore(
+      await a.repository.exportBackup(),
+    );
+    await b.repository.restoreBackup(copy.token);
+    expect(await b.repository.list()).toEqual(rows);
+    const before = await a.repository.previewCsv({
+      ...source,
+      text: source.text.replaceAll('csv-', 'new-'),
+    });
+    await a.repository.create({
+      ...app,
+      title: 'Concurrent new job',
+      sourceUrl: 'https://example.test/concurrent',
+    });
+    await expect(
+      a.repository.importCsv({
+        ...input,
+        text: source.text.replaceAll('csv-', 'new-'),
+        token: before.token,
+      }),
+    ).rejects.toThrow('changed');
+    expect(await a.repository.list()).toHaveLength(4);
+  });
+  it('rolls back every CSV record if PostgreSQL rejects a later insert, then permits a safe retry', async () => {
+    const a = await user();
+    const text =
+      'Company,Title,Location,URL\nCSV Good,Analyst,Cebu,https://example.test/good\nCSV Fail,Engineer,Manila,https://example.test/fail';
+    const source: CsvSource = {
+      text,
+      mapping: suggestCsvMapping(parseCsv(text).headers),
+      dateOrder: 'iso',
+    };
+    const preview = await a.repository.previewCsv(source);
+    const name = 'csv_test_' + randomUUID().replaceAll('-', '');
+    try {
+      await services.pool.query(
+        `CREATE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id='${a.id}' AND NEW.company='CSV Fail' THEN RAISE EXCEPTION 'Synthetic CSV failure'; END IF; RETURN NEW; END $$`,
+      );
+      await services.pool.query(
+        `CREATE TRIGGER ${name} BEFORE INSERT ON applications FOR EACH ROW EXECUTE FUNCTION ${name}()`,
+      );
+      await expect(
+        a.repository.importCsv({
+          ...source,
+          token: preview.token,
+          selected: [2, 3],
+          confirmed: true,
+        }),
+      ).rejects.toThrow('Synthetic CSV failure');
+      expect(await a.repository.list()).toEqual([]);
+    } finally {
+      await services.pool.query(
+        `DROP TRIGGER IF EXISTS ${name} ON applications`,
+      );
+      await services.pool.query(`DROP FUNCTION IF EXISTS ${name}()`);
+    }
+    await expect(
+      a.repository.importCsv({
+        ...source,
+        token: preview.token,
+        selected: [2, 3],
+        confirmed: true,
+      }),
+    ).resolves.toEqual({ imported: 2, skipped: 0 });
+  });
+
+  it('persists R1 fields, timeline and backup restore with account ownership', async () => {
+    const a = await user(),
+      b = await user();
+    const created = await request(a.cookie, {
+      action: 'create',
+      id: randomUUID(),
+      input: {
+        ...app,
+        workArrangement: 'remote',
+        salaryMin: 25000,
+        salaryMax: 35000,
+        currency: 'PHP',
+        technologies: 'TypeScript',
+        fitNotes: 'Learning opportunities',
+      },
+    });
+    expect(created.status).toBe(200);
+    const saved = await created.json();
+    const changed = await request(a.cookie, {
+      action: 'update',
+      id: saved.id,
+      input: {
+        ...saved,
+        status: 'Applied',
+        newActivity: {
+          kind: 'recruiter-response',
+          date: '2026-11-06',
+          notes: 'Requested availability',
+        },
+      },
+    });
+    expect(changed.status).toBe(200);
+    const updated = await changed.json();
+    expect(updated.activities).toHaveLength(2);
+    expect((await a.repository.list())[0]).toEqual(updated);
+    expect(await b.repository.list()).toEqual([]);
+    const exported = await a.repository.exportBackup();
+    const preview = await b.repository.previewRestore(exported);
+    await b.repository.restoreBackup(preview.token);
+    expect((await b.repository.list())[0]).toEqual(updated);
+    await a.repository.update(saved.id, {
+      ...updated,
+      salaryMin: null,
+      salaryMax: null,
+    });
+    expect((await a.repository.list())[0].salaryMin).toBeNull();
+  });
+
   it('applies exactly the versioned schema, reruns safely, and enforces database ownership keys', async () => {
     expect(await runMigrations(services.pool)).toEqual([
       '0001_auth.sql',
@@ -194,6 +597,9 @@ describe('PostgreSQL migrations and real authentication', () => {
       '0009_document_intake.sql',
       '0010_career_vault.sql',
       '0011_momentum.sql',
+      '0012_application_tracking.sql',
+      '0013_application_preparation.sql',
+      '0014_application_tasks.sql',
     ]);
     expect(
       (
@@ -201,7 +607,7 @@ describe('PostgreSQL migrations and real authentication', () => {
           'SELECT name FROM fats_schema_migrations ORDER BY name',
         )
       ).rows,
-    ).toHaveLength(11);
+    ).toHaveLength(14);
     const a = await user(),
       b = await user();
     const data = await dataset(a);

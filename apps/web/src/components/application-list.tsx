@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   applicationFilterQuery,
@@ -41,7 +42,10 @@ export function ApplicationList() {
     if (href !== location.pathname + location.search + location.hash)
       window.history[replace ? 'replaceState' : 'pushState'](null, '', href);
   }
-  const filtered = filterApplications(applications, query, status);
+  const [arrangement, setArrangement] = useState('');
+  const filtered = filterApplications(applications, query, status).filter(
+    (row) => !arrangement || row.workArrangement === arrangement,
+  );
 
   return (
     <>
@@ -76,7 +80,13 @@ export function ApplicationList() {
               value={query}
               maxLength={500}
               onChange={(event) =>
-                changeFilters(event.target.value, status, true)
+                changeFilters(
+                  event.target.value,
+                  readApplicationFilters(
+                    new URLSearchParams(window.location.search),
+                  ).status,
+                  true,
+                )
               }
               placeholder="Search by role, company, location…"
               disabled={loading || !!error}
@@ -89,7 +99,9 @@ export function ApplicationList() {
               value={status}
               onChange={(event) =>
                 changeFilters(
-                  query,
+                  readApplicationFilters(
+                    new URLSearchParams(window.location.search),
+                  ).query,
                   event.target.value as ApplicationStatus | 'All',
                 )
               }
@@ -101,10 +113,29 @@ export function ApplicationList() {
               ))}
             </select>
           </label>
+          <label className="filter-field">
+            <span className="sr-only">Filter by work arrangement</span>
+            <select
+              value={arrangement}
+              onChange={(event) => setArrangement(event.target.value)}
+              disabled={loading || !!error}
+            >
+              <option value="">All work arrangements</option>
+              {['remote', 'hybrid', 'onsite'].map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </label>
         </div>
-        {(query || status !== 'All') &&
+        {(query || status !== 'All' || arrangement) &&
           (filtered.length > 0 || applications.length === 0) && (
-            <Button variant="ghost" onClick={() => changeFilters('', 'All')}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                changeFilters('', 'All');
+                setArrangement('');
+              }}
+            >
               Clear search &amp; filters
             </Button>
           )}
@@ -142,6 +173,7 @@ export function ApplicationList() {
                 variant="secondary"
                 onClick={() => {
                   changeFilters('', 'All');
+                  setArrangement('');
                 }}
               >
                 Clear search & filters

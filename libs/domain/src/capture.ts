@@ -1,5 +1,6 @@
 import {
   normalizeApplicationInput,
+  normalizeTracking,
   type ApplicationInput,
 } from './application';
 import { isIsoInstant } from './interview';
@@ -9,6 +10,7 @@ export class CaptureValidationError extends Error {}
 export const FATS_ORIGINS = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'https://fats.edtosoy.com',
 ] as const;
 export type FatsOrigin = (typeof FATS_ORIGINS)[number];
 export const CAPTURE_TTL_MS = 15 * 60 * 1000;
@@ -65,6 +67,20 @@ export function normalizeCapturedJob(value: unknown): CapturedJob {
     if (typeof row[field] !== 'string')
       throw new CaptureValidationError('Job fields must be plain text.');
   const job: CapturedJob = {
+    ...normalizeTracking(
+      Object.fromEntries(
+        [
+          'salaryMin',
+          'salaryMax',
+          'currency',
+          'paymentPeriod',
+          'seniority',
+          'technologies',
+          'qualifications',
+          'postingDate',
+        ].map((key) => [key, row[key]]),
+      ),
+    ),
     title: (row.title as string).trim(),
     company: (row.company as string).trim(),
     sourceUrl: (row.sourceUrl as string).trim(),
@@ -80,12 +96,19 @@ export function normalizeCapturedJob(value: unknown): CapturedJob {
   return job;
 }
 export function applicationFromCapture(job: CapturedJob): ApplicationInput {
+  const arrangement = job.workArrangement.toLowerCase().replace(/[-\s]/g, '');
   const location =
     job.workArrangement &&
     !job.location.toLowerCase().includes(job.workArrangement.toLowerCase())
       ? [job.location, job.workArrangement].filter(Boolean).join(' · ')
       : job.location;
   return normalizeApplicationInput({
+    ...job,
+    // Older Sidekick drafts allowed free-text arrangements. Keep that text in
+    // location while projecting only R1's supported choices into tracking.
+    workArrangement: ['remote', 'hybrid', 'onsite'].includes(arrangement)
+      ? arrangement
+      : '',
     title: job.title,
     company: job.company,
     sourceUrl: job.sourceUrl,

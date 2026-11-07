@@ -1,4 +1,10 @@
 {
   "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "typeRoots": [
+      "./node_modules/@types",
+      "./apps/extension/node_modules/@types"
+    ]
+  },
   "include": ["tests/**/*.ts", "vitest*.config.ts", "playwright*.config.ts"]
 }

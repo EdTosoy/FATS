@@ -1,4 +1,8 @@
+import { validateTasks } from './task';
+import { validatePreparations } from './preparation';
 import {
+  normalizeTracking,
+  validateApplicationActivities,
   isApplicationStatus,
   normalizeApplicationInput,
   type JobApplication,
@@ -50,6 +54,8 @@ export type AnyWorkspaceBackup =
 export interface WorkspaceCounts {
   applications: number;
   interviews: number;
+  preparations?: number;
+  tasks?: number;
 }
 export interface RestorePreview {
   token: string;
@@ -103,8 +109,25 @@ function application(value: unknown): JobApplication {
   normalizeApplicationInput(input);
   if (!isApplicationStatus(row.status))
     throw new BackupValidationError('Application status is invalid.');
+  const activities =
+    row.activities === undefined
+      ? []
+      : validateApplicationActivities(row.activities);
+  const preparations =
+    row.preparations === undefined
+      ? []
+      : validatePreparations(row.preparations);
+  const tasks = row.tasks === undefined ? [] : validateTasks(row.tasks);
   // Validate using creation rules, but preserve original text and timestamps.
-  return { ...input, ...identity(row), status: row.status };
+  return {
+    ...input,
+    ...normalizeTracking(row),
+    ...(activities.length ? { activities } : {}),
+    ...(preparations.length ? { preparations } : {}),
+    ...(tasks.length ? { tasks } : {}),
+    ...identity(row),
+    status: row.status,
+  };
 }
 function interview(value: unknown): Interview {
   const row = record(value);
@@ -151,7 +174,20 @@ export function validateWorkspaceData(value: unknown): WorkspaceData {
   return { applications, interviews };
 }
 export function workspaceCounts(data: WorkspaceData): WorkspaceCounts {
+  const preparations = data.applications.reduce(
+    (count, row) => count + (row.preparations?.length ?? 0),
+    0,
+  );
   return {
+    ...(preparations ? { preparations } : {}),
+    ...(data.applications.some((row) => row.tasks?.length)
+      ? {
+          tasks: data.applications.reduce(
+            (count, row) => count + (row.tasks?.length ?? 0),
+            0,
+          ),
+        }
+      : {}),
     applications: data.applications.length,
     interviews: data.interviews.length,
   };

@@ -7,6 +7,7 @@ import { MAX_BACKUP_BYTES, type RestorePreview } from '@fats/domain';
 import { useAccount } from './account-provider';
 import { useApplications } from './application-provider';
 import { Button, Card } from './ui';
+import { CsvImport } from './csv-import';
 import { useOffers } from './offer-provider';
 
 function errorMessage(error: unknown) {
@@ -135,8 +136,9 @@ export function DataManagement() {
           {account.user
             ? 'Version 2 and 3 imports add missing records and keep existing records. Version 3 includes Career Vault metadata and document-register history. Legacy version 1 restores replace applications and interviews when history protections permit. Browser records stay separate.'
             : 'Clearing browser data or losing this device can remove your workspace.'}{' '}
-          Backups exclude library document metadata, files, submitted resume
-          links, comparison reports, and reviewed text. Offer letters are
+          Backups include preparation drafts and their last submitted text
+          copies. Backups exclude library document metadata, files, submitted
+          resume links, comparison reports, and reviewed text. Offer letters are
           historical references only in JSON; file bytes and live links require
           the complete local operator archive.
         </p>
@@ -211,6 +213,7 @@ export function DataManagement() {
             </form>
           </section>
         </div>
+        <CsvImport />
         <p className="save-feedback" role="status">
           {busy && !preview ? 'Preparing backup…' : message}
         </p>
@@ -276,6 +279,26 @@ export function DataManagement() {
                   <dd>{preview.current?.interviews ?? 'Unreadable'}</dd>
                 </div>
               </dl>
+              {preview.incoming.tasks || preview.current?.tasks ? (
+                <p className="backup-warning">
+                  Backup tasks: {preview.incoming.tasks ?? 0}. Current tasks:{' '}
+                  {preview.current?.tasks ?? 0}.{' '}
+                  {preview.portable
+                    ? 'Application imports include tasks; conflicting records block import.'
+                    : 'Replacement removes current tasks and replaces them with tasks in this backup.'}
+                </p>
+              ) : null}
+              {preview.incoming.preparations ||
+              preview.current?.preparations ? (
+                <p className="backup-warning">
+                  Backup preparation materials:{' '}
+                  {preview.incoming.preparations ?? 0}. Current preparation
+                  materials: {preview.current?.preparations ?? 0}.{' '}
+                  {preview.portable
+                    ? 'Supported application imports include their drafts and last submitted copies; conflicts block import.'
+                    : 'Replacement removes the current preparation materials and replaces them with those in the backup. General preparation notes are included in application Notes.'}
+                </p>
+              ) : null}
               {preview.portable && (
                 <div className="portable-preview">
                   {preview.portable.career && (

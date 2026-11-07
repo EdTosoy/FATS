@@ -12,6 +12,9 @@ import {
 } from 'react';
 import { workspaceActivityDays, type WorkspaceSnapshot } from '@fats/domain';
 import type {
+  PreparationRepository,
+  TaskRepository,
+  CsvImportRepository,
   ApplicationInput,
   WorkspaceRepository,
   Interview,
@@ -28,7 +31,8 @@ import {
 } from '@/lib/local-application-repository';
 import { JobFormDialog } from './job-form-dialog';
 
-interface ApplicationContextValue {
+interface ApplicationContextValue
+  extends CsvImportRepository, PreparationRepository, TaskRepository {
   refreshWorkspace: () => Promise<void>;
   createCapturedApplication: (
     capture: JobCapture,
@@ -207,6 +211,28 @@ export function ApplicationProvider({
   return (
     <ApplicationContext.Provider
       value={{
+        changePreparation: async (applicationId, change) => {
+          const saved = await repository.changePreparation(
+            applicationId,
+            change,
+          );
+          await refresh();
+          channel.current?.postMessage('refresh');
+          return saved;
+        },
+        changeTask: async (applicationId, change) => {
+          const saved = await repository.changeTask(applicationId, change);
+          await refresh();
+          channel.current?.postMessage('refresh');
+          return saved;
+        },
+        previewCsv: (source) => repository.previewCsv(source),
+        importCsv: async (request) => {
+          const summary = await repository.importCsv(request);
+          await refresh();
+          channel.current?.postMessage('refresh');
+          return summary;
+        },
         refreshWorkspace: async () => {
           await refresh();
           channel.current?.postMessage('refresh');

@@ -1,4 +1,27 @@
-# FATS Sidekick — Phase 3 architecture
+# FATS Sidekick
+
+## Hosted integration (R5)
+
+The unpacked MV3 build supports exactly `https://fats.edtosoy.com`,
+`http://localhost:3000`, and `http://127.0.0.1:3000`. Review requires an explicit
+**FATS workspace** destination selection; there is no default, remembered guess,
+automatic destination change or fallback when a server is unavailable. Each origin
+has separate browser data and sign-in sessions. The confirmation form displays the
+destination and guest/account workspace. Keep Sidekick open if the website cannot
+load; restore the connection and reopen the same destination, or explicitly choose
+a different one. Opening a tab does not establish server availability or save a job.
+
+Optional R1 salary bounds, currency, payment period, seniority, technologies,
+qualifications and posting date can be corrected in **Optional posting details**
+in both forms. Review shows the extracted values before handoff. Unknown values
+stay blank; currency and payment period have no defaults. Existing R1–R4 tracking,
+CSV import, preparation and tasks use the same model/repositories; no migration or
+backup format changes are required.
+
+Hosted account registration is currently reported to fail with “Account storage
+is temporarily unavailable.” R5 does not repair or bypass that problem or Vercel
+protection. Local account verification and locally simulated hosted-origin tests
+are distinct from live hosted verification. See [R5 verification](R5_VERIFICATION.md).
 
 ## Account compatibility (Phase 4)
 
@@ -14,28 +37,28 @@ Decision recorded before implementation: use a short-lived, user-confirmed local
 
 - The MV3 extension reads the active page only after Capture Job, using `activeTab` plus `scripting`. It has no all-sites host permission, background crawler, fetch/import service, or site-specific parser.
 - A React side panel lets the user correct all extracted fields or paste manually. Review validates the existing application rules; Open FATS stages a single draft in extension `storage.session` for 15 minutes and opens `/sidekick#<random UUID>`. No job fields enter URLs, query strings, referrers, or history.
-- The packaged content script runs only on the loopback hosts and immediately exits unless the exact origin is `http://localhost:3000` or `http://127.0.0.1:3000`, the top-frame path is `/sidekick`, and the message comes from that same window/origin. Match patterns cannot restrict ports, so exact runtime checks are mandatory.
-- The service worker accepts staging only from its own exact side-panel URL. It accepts retrieval only from its own top-frame content script on those exact FATS origins/path, bound to the chosen destination origin and opaque draft ID. It exposes no external-message listener and no record-management commands. Web messages are requests for a draft, never instructions to execute code or mutate records.
+- The packaged content script runs only on the three approved hosts and immediately exits unless the exact origin is `http://localhost:3000`, `http://127.0.0.1:3000`, or `https://fats.edtosoy.com`, the top-frame path is `/sidekick`, and the message comes from that same window/origin. Manifest matches cover the approved hosts/paths; exact runtime origin, port, path and frame checks are mandatory.
+- The service worker accepts staging only from its own exact side-panel URL. It accepts retrieval only from its own top-frame content script on those exact three FATS origins/path, bound to the chosen destination origin and opaque draft ID. It exposes no external-message listener and no record-management commands. Web messages are requests for a draft, never instructions to execute code or mutate records.
 - FATS validates the versioned draft again, lets the user edit it, and requires Confirm and save. The existing provider/repository performs persistence. A draft's UUID is the new application ID; retries find the existing record. An already-saved posting URL also returns its existing application without overwriting it. Manual Phase 1 creation retains its existing behavior.
 - A missing/expired draft, extension reload, unavailable bridge, or invalid message leaves saved data untouched and offers retry/manual entry. Opening the confirmation page alone never saves. Session storage clears on extension reload/browser restart; pending data also expires logically after 15 minutes and is removed when accessed after expiry or replaced by a new handoff.
 
-Work arrangement is retained in the existing location string (for example, `Makati · Hybrid`) when saving, avoiding a storage/backup schema change. Missing fields remain blank. HTML descriptions are converted to text in an inert template; extracted markup is never attached/rendered as HTML. Structured data parsing, DOM selectors, and output lengths are bounded. FATS and the extension treat every extracted string as untrusted data.
+Work arrangement is retained in the existing location string (for example, `Makati · Hybrid`) for compatibility with older Sidekick drafts. Explicit remote/hybrid/onsite choices also populate R1’s structured arrangement field; other legacy arrangement text remains only in location. Missing fields remain blank. HTML descriptions are converted to text in an inert template; extracted markup is never attached/rendered as HTML. Structured data parsing, DOM selectors, and output lengths are bounded. FATS and the extension treat every extracted string as untrusted data.
 
-The initial build supports these two local development origins only. They are separate workspaces; choose the same hostname used for your existing tracker. Arbitrary hosted origins require a separately reviewed permission/configuration change. Avoid other-tab edits while saving: local storage still has its documented simultaneous-writer limitation.
+Only the three listed destinations are supported. Choose the same address used for your existing tracker. Other hosted domains, subdomains, HTTP hosted URLs and non-default hosted ports are rejected at runtime. Avoid other-tab edits while saving: local storage still has its documented simultaneous-writer limitation.
 
 Official references checked: [Chrome side panels](https://developer.chrome.com/docs/extensions/reference/api/sidePanel), [temporary activeTab permission](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab), [message security](https://developer.chrome.com/docs/extensions/develop/concepts/messaging#security-considerations), [session storage](https://developer.chrome.com/docs/extensions/reference/api/storage#property-session), and [Playwright extension contexts](https://playwright.dev/docs/chrome-extensions). Developer commands and actual verification are documented below.
 
 ## Permissions and data lifetime
 
-| Permission / scope     | Reason                                                                                                                                          |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activeTab`            | Temporary access granted by the user's toolbar action on a job page. After changing website origin, click the toolbar again.                    |
-| `scripting`            | Inject the extraction function after Capture Job; no automatic page extraction.                                                                 |
-| `sidePanel`            | Open the packaged React interface from the toolbar action (Chrome 116+).                                                                        |
-| `storage`              | Hold one pending draft in `storage.session`, restricted to trusted extension contexts. No website records are stored here.                      |
-| Content-script matches | Only `http://localhost/sidekick*` and `http://127.0.0.1/sidekick*`. Exact runtime origin/port/path/top-frame checks further restrict retrieval. |
+| Permission / scope     | Reason                                                                                                                                                                                 |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activeTab`            | Temporary access granted by the user's toolbar action on a job page. After changing website origin, click the toolbar again.                                                           |
+| `scripting`            | Inject the extraction function after Capture Job; no automatic page extraction.                                                                                                        |
+| `sidePanel`            | Open the packaged React interface from the toolbar action (Chrome 116+).                                                                                                               |
+| `storage`              | Hold one pending draft in `storage.session`, restricted to trusted extension contexts. No website records are stored here.                                                             |
+| Content-script matches | Only `http://localhost/sidekick*`, `http://127.0.0.1/sidekick*`, and `https://fats.edtosoy.com/sidekick*`. Exact runtime origin/port/path/top-frame checks further restrict retrieval. |
 
-There is no `tabs` permission, unrestricted host permission, cookie access, external messaging, remote code, analytics, or background network access. `tabs.query` obtains only the active tab information Chrome makes available through the temporary grant. The extension CSP permits packaged scripts only and denies network connections from extension pages. The content bridge on the local confirmation route remains available without another toolbar grant; it cannot extract job pages or read application storage.
+There is no `tabs` permission, unrestricted host permission, cookie access, external messaging, remote code, analytics, or background network access. `tabs.query` obtains only the active tab information Chrome makes available through the temporary grant. The extension CSP permits packaged scripts only and denies network connections from extension pages. The content bridge on the approved confirmation routes remains available without another toolbar grant; it cannot extract job pages or read application storage.
 
 Capture does not send information to a service or bypass login, paywalls, CAPTCHAs, or protections. Use it only where access and capture are permitted. The source page is still an ordinary website with its own network behavior; Sidekick does not control that page or follow its links.
 
@@ -46,6 +69,8 @@ The web app receives the draft as plain data in memory. Same-origin website code
 - JSON-LD `JobPosting`, including arrays, `@graph`, `mainEntity`, and array-valued `@type`. Reads title, hiring organization name, postal locality/region/country, description, and explicit `TELECOMMUTE` work arrangement.
 - A single posting is preferred. When several postings exist, exactly one matching the current page URL may be used; otherwise fields stay blank for manual entry. Structured but partial postings are not filled with guesses from unrelated page content.
 - Without a JobPosting, basic itemprop markup, `main`/`article` headings, explicit company/location/work-arrangement attributes or metadata, and description metadata provide a fallback. `og:site_name` is not assumed to be an employer.
+- Optional posting fields read explicit JSON-LD `baseSalary` numeric values/ranges, its currency and `unitText` (hour/day/week/month/year), `datePosted`, text/named qualifications, education and experience requirements. Explicit `seniority` and `technologies` properties are accepted when supplied, but are not standard JobPosting properties. Generic `skills`, job titles and description prose are not used to infer either field.
+- HTML fallback supports explicit `job:salary_min`, `job:salary_max`, `job:salary_currency`, `job:payment_period`, `job:seniority`, `job:technologies`, `job:qualifications`, `job:date_posted` metadata and corresponding `data-*` text markers (see extraction source). `datePosted` itemprop content and time datetime attributes are supported. Malformed dates, invalid currency/periods, negative/oversized salaries and reversed ranges stay blank. A valid date/time retains the publisher’s calendar date, without timezone conversion. Salary text such as “competitive” is not interpreted.
 - No page-specific third-party adapter is shipped. Dynamic pages may need capture after content finishes loading. Only the top document is inspected; shadow roots and embedded frames are outside this slice.
 - At most 20 JSON-LD scripts, 200,000 characters per script, 500,000 total characters, 2,000 visited objects, and depth 12 are inspected. Text output respects existing field limits. Oversized/unreadable structured data gives a review warning. A source URL over 2,048 characters stays blank rather than silently saving a truncated link. Always check extracted details for truncation or incomplete information.
 - HTML descriptions are parsed only inside an unattached inert template. Resource/executable elements are removed, and only text is returned. React renders strings normally; no `dangerouslySetInnerHTML`, site instruction execution, or HTML-based application data exists.
@@ -66,7 +91,7 @@ pnpm dev
 1. Open Chrome 116+ → `chrome://extensions` → Developer mode → Load unpacked → `apps/extension/dist`.
 2. Pin Sidekick. Open one permitted HTTP(S) job page and click the toolbar icon. This both grants temporary access and opens the native side panel.
 3. Capture Job; review/correct all fields, or type/paste manually. Missing employer/title/location information is never invented.
-4. Review details; select the FATS origin used for your existing records. Open FATS to confirm. The local app must already be running; there is no extension-owned backend or server health probe.
+4. Review details; explicitly select the FATS address used for your existing records. Open FATS to confirm. For either local address, the local app must already be running. The hosted address requires network access and access through any site protection. There is no extension-owned backend or server health probe; Sidekick never switches to another address on failure.
 5. Edit the confirmation form if needed, then Confirm and save. Check the Saved application and reload. Existing jobs and interviews remain unchanged.
 6. Rebuild after source edits, then reload the extension in Chrome and refresh FATS. This clears pending handoffs. Loading/unloading/pinning the extension is a manual developer step, not an in-app configuration flow.
 

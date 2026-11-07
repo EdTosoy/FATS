@@ -7,7 +7,7 @@ async function handle(request: Request) {
   try {
     return await handleAuth(request, getServices());
   } catch (error) {
-    return errorResponse(error);
+    return errorResponse(error, 'auth-initialization');
   }
 }
 export { handle as GET, handle as POST };

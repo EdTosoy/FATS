@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
+  PAYMENT_PERIODS,
   applicationFromCapture,
   canonicalPostingUrl,
   isCaptureId,
@@ -20,6 +21,11 @@ function CaptureConfirmation({ capture }: { capture: JobCapture }) {
     error: storageError,
   } = useApplications();
   const [job, setJob] = useState(capture.job);
+  const blocked =
+    !!storageError ||
+    account.expired ||
+    account.loading ||
+    (account.mode === 'account' && !!account.error);
   const [saving, setSaving] = useState(false),
     [error, setError] = useState(''),
     [savedId, setSavedId] = useState('');
@@ -32,7 +38,7 @@ function CaptureConfirmation({ capture }: { capture: JobCapture }) {
   );
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (savingRef.current) return;
+    if (savingRef.current || blocked) return;
     savingRef.current = true;
     setSaving(true);
     setError('');
@@ -78,7 +84,13 @@ function CaptureConfirmation({ capture }: { capture: JobCapture }) {
         the location. Saving does not apply for the job.
       </p>
       <SessionNotice />
-      {!account.user && (
+      <p>
+        Destination: {capture.origin} ·{' '}
+        {account.mode === 'account'
+          ? `Account workspace${account.user ? ` (${account.user.email})` : ''}`
+          : 'Guest workspace in this browser'}
+      </p>
+      {account.mode === 'local' && (
         <p className="backup-warning">
           You are using the local workspace.{' '}
           <a
@@ -91,7 +103,7 @@ function CaptureConfirmation({ capture }: { capture: JobCapture }) {
         </p>
       )}
       <form className="job-form" onSubmit={save}>
-        <fieldset disabled={saving || !!storageError || account.expired}>
+        <fieldset disabled={saving || blocked}>
           {(
             [
               ['title', 'Job title', 160],
@@ -127,6 +139,89 @@ function CaptureConfirmation({ capture }: { capture: JobCapture }) {
               }
             />
           </label>
+          <details>
+            <summary>Optional posting details</summary>
+            {(['salaryMin', 'salaryMax'] as const).map((key) => (
+              <label key={key}>
+                {key === 'salaryMin' ? 'Minimum salary' : 'Maximum salary'}
+                <input
+                  type="number"
+                  min="0"
+                  max="1000000000000"
+                  step="any"
+                  value={job[key] ?? ''}
+                  onChange={(event) =>
+                    setJob({
+                      ...job,
+                      [key]:
+                        event.target.value === ''
+                          ? null
+                          : Number(event.target.value),
+                    })
+                  }
+                />
+              </label>
+            ))}
+            <label>
+              Currency (three-letter code)
+              <input
+                maxLength={3}
+                value={job.currency ?? ''}
+                onChange={(event) =>
+                  setJob({ ...job, currency: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              Payment period
+              <select
+                value={job.paymentPeriod ?? ''}
+                onChange={(event) =>
+                  setJob({
+                    ...job,
+                    paymentPeriod: event.target
+                      .value as typeof job.paymentPeriod,
+                  })
+                }
+              >
+                <option value="">Unspecified</option>
+                {PAYMENT_PERIODS.map((period) => (
+                  <option key={period} value={period}>
+                    {period}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Posting date
+              <input
+                type="date"
+                value={job.postingDate ?? ''}
+                onChange={(event) =>
+                  setJob({ ...job, postingDate: event.target.value })
+                }
+              />
+            </label>
+            {(
+              [
+                ['seniority', 'Seniority'],
+                ['technologies', 'Technologies'],
+                ['qualifications', 'Qualifications'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key}>
+                {label}
+                <textarea
+                  rows={3}
+                  maxLength={20000}
+                  value={job[key] ?? ''}
+                  onChange={(event) =>
+                    setJob({ ...job, [key]: event.target.value })
+                  }
+                />
+              </label>
+            ))}
+          </details>
         </fieldset>
         {error && (
           <p className="error-message" role="alert">
@@ -139,10 +234,7 @@ function CaptureConfirmation({ capture }: { capture: JobCapture }) {
               ? 'Saved to your signed-in FATS account.'
               : 'Saved in this browser, in this FATS workspace.'}
           </span>
-          <Button
-            type="submit"
-            disabled={saving || !!storageError || account.expired}
-          >
+          <Button type="submit" disabled={saving || blocked}>
             {saving ? 'Saving…' : 'Confirm and save'}
           </Button>
         </div>

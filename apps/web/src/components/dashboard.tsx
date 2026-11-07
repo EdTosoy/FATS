@@ -1,4 +1,5 @@
 'use client';
+import { NextActions } from './application-tasks';
 import { OfferNextSteps } from './offer-desk';
 
 import {
@@ -118,6 +119,7 @@ export function Dashboard() {
           )}
         </div>
       </Card>
+      <NextActions />
       {applications.length === 0 ? (
         <p className="dashboard-start-hint">
           Your saved jobs, progress, and interview plans will appear here.

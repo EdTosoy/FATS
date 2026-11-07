@@ -3,6 +3,17 @@ import { assertActiveAccount } from './account-lifecycle';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
+  changeApplicationPreparation,
+  changeApplicationTask,
+  type TaskChange,
+  type PreparationChange,
+  previewCsvRows,
+  selectCsvApplications,
+  csvDigest,
+  CsvImportError,
+  type CsvSource,
+  type CsvImportRequest,
+  normalizeTracking,
   hasMeaningfulChange,
   workspaceActivityDays,
   type WorkspaceSnapshot,
@@ -54,6 +65,10 @@ const APP_FIELDS = [
   'status',
   'createdAt',
   'updatedAt',
+  'tracking',
+  'activities',
+  'preparations',
+  'tasks',
 ] as const;
 const INTERVIEW_FIELDS = [
   'id',
@@ -150,7 +165,10 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       ),
     ]);
     return validateWorkspaceData({
-      applications: apps.rows.map(dates),
+      applications: apps.rows.map((row) => ({
+        ...dates(row),
+        ...row.tracking,
+      })),
       interviews: interviews.rows.map(dates),
     });
   }
@@ -185,8 +203,16 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     row: JobApplication | Interview,
   ) {
     const fields = table === 'applications' ? APP_FIELDS : INTERVIEW_FIELDS;
-    const values = fields.map(
-      (key) => (row as unknown as Record<string, string>)[key],
+    const values = fields.map((key) =>
+      key === 'tracking'
+        ? JSON.stringify(normalizeTracking(row as JobApplication))
+        : key === 'activities'
+          ? JSON.stringify((row as JobApplication).activities ?? [])
+          : key === 'preparations'
+            ? JSON.stringify((row as JobApplication).preparations ?? [])
+            : key === 'tasks'
+              ? JSON.stringify((row as JobApplication).tasks ?? [])
+              : (row as unknown as Record<string, string>)[key],
     );
     await client.query(
       `INSERT INTO ${table}(user_id,${fields.map((key) => `"${key}"`).join(',')}) VALUES(${[this.owner, ...values].map((_, i) => `$${i + 1}`).join(',')})`,
@@ -201,8 +227,16 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     const fields = (
       table === 'applications' ? APP_FIELDS : INTERVIEW_FIELDS
     ).filter((key) => key !== 'id' && key !== 'createdAt');
-    const values = fields.map(
-      (key) => (row as unknown as Record<string, string>)[key],
+    const values = fields.map((key) =>
+      key === 'tracking'
+        ? JSON.stringify(normalizeTracking(row as JobApplication))
+        : key === 'activities'
+          ? JSON.stringify((row as JobApplication).activities ?? [])
+          : key === 'preparations'
+            ? JSON.stringify((row as JobApplication).preparations ?? [])
+            : key === 'tasks'
+              ? JSON.stringify((row as JobApplication).tasks ?? [])
+              : (row as unknown as Record<string, string>)[key],
     );
     await client.query(
       `UPDATE ${table} SET ${fields.map((key, i) => `"${key}"=$${i + 3}`).join(',')} WHERE user_id=$1 AND id=$2`,
@@ -272,6 +306,36 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
       await this.replace(client, 'applications', row);
       await recordMomentum(client, this.owner, row.updatedAt);
       return row;
+    });
+  }
+  async changePreparation(applicationId: string, change: PreparationChange) {
+    return this.transaction(true, async (client) => {
+      const current = (await this.read(client)).applications.find(
+        (row) => row.id === applicationId,
+      );
+      if (!current) throw new WorkspaceError('Application not found.', 404);
+      const next = changeApplicationPreparation(
+        current,
+        change,
+        new Date().toISOString(),
+      );
+      await this.replace(client, 'applications', next);
+      return next;
+    });
+  }
+  async changeTask(applicationId: string, change: TaskChange) {
+    return this.transaction(true, async (client) => {
+      const current = (await this.read(client)).applications.find(
+        (row) => row.id === applicationId,
+      );
+      if (!current) throw new WorkspaceError('Application not found.', 404);
+      const next = changeApplicationTask(
+        current,
+        change,
+        new Date().toISOString(),
+      );
+      await this.replace(client, 'applications', next);
+      return next;
     });
   }
   async deleteApplication(id: string) {
@@ -378,6 +442,44 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
         throw new WorkspaceError('Interview not found.', 404);
     });
   }
+  async previewCsv(source: CsvSource) {
+    return this.transaction(false, async (client, revision) => ({
+      token: await csvDigest({ owner: this.owner, revision, source }),
+      rows: await previewCsvRows(
+        source,
+        (await this.read(client)).applications,
+      ),
+    }));
+  }
+  async importCsv(request: CsvImportRequest) {
+    if (request.confirmed !== true)
+      throw new CsvImportError('Confirm the CSV preview before importing.');
+    const { text, mapping, dateOrder } = request;
+    const source = { text, mapping, dateOrder };
+    return this.transaction(true, async (client, revision) => {
+      if (
+        request.token !==
+        (await csvDigest({ owner: this.owner, revision, source }))
+      )
+        throw new CsvImportError(
+          'Your workspace or CSV changed since preview. Preview again before importing.',
+        );
+      const current = await this.read(client);
+      const rows = await previewCsvRows(source, current.applications);
+      const applications = selectCsvApplications(
+        rows,
+        request.selected,
+        new Date().toISOString(),
+      );
+      for (const application of applications)
+        await this.insert(client, 'applications', application);
+      return {
+        imported: applications.length,
+        skipped: rows.length - applications.length,
+      };
+    });
+  }
+
   async exportBackup() {
     return this.transaction(false, async (client) => {
       const data = await this.read(client),

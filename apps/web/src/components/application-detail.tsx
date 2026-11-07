@@ -1,5 +1,8 @@
 'use client';
 import { applicationListHref } from '@/lib/application-list-url';
+import { ApplicationTasks } from './application-tasks';
+import { ApplicationPreparation } from './application-preparation';
+import { ApplicationTracking } from './application-tracking';
 import { OfferDesk } from './offer-desk';
 
 import { useState } from 'react';
@@ -183,6 +186,9 @@ export function ApplicationDetail({
             </div>
             <p className="field-hint source-url">{application.sourceUrl}</p>
           </Card>
+          <ApplicationTracking application={application} />
+          <ApplicationTasks application={application} />
+          <ApplicationPreparation application={application} />
           <OfferDesk applicationId={application.id} />
           <ApplicationDocuments applicationId={application.id} />
           {matchingEnabled && <ResumeMatching applicationId={application.id} />}
